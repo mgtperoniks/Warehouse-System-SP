@@ -11,9 +11,9 @@ class InventoryService
     /**
      * Handle stock movement (IN/OUT/ADJUSTMENT)
      */
-    public function moveStock(Bin $bin, int $qty, string $type, ?string $reference = null, ?string $userId = null)
+    public function moveStock(Bin $bin, int $qty, string $type, ?string $reference = null, ?string $userId = null, ?int $supplierId = null)
     {
-        return DB::transaction(function () use ($bin, $qty, $type, $reference, $userId) {
+        return DB::transaction(function () use ($bin, $qty, $type, $reference, $userId, $supplierId) {
             // Lock the specific bin row for update to prevent race conditions (Safe Stock Update)
             $lockedBin = Bin::where('id', $bin->id)->lockForUpdate()->first();
             
@@ -25,6 +25,7 @@ class InventoryService
             $movement = StockMovement::create([
                 'item_variant_id' => $lockedBin->item_variant_id,
                 'bin_id'          => $lockedBin->id,
+                'supplier_id'     => $supplierId,
                 'type'            => $type,
                 'qty'             => $qty,
                 'reference'       => $reference,
@@ -53,12 +54,12 @@ class InventoryService
     /**
      * Helper for Stock IN
      */
-    public function stockIn(Bin $bin, int $qty, ?string $reference = null, ?string $userId = null)
+    public function stockIn(Bin $bin, int $qty, ?string $reference = null, ?string $userId = null, ?int $supplierId = null)
     {
         if ($qty <= 0) {
             throw new \Exception("Quantity must be greater than zero for Stock IN.");
         }
-        return $this->moveStock($bin, $qty, 'IN', $reference, $userId);
+        return $this->moveStock($bin, $qty, 'IN', $reference, $userId, $supplierId);
     }
 
     /**

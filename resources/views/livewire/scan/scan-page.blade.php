@@ -13,6 +13,19 @@
             </div>
         @endif
 
+        <!-- Last Action Feedback -->
+        @if($lastAction)
+            <div class="bg-primary/5 border-primary/20 border-2 border-dashed p-4 rounded-xl flex items-center justify-between animate-in fade-in zoom-in duration-300">
+                <div class="flex items-center gap-3">
+                    <span class="material-symbols-outlined text-primary font-black">history</span>
+                    <p class="text-sm font-black text-primary uppercase tracking-wider">Last Action: <span class="bg-primary text-white px-2 py-0.5 rounded ml-2">{{ $lastAction }}</span></p>
+                </div>
+                <button wire:click="$set('lastAction', '')" class="text-slate-400 hover:text-slate-600 transition-colors">
+                    <span class="material-symbols-outlined text-sm">close</span>
+                </button>
+            </div>
+        @endif
+
         <!-- Scan Input Container (Visual Priority) -->
         <div class="bg-primary p-1 rounded-2xl shadow-xl">
             <div class="bg-surface-container-lowest p-6 rounded-[calc(1rem-2px)]">
@@ -23,6 +36,7 @@
                         <input 
                             wire:model="barcode" 
                             wire:keydown.enter="handleScan"
+                            id="barcode-input"
                             autofocus 
                             class="w-full pl-16 pr-6 py-6 bg-surface-container-high rounded-2xl border-2 border-transparent focus:border-primary focus:ring-0 text-1xl md:text-2xl font-black placeholder:text-slate-300 transition-all font-mono" 
                             placeholder="Scan Item Barcode" 
@@ -62,9 +76,12 @@
                                 <span class="material-symbols-outlined text-primary">inventory_2</span>
                                 Stok System: {{ \App\Models\Bin::where('item_variant_id', $currentItem->id)->sum('current_qty') }}
                             </p>
-                            <p class="text-sm text-slate-400 mt-1">Brand: {{ $currentItem->brand ?? '-' }}</p>
+                            <p class="text-sm text-slate-400 mt-1">Brand: {{ $currentItem->brand ?? '-' }} | Unit: {{ $currentItem->unit ?? 'PCS' }}</p>
                         </div>
-                        <span class="bg-primary-container text-white px-4 py-2 rounded-xl text-sm font-black">{{ $currentItem->sku }}</span>
+                        <div class="flex flex-col items-end gap-1">
+                            <span class="bg-primary-container text-white px-4 py-2 rounded-xl text-sm font-black">{{ $currentItem->erp_code }}</span>
+                            <span class="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">ERP Code</span>
+                        </div>
                     </div>
                 </div>
                 
@@ -189,4 +206,55 @@
             document.getElementById('scanner-container').classList.add('hidden');
         }
     }
+
+    // --- Sound & Feedback Logic ---
+    window.addEventListener('scan-completed', event => {
+        // Play Feedback Sound
+        playSuccessBeep();
+        
+        // Haptic Feedback (Vibration)
+        if (navigator.vibrate) {
+            navigator.vibrate(150);
+        }
+    });
+
+    window.addEventListener('focus-barcode-input', event => {
+        const input = document.getElementById('barcode-input');
+        if (input) {
+            input.focus();
+            input.select();
+        }
+    });
+
+    function playSuccessBeep() {
+        try {
+            const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            const oscillator = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+
+            oscillator.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+
+            oscillator.type = 'sine';
+            oscillator.frequency.setValueAtTime(880, audioCtx.currentTime); // 880Hz (A5)
+            gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+
+            oscillator.start();
+            oscillator.stop(audioCtx.currentTime + 0.1);
+        } catch (e) {
+            console.warn("Audio feedback failed:", e);
+        }
+    }
+
+    // Auto-focus persistence (Keep focused unless explicitly clicked elsewhere)
+    document.addEventListener('keydown', (e) => {
+        // If not typing in an input already, and it's a character key, refocus barcode
+        if (document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'TEXTAREA') {
+            const input = document.getElementById('barcode-input');
+            if (input && /^[a-zA-Z0-9]$/.test(e.key)) {
+                input.focus();
+            }
+        }
+    });
 </script>

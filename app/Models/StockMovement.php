@@ -13,6 +13,7 @@ class StockMovement extends Model
     protected $fillable = [
         'item_variant_id',
         'bin_id',
+        'supplier_id',
         'type',
         'qty',
         'reference',
@@ -27,5 +28,10 @@ class StockMovement extends Model
     public function bin(): BelongsTo
     {
         return $this->belongsTo(Bin::class);
+    }
+
+    public function supplier(): BelongsTo
+    {
+        return $this->belongsTo(Supplier::class);
     }
 }

@@ -14,13 +14,32 @@ class ItemVariant extends Model
     protected $fillable = [
         'item_id',
         'sku',
-        'barcode',
+        'erp_code', // Primary Identity
         'brand',
+        'unit',
+        'description',
     ];
 
     public function item(): BelongsTo
     {
         return $this->belongsTo(Item::class);
+    }
+
+    public function barcodes(): HasMany
+    {
+        return $this->hasMany(ItemBarcode::class);
+    }
+
+    public function primaryBarcode(): BelongsTo
+    {
+        return $this->belongsTo(ItemBarcode::class)->where('is_primary', true);
+    }
+
+    public function suppliers(): BelongsToMany
+    {
+        return $this->belongsToMany(Supplier::class, 'item_supplier')
+                    ->withPivot(['supplier_sku', 'lead_time_days', 'price'])
+                    ->withTimestamps();
     }
 
     public function bins(): HasMany

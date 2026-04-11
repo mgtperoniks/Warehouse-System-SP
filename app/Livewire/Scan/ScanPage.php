@@ -16,6 +16,7 @@ class ScanPage extends Component
     public $cart = [];
     public $message = '';
     public $messageType = '';
+    public $lastAction = '';
 
     public function mount()
     {
@@ -26,7 +27,9 @@ class ScanPage extends Component
     public function updatedBarcode()
     {
         // Support lazy reactivity if user stops typing (Fallback)
-        $this->handleScan();
+        if (!empty(trim($this->barcode))) {
+            $this->handleScan();
+        }
     }
 
     public function handleScan()
@@ -38,15 +41,22 @@ class ScanPage extends Component
             return;
         }
 
-        // Find item variant
-        $variant = ItemVariant::with('item')->where('barcode', $this->barcode)->first();
+        // Find item barcode with eager loaded relationships for fast UI rendering
+        $barcodeObj = \App\Models\ItemBarcode::with(['variant.item', 'variant.images'])
+            ->where('barcode', trim($this->barcode))
+            ->first();
 
-        if ($variant) {
-            $this->currentItem = $variant;
+        if ($barcodeObj && $barcodeObj->variant && $barcodeObj->variant->item) {
+            $this->currentItem = $barcodeObj->variant;
             $this->qty = 1;
+
+            // Auto Flow: Call addToCart if qty = 1
+            if ($this->qty == 1) {
+                $this->addToCart();
+            }
         } else {
             $this->currentItem = null;
-            $this->showMessage("Item not found for barcode: {$this->barcode}", 'error');
+            $this->showMessage("Barcode not recognized: {$this->barcode}. Ensure it is registered in Master Data.", 'error');
         }
     }
 
@@ -105,10 +115,16 @@ class ScanPage extends Component
         $this->persistCart();
 
         // Reset inputs
+        $this->lastAction = "+{$requestedQty} " . ($this->currentItem->item->name ?? 'Unknown Item');
         $this->barcode = '';
         $this->currentItem = null;
         $this->qty = 1;
+
         $this->showMessage('Item added to cart.', 'success');
+        
+        // Dispatch feedback & focus events
+        $this->dispatch('scan-completed');
+        $this->dispatch('focus-barcode-input');
     }
 
     public function removeFromCart($index)
