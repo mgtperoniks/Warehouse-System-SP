@@ -5,6 +5,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ScanController;
 use App\Http\Controllers\ItemController;
 use App\Http\Controllers\OpnameController;
+use App\Http\Controllers\StockController;
 
 Route::get('/', function () {
     return redirect()->route('dashboard');
@@ -13,6 +14,13 @@ Route::get('/', function () {
 Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 Route::get('/scan', [ScanController::class, 'index'])->name('scan');
 Route::get('/items', [ItemController::class, 'index'])->name('items');
-Route::get('/opname', [OpnameController::class, 'index'])->name('opname');
-Route::get('/stock-in', \App\Livewire\Stock\StockInPage::class)->name('stock-in');
+Route::get('/items/create', [ItemController::class, 'create'])->name('items.create');
+Route::post('/items', [ItemController::class, 'store'])->name('items.store');
+Route::get('/items/{variant}', [ItemController::class, 'show'])->name('items.show');
+Route::get('/items/{variant}/edit', [ItemController::class, 'edit'])->name('items.edit');
+Route::put('/items/{variant}', [ItemController::class, 'update'])->name('items.update');
+Route::post('/items/import', [ItemController::class, 'import'])->name('items.import');
+Route::get('/opname', \App\Livewire\Opname\OpnamePage::class)->name('opname');
+Route::get('/stock-in', [StockController::class, 'index'])->name('stock-in');
+Route::get('/barcode-printing', \App\Livewire\Barcode\PrintPage::class)->name('barcode.printing');
 
