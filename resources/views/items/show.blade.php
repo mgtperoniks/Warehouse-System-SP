@@ -71,7 +71,7 @@
             $currentStock = $variant->bins->sum('current_qty');
             $mainBin = $variant->bins->first();
         @endphp
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6 mb-8">
             <div class="bg-surface-container-lowest p-6 rounded-3xl border-l-4 border-emerald-500 shadow-sm flex flex-col justify-center">
                 <p class="text-xs font-bold uppercase tracking-widest text-outline mb-2">Current Stock</p>
                 <div class="flex items-baseline gap-2">
@@ -85,6 +85,16 @@
                 <div class="flex items-center gap-3">
                     <span class="material-symbols-outlined text-blue-500 text-3xl">location_on</span>
                     <span class="text-2xl font-black tracking-tight">{{ $mainBin ? $mainBin->code : 'Not Stored' }}</span>
+                </div>
+            </div>
+
+            <div class="bg-surface-container-lowest p-6 rounded-3xl border-l-4 border-purple-500 shadow-sm flex flex-col justify-center">
+                <p class="text-xs font-bold uppercase tracking-widest text-outline mb-2">Last Audit/Opname</p>
+                <div class="flex items-center gap-3">
+                    <span class="material-symbols-outlined text-purple-500 text-3xl">verified</span>
+                    <span class="text-xl font-black tracking-tight">
+                        {{ $variant->last_opname_at ? \Carbon\Carbon::parse($variant->last_opname_at)->format('d M Y') : 'Never Audited' }}
+                    </span>
                 </div>
             </div>
             

@@ -1,5 +1,124 @@
 <div>
-    <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+    <!-- Cropper.js Assets -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.css" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.js"></script>
+
+    <!-- Alpine Data Wrap -->
+    <div x-data="{ 
+            cropping: false,
+            processing: false,
+            editingIndex: null,
+            editingType: 'new',
+            
+            openCropper(type, index, url) {
+                if (typeof Cropper === 'undefined') {
+                    alert('Error: Cropper.js library missing.');
+                    return;
+                }
+
+                this.editingType = type;
+                this.editingIndex = index;
+                this.cropping = true;
+                this.processing = true;
+                
+                this.$nextTick(() => {
+                    const image = this.$refs.cropperImage;
+                    if (!image) return;
+
+                    if (image._cropper) {
+                        image._cropper.destroy();
+                        image._cropper = null;
+                    }
+
+                    const startEngine = () => {
+                        if (image._cropper) return; // Prevent double initialization
+                        image._cropper = new Cropper(image, {
+                            aspectRatio: 1,
+                            viewMode: 2,
+                            dragMode: 'move',
+                            checkOrientation: true,
+                            autoCropArea: 1,
+                            minContainerWidth: 250,
+                            minContainerHeight: 250,
+                            ready: () => {
+                                this.processing = false;
+                            }
+                        });
+                    };
+
+                    image.onload = startEngine;
+                    
+                    // CRITICAL CORS FIX: Force URL to be strictly relative to the current IP/Hostname
+                    // This prevents Canvas Tainting Security Errors if APP_URL doesn't perfectly match the accessed IP
+                    const parser = document.createElement('a');
+                    parser.href = url;
+                    image.src = parser.pathname + parser.search;
+
+                    if (image.complete) startEngine();
+                });
+            },
+            
+            saveCrop() {
+                const cropper = this.$refs.cropperImage ? this.$refs.cropperImage._cropper : null;
+                if (!cropper || this.editingIndex === null) return;
+                
+                this.processing = true;
+                try {
+                    cropper.getCroppedCanvas({
+                        maxWidth: 1200,
+                        maxHeight: 1200,
+                        imageSmoothingQuality: 'high'
+                    }).toBlob((blob) => {
+                        try {
+                            if (!blob) throw new Error('Image buffer is empty');
+                            
+                            // Essential: Convert Blob to File for Livewire compatibility
+                            const file = new File([blob], 'crop_' + Date.now() + '.jpg', { type: 'image/jpeg' });
+
+                            if (this.editingType === 'new') {
+                                @this.upload('photos.' + this.editingIndex, file, 
+                                    (uploadedFilename) => {
+                                        this.cropping = false;
+                                        this.processing = false;
+                                        this.editingIndex = null;
+                                    }, 
+                                    () => {
+                                        alert('Upload failed. Connection might be unstable.');
+                                        this.processing = false;
+                                    }
+                                );
+                            } else {
+                                @this.upload('croppedExistingPhoto', file, 
+                                    (uploadedFilename) => {
+                                        @this.applyExistingCrop(this.editingIndex).then(() => {
+                                            this.cropping = false;
+                                            this.processing = false;
+                                            this.editingIndex = null;
+                                        }).catch(err => {
+                                            alert('Server rejected the target crop update.');
+                                            this.processing = false;
+                                        });
+                                    }, 
+                                    () => {
+                                        alert('Upload failed. Connection might be unstable.');
+                                        this.processing = false;
+                                    }
+                                );
+                            }
+                        } catch (e) {
+                            alert('Blob processing failed: ' + e.message);
+                            this.processing = false;
+                        }
+                    }, 'image/jpeg', 0.85);
+                } catch (e) {
+                    alert('CRITICAL ERROR: ' + e.name + ' - ' + e.message);
+                    console.error('CROPPER EXCEPTION:', e);
+                    this.processing = false;
+                }
+            }
+         }">
+
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
         
         <!-- Left Column: Data Entry -->
         <div class="col-span-1 lg:col-span-7 space-y-6">
@@ -49,6 +168,38 @@
                         <textarea wire:model="description" rows="3" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 focus:ring-2 focus:ring-primary focus:border-primary text-sm transition-all" placeholder="Detailed technical specifications or notes..."></textarea>
                         @error('description') <span class="text-error text-xs font-bold mt-1 block">{{ $message }}</span> @enderror
                     </div>
+                </div>
+            </div>
+
+            <!-- Storage & Inventory Card -->
+            <div class="bg-surface-container-lowest rounded-3xl p-8 border border-slate-200 shadow-sm border-l-4 border-blue-500">
+                <h3 class="text-xl font-bold text-on-surface mb-6 flex items-center gap-2">
+                    <span class="material-symbols-outlined text-blue-500">inventory_2</span>
+                    Storage & Inventory
+                </h3>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">Bin Location Code</label>
+                        <div class="relative">
+                            <span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">location_on</span>
+                            <input wire:model="bin_code" type="text" class="w-full pl-12 pr-4 bg-slate-50 border border-slate-200 rounded-xl py-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-mono font-bold transition-all uppercase" placeholder="e.g. A-01-05">
+                        </div>
+                        @error('bin_code') <span class="text-error text-xs font-bold mt-1 block">{{ $message }}</span> @enderror
+                        <p class="text-[10px] text-slate-400 mt-1 font-bold italic">Update this whenever the item's primary storage spot changes.</p>
+                    </div>
+
+                    @if($mode === 'create')
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">Initial Stock Quantity</label>
+                        <div class="relative">
+                            <span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">box_add</span>
+                            <input wire:model="initial_stock" type="number" class="w-full pl-12 pr-4 bg-slate-50 border border-slate-200 rounded-xl py-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-bold transition-all" placeholder="0">
+                        </div>
+                        @error('initial_stock') <span class="text-error text-xs font-bold mt-1 block">{{ $message }}</span> @enderror
+                        <p class="text-[10px] text-slate-400 mt-1 font-bold italic">This can only be set during initial registration.</p>
+                    </div>
+                    @endif
                 </div>
             </div>
 
@@ -111,7 +262,7 @@
         <!-- Right Column: Image Assets Management -->
         <div class="col-span-1 lg:col-span-5 space-y-6">
             
-            <!-- Upload Dropzone Area Based on User CSS Request -->
+            <!-- Upload Dropzone Area -->
             <div class="bg-surface-container-lowest rounded-3xl p-6 border-2 border-dashed border-slate-300 flex flex-col items-center justify-center text-center group hover:border-primary hover:bg-slate-50 transition-colors relative" id="photo_dropzone">
                 <input type="file" wire:model="photos" multiple accept="image/*" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" />
                 
@@ -145,29 +296,56 @@
                 <div class="grid grid-cols-2 gap-4">
                     <!-- New Uploads Previews -->
                     @foreach($photos as $index => $photo)
-                    <div class="group relative bg-white rounded-2xl overflow-hidden aspect-square shadow-sm border-2 border-primary">
+                    <div class="group relative bg-white rounded-2xl overflow-hidden aspect-square shadow-sm border-2 {{ $primaryPhotoIndex === $index ? 'border-primary' : 'border-slate-100' }}">
                         <img class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" src="{{ $photo->temporaryUrl() }}" />
-                        <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                            <button wire:click.prevent="removeUploadedPhoto({{ $index }})" class="bg-red-500/90 backdrop-blur-md p-2 rounded-full text-white hover:bg-red-600 shadow-lg transition-transform hover:scale-110 active:scale-95">
-                                <span class="material-symbols-outlined text-[20px]">delete</span>
+                        <div class="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-2 px-4 shadow-inner">
+                            <button @click.prevent="openCropper('new', {{ $index }}, '{{ $photo->temporaryUrl() }}')" class="w-full bg-primary text-white py-2 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-primary-fixed-variant flex items-center justify-center gap-2 shadow-lg scale-95 hover:scale-100 transition-all">
+                                <span class="material-symbols-outlined text-[16px]">crop_free</span> Interactive Crop
+                            </button>
+                            @if($primaryPhotoIndex !== $index)
+                                <button wire:click.prevent="setPrimaryNew({{ $index }})" class="w-full bg-white/90 backdrop-blur-md py-2 rounded-xl text-primary font-black text-[10px] uppercase tracking-widest hover:bg-white flex items-center justify-center gap-2">
+                                    <span class="material-symbols-outlined text-[16px]">star</span> Set Primary
+                                </button>
+                            @endif
+                            <button wire:click.prevent="removeUploadedPhoto({{ $index }})" class="w-full bg-red-400/20 backdrop-blur-md py-2 rounded-xl text-red-600 font-black text-[10px] uppercase tracking-widest hover:bg-red-500 hover:text-white flex items-center justify-center gap-2 transition-colors">
+                                <span class="material-symbols-outlined text-[16px]">delete</span> Remove
                             </button>
                         </div>
-                        <div class="absolute top-2 left-2 bg-primary text-white text-[10px] font-black uppercase px-2 py-1 rounded-md shadow-sm">Pending Upload</div>
+                        @if($primaryPhotoIndex === $index)
+                            <div class="absolute top-2 left-2 bg-primary text-white text-[10px] font-black uppercase px-2 py-1 rounded-md shadow-sm flex items-center gap-1">
+                                <span class="material-symbols-outlined text-[12px]" style="font-variation-settings: 'FILL' 1;">star</span> Primary
+                            </div>
+                        @else
+                            <div class="absolute top-2 left-2 bg-slate-800 text-white text-[10px] font-black uppercase px-2 py-1 rounded-md shadow-sm">Preview</div>
+                        @endif
+                        
+                        <div class="absolute bottom-2 right-2 flex gap-1">
+                            <span class="bg-amber-100 text-amber-700 text-[8px] font-black px-1.5 py-0.5 rounded uppercase tracking-tighter shadow-sm border border-amber-200">Pending Crop</span>
+                        </div>
                     </div>
                     @endforeach
 
                     <!-- Existing Saved Images -->
                     @foreach($existingPhotos as $index => $image)
-                    <div class="group relative bg-white rounded-2xl overflow-hidden aspect-square shadow-sm border border-slate-200">
-                        <img class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 opacity-90" src="{{ asset('storage/' . $image['path']) }}" />
-                        <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                            <!-- In a full implementation we could have a set primary hook here too -->
-                            <button wire:click.prevent="removeExistingPhoto({{ $image['id'] }})" class="bg-red-500/90 backdrop-blur-md p-2 rounded-full text-white hover:bg-red-600 shadow-lg transition-transform hover:scale-110 active:scale-95" onclick="return confirm('Are you sure you want to delete this image permanently?')">
-                                <span class="material-symbols-outlined text-[20px]">delete</span>
+                    <div class="group relative bg-white rounded-2xl overflow-hidden aspect-square shadow-sm border {{ $primaryImageId == $image['id'] ? 'border-primary ring-2 ring-primary/20' : 'border-slate-100' }}">
+                        <img class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 opacity-90" src="{{ asset('storage/' . $image['path']) }}?v={{ \Carbon\Carbon::parse($image['updated_at'] ?? now())->timestamp }}" />
+                        <div class="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-2 px-4 shadow-inner">
+                            <button @click.prevent="openCropper('existing', {{ $image['id'] }}, '{{ asset('storage/' . $image['path']) }}?v={{ \Carbon\Carbon::parse($image['updated_at'] ?? now())->timestamp }}')" class="w-full bg-primary text-white py-2 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-primary-fixed-variant flex items-center justify-center gap-2 shadow-lg scale-95 hover:scale-100 transition-all">
+                                <span class="material-symbols-outlined text-[16px]">crop_free</span> Interactive Crop
+                            </button>
+                            @if($primaryImageId != $image['id'])
+                            <button wire:click.prevent="setPrimaryExisting({{ $image['id'] }})" class="w-full bg-white/90 backdrop-blur-md py-2 rounded-xl text-primary font-black text-[10px] uppercase tracking-widest hover:bg-white flex items-center justify-center gap-2">
+                                <span class="material-symbols-outlined text-sm">star</span> Set Primary
+                            </button>
+                            @endif
+                            <button wire:click.prevent="removeExistingPhoto({{ $image['id'] }})" class="w-full bg-red-500/90 backdrop-blur-md py-2 rounded-xl text-white font-black text-[10px] uppercase tracking-widest hover:bg-red-600 flex items-center justify-center gap-2" onclick="return confirm('Are you sure you want to delete this image permanently?')">
+                                <span class="material-symbols-outlined text-sm">delete</span> Delete
                             </button>
                         </div>
-                        @if($image['is_primary'])
-                            <div class="absolute top-2 left-2 bg-slate-800 text-white text-[10px] font-black uppercase px-2 py-1 rounded-md shadow-sm">Main Display</div>
+                        @if($primaryImageId == $image['id'])
+                            <div class="absolute top-2 left-2 bg-primary text-white text-[10px] font-black uppercase px-2 py-1 rounded-md shadow-sm flex items-center gap-1">
+                                <span class="material-symbols-outlined text-[12px]" style="font-variation-settings: 'FILL' 1;">star</span> Primary
+                            </div>
                         @endif
                     </div>
                     @endforeach
@@ -190,4 +368,50 @@
 
         </div>
     </div>
+    <!-- Cropping Modal -->
+    <!-- Ultra-Stable Cropping Modal (Z-9999, No Animations) -->
+    <div x-show="cropping" 
+         class="fixed inset-0 z-[9999] flex items-center justify-center p-2 sm:p-4 bg-slate-900/90"
+         x-cloak>
+        <div class="bg-white rounded-[1.5rem] overflow-hidden max-w-xl w-full shadow-2xl flex flex-col h-[85vh]">
+            <div class="p-4 md:p-6 border-b border-slate-100 flex items-center justify-between bg-white shrink-0">
+                <div>
+                    <h3 class="text-lg md:text-xl font-black text-slate-800 tracking-tight">Interactive Square Crop</h3>
+                    <p class="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-1">Adjust position to center your product</p>
+                </div>
+            </div>
+            
+            <div class="flex-1 bg-slate-100 relative overflow-hidden flex items-center justify-center">
+                <!-- Status layer (Click-through) -->
+                <div x-show="processing" class="absolute inset-0 z-50 flex flex-col items-center justify-center pointer-events-none bg-slate-100/50">
+                    <span class="material-symbols-outlined animate-spin text-primary text-3xl mb-2">progress_activity</span>
+                    <p class="text-[8px] font-black text-slate-400 uppercase">Engine Loading...</p>
+                </div>
+                
+                <img x-ref="cropperImage" class="block max-w-full" style="max-height: 50vh;" />
+            </div>
+            
+            <div class="p-4 md:p-6 bg-slate-50 border-t border-slate-100 flex flex-col gap-3 shrink-0">
+                <button @click="saveCrop()" type="button" class="w-full bg-primary text-white py-5 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl flex items-center justify-center gap-3">
+                    <span class="material-symbols-outlined text-lg">check_circle</span>
+                    Apply & Save Image
+                </button>
+                <button @click="cropping = false; if($refs.cropperImage && $refs.cropperImage._cropper) $refs.cropperImage._cropper.destroy();" type="button" class="w-full py-3 font-black text-[10px] uppercase tracking-widest text-slate-400">
+                    Cancel / Keep Original
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <style>
+        [x-cloak] { display: none !important; }
+        .cropper-view-box,
+        .cropper-face {
+            border-radius: 5%;
+        }
+        .cropper-line, .cropper-point {
+            background-color: #003d9b;
+        }
+    </style>
+    </div> <!-- Close Alpine Data Wrap -->
 </div>

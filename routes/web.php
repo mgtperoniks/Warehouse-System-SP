@@ -24,3 +24,7 @@ Route::get('/opname', \App\Livewire\Opname\OpnamePage::class)->name('opname');
 Route::get('/stock-in', [StockController::class, 'index'])->name('stock-in');
 Route::get('/barcode-printing', \App\Livewire\Barcode\PrintPage::class)->name('barcode.printing');
 
+// Settings / Master Data
+Route::get('/settings/departments', \App\Livewire\Settings\DepartmentPage::class)->name('settings.departments');
+Route::get('/settings/users', \App\Livewire\Settings\UserPage::class)->name('settings.users');
+

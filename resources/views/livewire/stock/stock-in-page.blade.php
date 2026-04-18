@@ -131,7 +131,7 @@
                         <div class="bg-surface-container-lowest rounded-xl p-0 industrial-shadow overflow-hidden border-l-4 border-primary group relative">
                             <img alt="Product Preview"
                                  class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                                 src="{{ $currentItem->images->where('is_primary', true)->first()->path ?? asset('images/placeholders/item.svg') }}"/>
+                                 src="{{ $currentItem->images->where('is_primary', true)->first() ? asset('storage/' . $currentItem->images->where('is_primary', true)->first()->path) : asset('images/placeholders/item.svg') }}"/>
                         </div>
                     </div>
 

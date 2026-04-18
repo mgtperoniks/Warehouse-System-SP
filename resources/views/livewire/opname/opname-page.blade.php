@@ -89,67 +89,129 @@
     </style>
 
     <main class="dashboard-main mobile-stack h-full">
+        <!-- Message Flash -->
+        @if (session()->has('message'))
+            <div class="col-span-12 bg-emerald-500 text-white p-4 rounded-2xl font-bold flex items-center justify-between shadow-lg mb-4">
+                <div class="flex items-center gap-3">
+                    <span class="material-symbols-outlined">check_circle</span>
+                    {{ session('message') }}
+                </div>
+                <button @click="$el.parentElement.remove()" class="material-symbols-outlined">close</button>
+            </div>
+        @endif
+
         <!-- Left Column: Bin Scanning -->
-        <section class="col-span-12 lg:col-span-3 flex flex-col gap-6 mobile-column">
+        <section class="col-span-12 lg:col-span-4 flex flex-col gap-6 mobile-column">
             <div class="bg-surface-container-low rounded-2xl p-8 flex flex-col h-full border-l-8 border-primary shadow-sm">
                 <div class="mb-10">
                     <span class="text-xs font-black text-primary tracking-[0.2em] uppercase mb-1 block">Step 01</span>
-                    <h2 class="text-3xl font-black text-on-surface leading-tight tracking-tighter">Bin Localization</h2>
-                    <p class="text-on-surface-variant text-sm mt-3 leading-relaxed font-medium">Position yourself at the physical bin location before scanning.</p>
+                    <h2 class="text-3xl font-black text-on-surface leading-tight tracking-tighter">Inventory Audit</h2>
+                    <p class="text-on-surface-variant text-sm mt-3 leading-relaxed font-medium">Scan any <strong>Bin Label</strong> or <strong>Product Barcode</strong> to start counting.</p>
                 </div>
                 
                 <div class="space-y-8">
                     <div>
-                        <label class="block text-[10px] font-black text-slate-400 mb-2 uppercase tracking-widest">Scan Bin Barcode</label>
-                        <div class="relative group">
+                        <label class="block text-[10px] font-black text-slate-400 mb-2 uppercase tracking-widest">Scanner Input</label>
+                        <div class="relative group flex items-center">
                             <span class="absolute left-4 top-1/2 -translate-y-1/2 text-primary material-symbols-outlined transition-transform group-focus-within:scale-110" style="font-variation-settings: 'FILL' 1;">qr_code_2</span>
-                            <input wire:model="binScan" 
-                                   class="w-full bg-white border-2 border-slate-100 rounded-2xl pl-14 pr-4 py-5 font-black text-xl text-primary focus:ring-4 focus:ring-primary/5 focus:border-primary transition-all shadow-sm" 
-                                   placeholder="e.g. A-12-04" 
-                                   type="text"/>
+                            <input wire:model.live.debounce.500ms="binScan" 
+                                   autofocus
+                                   id="scanner-input"
+                                   class="w-full bg-white border-2 border-slate-100 rounded-2xl pl-14 pr-24 py-5 font-black text-xl text-primary focus:ring-4 focus:ring-primary/5 focus:border-primary transition-all shadow-sm" 
+                                   placeholder="Scan Barcode..." 
+                                   type="text"
+                                   x-on:keydown.enter="$wire.handleScan($el.value); $el.value = ''"/>
+                            <div class="absolute right-3 flex items-center gap-2">
+                                <button onclick="startScanner()" type="button"
+                                        class="bg-slate-100 border border-slate-200 text-slate-600 w-12 h-12 rounded-xl shadow-sm flex items-center justify-center hover:bg-primary/10 hover:text-primary active:scale-95 transition-all outline-none">
+                                    <span class="material-symbols-outlined text-2xl" style="font-variation-settings: 'FILL' 1;">photo_camera</span>
+                                </button>
+                            </div>
                         </div>
+                        @error('binScan') <span class="text-error text-xs font-bold mt-2 block">{{ $message }}</span> @enderror
                     </div>
-                    
-                    <div class="bg-primary/5 rounded-2xl p-6 border-2 border-primary/10">
-                        <div class="flex items-start gap-4">
-                            <span class="material-symbols-outlined text-primary text-2xl">info</span>
-                            <p class="text-sm text-on-surface-variant leading-relaxed font-semibold">
-                                Bin: <strong class="text-primary font-black">Zone A-12-04</strong>. 
-                                <br/><span class="text-xs opacity-75">Contains 12 Item variants.</span>
-                            </p>
+                </div>
+
+                <!-- Camera Scanner Container -->
+                <div id="scanner-container" class="hidden fixed inset-0 z-[100] bg-black/90 backdrop-blur-lg flex flex-col items-center justify-center p-6" wire:ignore>
+                    <div class="w-full max-w-lg bg-surface-container-lowest rounded-3xl overflow-hidden shadow-2xl relative border-4 border-white/20">
+                        <div id="reader" style="width: 100%;"></div>
+                        <div class="p-6 text-center">
+                            <p class="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4">Position barcode within the frame</p>
+                            <button type="button" onclick="stopScanner()"
+                                    class="w-full py-4 bg-error text-white font-black text-sm uppercase tracking-widest rounded-2xl shadow-xl shadow-error/20 hover:bg-red-600 transition-all">
+                                Cancel Scan
+                            </button>
                         </div>
                     </div>
                 </div>
 
+                @if($isScanning)
+                <div class="mt-10 animate-pulse flex flex-col items-center justify-center p-10 border-2 border-dashed border-slate-200 rounded-3xl">
+                    <span class="material-symbols-outlined text-6xl text-slate-200 mb-4">barcode_scanner</span>
+                    <p class="text-slate-400 font-bold text-sm tracking-widest uppercase text-center">Waiting for scan...</p>
+                </div>
+                @endif
+
+                @if($isSelectingBin)
+                <div class="mt-10 space-y-4">
+                    <div class="flex items-center gap-2 text-amber-600 mb-2">
+                        <span class="material-symbols-outlined">warning</span>
+                        <span class="text-xs font-black uppercase tracking-widest">Multi-Location Detected</span>
+                    </div>
+                    <p class="text-[11px] text-slate-500 font-bold leading-tight mb-4">This product is stored in multiple bins. Please select the specific bin you are currently counting:</p>
+                    
+                    <div class="space-y-3 max-h-60 overflow-y-auto pr-2 custom-scroll">
+                        @foreach($candidateBins as $bin)
+                        <button wire:click="selectBin({{ $bin->id }})" 
+                                class="w-full p-4 bg-white border-2 border-slate-100 rounded-2xl flex items-center justify-between hover:border-primary hover:bg-primary/5 transition-all group">
+                            <div class="flex items-center gap-3">
+                                <span class="material-symbols-outlined text-primary">location_on</span>
+                                <span class="font-black text-on-surface uppercase">{{ $bin->code }}</span>
+                            </div>
+                            <div class="text-right">
+                                <p class="text-[10px] text-slate-400 font-black uppercase">Qty</p>
+                                <p class="text-primary font-black">{{ $bin->current_qty }}</p>
+                            </div>
+                        </button>
+                        @endforeach
+                    </div>
+                </div>
+                @endif
+
                 <div class="mt-auto pt-10 space-y-4">
                     <div class="flex items-center justify-between text-[10px] font-black uppercase tracking-widest">
                         <span class="text-slate-400">Scanner Readiness</span>
-                        <span class="text-primary">Operational</span>
+                        <span class="text-emerald-500">Operational</span>
                     </div>
                     <div class="w-full bg-slate-200 h-2 rounded-full overflow-hidden">
-                        <div class="bg-primary w-full h-full"></div>
+                        <div class="bg-emerald-500 w-full h-full"></div>
                     </div>
                 </div>
             </div>
         </section>
 
         <!-- Center Column: Active Item Count -->
-        <section class="col-span-12 lg:col-span-5 flex flex-col gap-6 mobile-column">
-            <div class="bg-white rounded-3xl shadow-2xl shadow-slate-200/50 flex flex-col h-full overflow-hidden border border-slate-100 min-h-[600px]">
+        <section class="col-span-12 lg:col-span-8 flex flex-col gap-6 mobile-column">
+            @if($selectedBin)
+            <div class="bg-white rounded-3xl shadow-2xl shadow-slate-200/50 flex flex-col h-full overflow-hidden border border-slate-100 min-h-[600px] animate-in slide-in-from-right duration-500">
                 <!-- Item Image Area -->
-                <div class="h-80 relative bg-slate-100 overflow-hidden group border-b-2 border-slate-50">
-                    <img alt="Industrial Power Drill" 
+                <div class="h-64 relative bg-slate-100 overflow-hidden group border-b-2 border-slate-50">
+                    <img alt="{{ $selectedBin->itemVariant->item->name }}" 
                          class="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110" 
-                         src="https://lh3.googleusercontent.com/aida-public/AB6AXuDrOTqMzCDN_TErD20Igc30G-sqin2JL2IhGc2H3Lm8mzAmR4NcqEztmS0FwkLA8Ms9FUl2cp-ajiocozq3wl13vH9OCnUkY65JExt-X0XYBc1c-__MDQLAMasRGitfg3d62iKlDtwpA29HUMIRttW1dzU1qSOooLvjwVFoI6vdaTwQ7xMkgO-hHMWK4XtHz0wUEjZNMs4IVy1V1Tbr6ZxirgeYTHJPPrv7wK6rUEn5MHH1Qcx9WawuHgiK0lH9GHGgWyv2qrohBDQ"/>
+                         src="{{ !empty($selectedBin->itemVariant->images) && count($selectedBin->itemVariant->images) > 0 ? asset('storage/' . $selectedBin->itemVariant->images[0]->path) : 'https://placehold.co/600x400/f8f9fb/003d9b?text=No+Photo' }}"/>
+                    
                     <div class="absolute bottom-0 left-0 right-0 p-8 bg-gradient-to-t from-black/80 via-black/40 to-transparent">
                         <div class="flex justify-between items-end">
-                            <div>
-                                <span class="text-[10px] font-black text-blue-300 uppercase tracking-[0.2em] px-3 py-1 bg-white/10 backdrop-blur-md border border-white/20 rounded-full mb-3 inline-block">SKU: DRILL-P4-BLUE-99</span>
-                                <h3 class="text-white text-3xl font-black tracking-tight leading-tight">Industrial Power Drill - Gen 4</h3>
+                            <div class="max-w-[70%]">
+                                <span class="text-[10px] font-black text-blue-300 uppercase tracking-[0.2em] px-3 py-1 bg-white/10 backdrop-blur-md border border-white/20 rounded-full mb-3 inline-block">
+                                    SKU: {{ $selectedBin->itemVariant->sku ?? 'NO SKU' }} | BIN: {{ $selectedBin->code }}
+                                </span>
+                                <h3 class="text-white text-3xl font-black tracking-tight leading-tight uppercase">{{ $selectedBin->itemVariant->item->name }}</h3>
                             </div>
                             <div class="text-right">
                                 <p class="text-blue-200 text-[10px] uppercase font-black tracking-widest mb-1">System Qty</p>
-                                <p class="text-white text-5xl font-black leading-none tracking-tighter">42</p>
+                                <p class="text-white text-5xl font-black leading-none tracking-tighter">{{ $systemQty }}</p>
                             </div>
                         </div>
                     </div>
@@ -164,7 +226,7 @@
                                     class="w-24 h-24 rounded-3xl bg-surface-container-high text-on-surface hover:bg-slate-200 active:scale-90 transition-all flex items-center justify-center shadow-lg border-b-4 border-slate-300">
                                 <span class="material-symbols-outlined text-4xl font-bold">remove</span>
                             </button>
-                            <input wire:model="actualQty" 
+                            <input wire:model.live.debounce.300ms="actualQty" 
                                    class="w-48 text-center text-[10rem] font-black text-primary border-none focus:ring-0 p-0 leading-none bg-transparent" 
                                    type="number"/>
                             <button wire:click="incrementQty" 
@@ -173,100 +235,106 @@
                             </button>
                         </div>
                     </div>
+
+                    @if($difference !== 0)
+                    <div class="flex gap-10 items-center justify-center bg-amber-50 px-10 py-4 rounded-3xl border border-amber-100">
+                        <div class="text-center">
+                            <p class="text-[10px] font-black text-amber-600 uppercase tracking-widest">Difference</p>
+                            <p class="text-3xl font-black text-amber-700">{{ $difference > 0 ? '+' : '' }}{{ $difference }}</p>
+                        </div>
+                        <div class="h-10 w-px bg-amber-200"></div>
+                        <p class="text-xs font-bold text-amber-800 leading-tight text-left">
+                            <strong>Note:</strong> Saving this will trigger a <br/>stock adjustment transaction.
+                        </p>
+                    </div>
+                    @else
+                    <div class="flex gap-4 items-center justify-center bg-emerald-50 px-8 py-3 rounded-full border border-emerald-100 text-emerald-700 font-black uppercase text-xs tracking-widest">
+                        <span class="material-symbols-outlined">verified</span>
+                        Inventory Matches System
+                    </div>
+                    @endif
                 </div>
                 
                 <!-- Footer Action Buttons -->
                 <div class="p-8 bg-slate-50 flex gap-4 border-t-2 border-slate-100">
-                    <button class="flex-1 py-6 bg-white border-2 border-slate-200 text-slate-500 font-black text-sm uppercase tracking-widest rounded-3xl hover:bg-slate-100 transition-all flex items-center justify-center gap-2">
-                        <span class="material-symbols-outlined text-xl">report</span>
-                        ReportIssue
+                    <button wire:click="resetAudit" class="flex-1 py-6 bg-white border-2 border-slate-200 text-slate-500 font-black text-sm uppercase tracking-widest rounded-3xl hover:bg-slate-100 transition-all flex items-center justify-center gap-2">
+                        <span class="material-symbols-outlined text-xl">close</span>
+                        Cancel
                     </button>
                     <button wire:click="saveItem" 
                             class="flex-[2] py-6 bg-gradient-to-br from-primary to-primary-container text-white font-black text-xl uppercase tracking-widest rounded-3xl shadow-xl shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-3 group">
-                        SAVE / NEXT ITEM
-                        <span class="material-symbols-outlined text-3xl font-black transition-transform group-hover:translate-x-2">arrow_forward</span>
+                        FINISH OPNAME
+                        <span class="material-symbols-outlined text-3xl font-black transition-transform group-hover:translate-x-2">check_circle</span>
                     </button>
                 </div>
             </div>
-        </section>
-
-        <!-- Right Column: Batch Progress & Completed Items -->
-        <section class="col-span-12 lg:col-span-4 flex flex-col gap-6 mobile-column overflow-hidden h-full">
-            <div class="bg-surface-container-low rounded-3xl p-8 flex flex-col h-full overflow-hidden shadow-sm border border-slate-200/50">
-                <div class="flex justify-between items-center mb-8">
-                    <div>
-                        <h2 class="text-xl font-black text-on-surface uppercase tracking-tight">Completed</h2>
-                        <p class="text-[10px] text-primary font-black uppercase tracking-widest">Bin A-12-04 History</p>
-                    </div>
-                    <div class="text-right">
-                        <p class="text-3xl font-black text-primary tracking-tighter">5/12</p>
-                        <p class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Items Verified</p>
-                    </div>
+            @else
+            <div class="flex-1 flex flex-col items-center justify-center bg-slate-50 rounded-3xl border-2 border-dashed border-slate-200 p-20 text-center">
+                <div class="w-24 h-24 bg-white rounded-full flex items-center justify-center shadow-lg mb-6">
+                    <span class="material-symbols-outlined text-slate-300 text-4xl">inventory_2</span>
                 </div>
-
-                <div class="flex-1 overflow-y-auto pr-2 space-y-4 custom-scroll">
-                    <!-- Item Row: Match -->
-                    <div class="bg-white rounded-2xl p-4 flex items-center gap-4 border-2 border-transparent hover:border-primary/10 transition-all shadow-sm">
-                        <div class="w-16 h-16 rounded-xl bg-slate-50 overflow-hidden shrink-0 border border-slate-100 p-1">
-                            <img alt="Steel Bolts" class="w-full h-full object-cover rounded-lg" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCdou-G5_qpuTRWzcdDkETtNDgfHDxOJir8DKMsfRFLpoq9vu6fXm3rSHsKzfb95aeVYAXcjFezQysLukKFe7wY7gCLXD83yHosUde_po-yrtYM5-0kHQjG0_Hae-fGeMT_NHrzv1XyERMVuvW9DScVgmxkXde75IZ7hsCyrg7sxvdyC4gpxpW5LHoeSMkGa05abLPRgPW0Nx1AJcTsFZ_TvtbAhuyto-Bc9AuG5Sh-LfIY6v-iT4Uspi33-ZTmeihd7XHK9WhwMPw"/>
-                        </div>
-                        <div class="flex-1 min-w-0">
-                            <h4 class="text-sm font-black text-on-surface truncate uppercase tracking-tight leading-tight">M12 Steel Bolts (P50)</h4>
-                            <p class="text-[10px] text-slate-400 font-bold tracking-tight mt-1">SKU: BT-1209-X</p>
-                        </div>
-                        <div class="text-right flex flex-col items-end gap-1 shrink-0">
-                            <span class="px-2 py-0.5 bg-slate-100 text-slate-600 text-[10px] font-black uppercase rounded-lg tracking-wider">Match</span>
-                            <div class="flex items-center gap-2 text-xs">
-                                <span class="text-slate-400">Sys: 120</span>
-                                <span class="font-black text-slate-900">Act: 120</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Item Row: Shortage -->
-                    <div class="bg-white rounded-2xl p-4 flex items-center gap-4 border-l-8 border-error shadow-sm hover:translate-x-1 transition-all">
-                        <div class="w-16 h-16 rounded-xl bg-slate-50 overflow-hidden shrink-0 border border-slate-100 p-1">
-                            <img alt="Welding Mask" class="w-full h-full object-cover rounded-lg" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDgsDQIVCtAgnw7UxvXeRqD8XI4ttITKaEkR9lhYzuNiJvJk3NhUKGbL1sRqiJE0KGUcp6pjpT2hitKw1lwAETMbL-CpaWr7vyPcbCNhkUmJln2tpdioPUgkqcXJ0wmWmDx5ke7XgJtTiX-6FLUjiZ6W0XEaapfHnTRgMI5no0UXzz55EdGq12iImZ7IvzjB_jReM0GNLioGXzgDgZtWJj_Utc0pUAWqKr01LjyOKUUp_fcKafltaKTlY1sD69_qHljWnHIW8a953k"/>
-                        </div>
-                        <div class="flex-1 min-w-0">
-                            <h4 class="text-sm font-black text-on-surface truncate uppercase tracking-tight leading-tight">Auto-Darkening Mask</h4>
-                            <p class="text-[10px] text-slate-400 font-bold tracking-tight mt-1">SKU: WM-PRO-88</p>
-                        </div>
-                        <div class="text-right flex flex-col items-end gap-1 shrink-0">
-                            <span class="px-2 py-0.5 bg-error-container text-on-error-container text-[10px] font-black uppercase rounded-lg tracking-wider">-2 Short</span>
-                            <div class="flex items-center gap-2 text-xs">
-                                <span class="text-slate-400">Sys: 15</span>
-                                <span class="font-black text-error">Act: 13</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Item Row: Excess -->
-                    <div class="bg-white rounded-2xl p-4 flex items-center gap-4 border-l-8 border-tertiary shadow-sm hover:translate-x-1 transition-all">
-                        <div class="w-16 h-16 rounded-xl bg-slate-50 overflow-hidden shrink-0 border border-slate-100 p-1">
-                            <img alt="Safety Helmet" class="w-full h-full object-cover rounded-lg" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDRJkIzqQvN8pFgxBUof8-Nt_qkw8TiqUDfD4vpVU1OGNvTTTNfbhtCbkdcmtdn0pvSnx0YavjLEH-nMy0LhzH7kbVDJnCxVId7GTeHtY8v6D4LeMyOlfMUfIpGd3A2WjPoizRiImZv-0r9bNmgz0U70t1pIxCgncWXXD2gAzgxXbHYKk0SK2eaCXZbwSPxoMe8Xgpxdr2t1fjEZ_VuqC6nfCJfl8P1TLKx4guDvmwvltpyT-q3pBPuQ7JVr1TdvsDhLime0SuOWZk"/>
-                        </div>
-                        <div class="flex-1 min-w-0">
-                            <h4 class="text-sm font-black text-on-surface truncate uppercase tracking-tight leading-tight">V-Gard Helmet</h4>
-                            <p class="text-[10px] text-slate-400 font-bold tracking-tight mt-1">SKU: SH-YEL-01</p>
-                        </div>
-                        <div class="text-right flex flex-col items-end gap-1 shrink-0">
-                            <span class="px-2 py-0.5 bg-tertiary-fixed text-on-tertiary-fixed-variant text-[10px] font-black uppercase rounded-lg tracking-wider">+12 Excess</span>
-                            <div class="flex items-center gap-2 text-xs">
-                                <span class="text-slate-400">Sys: 50</span>
-                                <span class="font-black text-tertiary">Act: 62</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="pt-8 mt-6 border-t-2 border-slate-100">
-                    <button class="w-full py-5 bg-white text-primary border-2 border-primary/20 font-black text-xs uppercase tracking-widest rounded-2xl hover:bg-primary/5 transition-all flex items-center justify-center gap-3">
-                        <span class="material-symbols-outlined text-xl">file_download</span>
-                        Export Session Report
-                    </button>
-                </div>
+                <h3 class="text-2xl font-black text-slate-300 uppercase tracking-tighter">No Active Audit</h3>
+                <p class="text-slate-400 text-sm mt-2 max-w-xs font-bold">Scan a bin or item to begin the physical verification process.</p>
             </div>
+            @endif
         </section>
     </main>
+
+    <script>
+        let html5QrCode;
+
+        function startScanner() {
+            document.getElementById('scanner-container').classList.remove('hidden');
+            if (!html5QrCode) html5QrCode = new Html5Qrcode("reader");
+            
+            const config = { 
+                fps: 20, 
+                qrbox: { width: 280, height: 180 }, 
+                aspectRatio: 1.0,
+                experimentalFeatures: {
+                    useBarCodeDetectorIfSupported: true 
+                },
+                videoConstraints: {
+                    facingMode: "environment",
+                    width: { min: 640, ideal: 1280 },
+                    height: { min: 480, ideal: 720 }
+                }
+            };
+
+            html5QrCode.start(
+                { facingMode: "environment" },
+                config,
+                (decodedText) => {
+                    stopScanner();
+                    @this.set('binScan', decodedText);
+                    // Force refresh/update 
+                    @this.handleScan(decodedText);
+                },
+                (errorMessage) => {}
+            ).catch(err => {
+                console.error("Camera startup error", err);
+                alert("Could not start camera. Please ensure permissions are granted.");
+                stopScanner();
+            });
+        }
+
+        function stopScanner() {
+            if (html5QrCode && html5QrCode.isScanning) {
+                html5QrCode.stop().then(() => {
+                    document.getElementById('scanner-container').classList.add('hidden');
+                }).catch(err => console.error("Error stopping scanner", err));
+            } else {
+                document.getElementById('scanner-container').classList.add('hidden');
+            }
+        }
+
+        // Auto-focus logic
+        document.addEventListener('livewire:initialized', () => {
+            window.addEventListener('focus-scanner', () => {
+                setTimeout(() => {
+                    document.getElementById('scanner-input')?.focus();
+                }, 100);
+            });
+        });
+    </script>
 </div>

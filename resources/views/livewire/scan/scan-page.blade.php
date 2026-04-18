@@ -153,7 +153,7 @@
             <div class="bg-white rounded-3xl shadow-xl overflow-hidden border border-slate-100 success-flash animate-in zoom-in-95 duration-300">
                 <div class="flex flex-col sm:flex-row">
                     <div class="sm:w-56 shrink-0 bg-slate-100 relative group overflow-hidden">
-                        <img alt="Product" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" src="{{ $currentItem->images->where('is_primary', true)->first()->path ?? asset('images/placeholders/item.svg') }}"/>
+                        <img alt="Product" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" src="{{ $currentItem->images->where('is_primary', true)->first() ? asset('storage/' . $currentItem->images->where('is_primary', true)->first()->path) : asset('images/placeholders/item.svg') }}"/>
                         <div class="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent"></div>
                     </div>
                     <div class="flex-1 p-8 flex flex-col justify-between gap-6">

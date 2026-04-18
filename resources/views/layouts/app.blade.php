@@ -62,11 +62,18 @@
                 <span class="font-inter text-sm font-bold">Opname</span>
             </a>
         </nav>
-        <div class="pt-4 border-t border-slate-200 space-y-1">
-            <a class="flex items-center gap-3 px-4 py-3 text-slate-600 hover:bg-slate-200 rounded-xl" href="#">
-                <span class="material-symbols-outlined">settings</span>
-                <span class="font-inter text-sm font-bold">Settings</span>
-            </a>
+        <div class="pt-4 border-t border-slate-200">
+            <p class="px-4 mb-2 text-[10px] text-slate-400 font-bold uppercase tracking-widest">Settings</p>
+            <div class="space-y-1">
+                <a class="flex items-center gap-3 px-4 py-3 {{ request()->routeIs('settings.departments') ? 'bg-white dark:bg-slate-800 text-green-600 border-l-4 border-green-600 shadow-sm' : 'text-slate-600 hover:bg-slate-200' }} rounded-xl transition-all duration-200" href="{{ route('settings.departments') }}">
+                    <span class="material-symbols-outlined">corporate_fare</span>
+                    <span class="font-inter text-sm font-bold">Departments</span>
+                </a>
+                <a class="flex items-center gap-3 px-4 py-3 {{ request()->routeIs('settings.users') ? 'bg-white dark:bg-slate-800 text-green-600 border-l-4 border-green-600 shadow-sm' : 'text-slate-600 hover:bg-slate-200' }} rounded-xl transition-all duration-200" href="{{ route('settings.users') }}">
+                    <span class="material-symbols-outlined">person</span>
+                    <span class="font-inter text-sm font-bold">Users / PIC</span>
+                </a>
+            </div>
         </div>
     </aside>
 

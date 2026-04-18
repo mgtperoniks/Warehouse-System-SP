@@ -20,6 +20,7 @@ class ItemVariant extends Model
         'unit',
         'price',
         'description',
+        'last_opname_at',
     ];
 
     public function item(): BelongsTo

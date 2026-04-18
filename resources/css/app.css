@@ -7,10 +7,8 @@
 @import '@fontsource/inter/800.css';
 @import '@fontsource/inter/900.css';
 
-@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
-@source '../../storage/framework/views/*.php';
-@source '../**/*.blade.php';
-@source '../**/*.js';
+@source '../views';
+@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views';
 
 @custom-variant dark (&:where(.dark, .dark *));
 
@@ -67,6 +65,24 @@
     --color-primary: #003d9b;
     --color-on-primary-fixed-variant: #0040a2;
     --color-error: #ba1a1a;
+
+    /* Legacy Browser Compatibility (HEX colors for emerald/amber) */
+    --color-emerald-50: #ecfdf5;
+    --color-emerald-100: #d1fae5;
+    --color-emerald-500: #10b981;
+    --color-emerald-600: #059669;
+    --color-emerald-700: #047857;
+    
+    --color-amber-50: #fffbeb;
+    --color-amber-100: #fef3c7;
+    --color-amber-200: #fde68a;
+    --color-amber-500: #f59e0b;
+    --color-amber-800: #92400e;
+    
+    --color-slate-50: #f8fafc;
+    --color-slate-100: #f1f5f9;
+    --color-slate-200: #e2e8f0;
+    --color-slate-500: #64748b;
 }
 
 @utility font-inter {

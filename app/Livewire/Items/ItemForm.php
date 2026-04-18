@@ -34,6 +34,16 @@ class ItemForm extends Component
     // Images
     public $photos = [];
     public $existingPhotos = [];
+    public $primaryImageId = null;
+    public $primaryPhotoIndex = 0; // Default to first new photo if no existing primary
+
+    // Inventory Initialization (Temporary for Create)
+    public $initial_stock = 0;
+    public $bin_code = '';
+
+    // Intermediate Cropping State
+    public $croppedExistingPhoto = null;
+    public $editingExistingId = null;
 
     protected function rules()
     {
@@ -46,6 +56,8 @@ class ItemForm extends Component
             'unit' => 'nullable|string|max:50',
             'description' => 'nullable|string',
             'photos.*' => 'image|max:25600', // 25MB Max
+            'bin_code' => 'nullable|string|max:50',
+            'initial_stock' => 'nullable|integer|min:0',
         ];
     }
 
@@ -75,6 +87,13 @@ class ItemForm extends Component
 
             // Load Images
             $this->existingPhotos = $variant->images->toArray();
+            $primaryImg = $variant->images->where('is_primary', true)->first();
+            if ($primaryImg) {
+                $this->primaryImageId = $primaryImg->id;
+            }
+
+            // Load primary bin code
+            $this->bin_code = $variant->bins()->first()?->code ?? '';
         }
     }
 
@@ -135,6 +154,24 @@ class ItemForm extends Component
     {
         unset($this->photos[$index]);
         $this->photos = array_values($this->photos);
+        
+        if ($this->primaryPhotoIndex === $index) {
+            $this->primaryPhotoIndex = 0;
+        } elseif ($this->primaryPhotoIndex > $index) {
+            $this->primaryPhotoIndex--;
+        }
+    }
+
+    public function setPrimaryExisting($imageId)
+    {
+        $this->primaryImageId = $imageId;
+        $this->primaryPhotoIndex = null;
+    }
+
+    public function setPrimaryNew($index)
+    {
+        $this->primaryPhotoIndex = $index;
+        $this->primaryImageId = null;
     }
 
     public function save()
@@ -176,17 +213,80 @@ class ItemForm extends Component
                 ]);
             }
 
-            // Handle Photo Uploads
+            // Handle Photo Uploads & Primary Selection
+            $imageService = app(\App\Services\Media\ImageService::class);
+            
+            // 1. Reset all primary flags if we are changing primary
+            if ($this->primaryImageId || $this->primaryPhotoIndex !== null) {
+                $this->variant->images()->update(['is_primary' => false]);
+            }
+
+            // 2. Handle Existing Primary
+            if ($this->primaryImageId) {
+                ItemImage::where('id', $this->primaryImageId)->update(['is_primary' => true]);
+            }
+
+            // 3. Handle Photo Uploads
             if (!empty($this->photos)) {
-                $hasPrimary = $this->variant->images()->where('is_primary', true)->exists();
-                
                 foreach ($this->photos as $i => $photo) {
                     $path = $photo->store('item-images', 'public');
+                    
+                    // Compress, Resize and Force Square (Center Crop)
+                    $fullPath = storage_path('app/public/' . $path);
+                    $imageService->compressAndResize($fullPath, 1200, 75, true);
+
                     ItemImage::create([
                         'item_variant_id' => $this->variant->id,
                         'path' => $path,
-                        'is_primary' => (!$hasPrimary && $i === 0) ? true : false,
+                        'is_primary' => ($this->primaryPhotoIndex === $i),
                     ]);
+                }
+            }
+
+            // Fallback: If no primary exists at all, set the first available one
+            if (!$this->variant->images()->where('is_primary', true)->exists()) {
+                $this->variant->images()->first()?->update(['is_primary' => true]);
+            }
+            // Handle Inventory Initialization / Bin Management
+            if ($this->bin_code) {
+                // Find or create default location
+                $location = \App\Models\Location::firstOrCreate(
+                    ['code' => 'MAIN'],
+                    ['description' => 'Main Warehouse']
+                );
+
+                if ($this->mode === 'create') {
+                    // Create primary bin
+                    $bin = \App\Models\Bin::create([
+                        'location_id' => $location->id,
+                        'item_variant_id' => $this->variant->id,
+                        'code' => strtoupper($this->bin_code),
+                        'current_qty' => 0, // Will be updated by service if initial_stock > 0
+                    ]);
+
+                    if ($this->initial_stock > 0) {
+                        $inventoryService = app(\App\Services\Inventory\InventoryService::class);
+                        $inventoryService->moveStock(
+                            $bin, 
+                            (int)$this->initial_stock, 
+                            'ADJUSTMENT', 
+                            'Initial Stock Registration', 
+                            (string)auth()->id()
+                        );
+                    }
+                } else {
+                    // Update existing bin or create if missing
+                    $bin = $this->variant->bins()->first();
+                    if ($bin) {
+                        $bin->update(['code' => strtoupper($this->bin_code)]);
+                    } else {
+                        \App\Models\Bin::create([
+                            'location_id' => $location->id,
+                            'item_variant_id' => $this->variant->id,
+                            'code' => strtoupper($this->bin_code),
+                            'current_qty' => 0,
+                        ]);
+                    }
                 }
             }
         });
@@ -198,5 +298,38 @@ class ItemForm extends Component
     public function render()
     {
         return view('livewire.items.item-form');
+    }
+
+    /**
+     * Replaces an existing saved photo with its cropped version.
+     */
+    public function applyExistingCrop($imageId)
+    {
+        $image = ItemImage::find($imageId);
+        if (!$image || !$this->croppedExistingPhoto) {
+            return;
+        }
+
+        // Overwrite the existing file at its physical path
+        $path = $image->path;
+        $fullPath = storage_path('app/public/' . $path);
+
+        if (Storage::disk('public')->exists($path)) {
+            // Save the new blob over the old file
+            Storage::disk('public')->put($path, $this->croppedExistingPhoto->get());
+            
+            // Re-optimize and Ensure Square (Center Crop)
+            $imageService = app(\App\Services\Media\ImageService::class);
+            $imageService->compressAndResize($fullPath, 1200, 75, true);
+            
+            // Touch the model to update the updated_at timestamp used for Cache Busting
+            $image->touch();
+            
+            // Refresh existing photos list from database to get the new timestamp
+            $this->existingPhotos = $this->variant->images()->get()->toArray();
+            
+            $this->reset(['croppedExistingPhoto', 'editingExistingId']);
+            $this->dispatch('notyf', type: 'success', message: 'Existing photo updated successfully.');
+        }
     }
 }
