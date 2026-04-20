@@ -14,6 +14,9 @@ use App\Models\Item;
 use App\Models\ItemVariant;
 use App\Models\ItemBarcode;
 use App\Models\Supplier;
+use App\Models\Bin;
+use App\Models\Location;
+use App\Services\Inventory\InventoryService;
 
 class ImportItemsJob implements ShouldQueue
 {
@@ -62,7 +65,7 @@ class ImportItemsJob implements ShouldQueue
         foreach ($rows as $row) {
             DB::beginTransaction();
             try {
-                // Expected Headers: name, erp_code, sku, brand, unit, description, barcode, supplier_name
+                // Expected Headers: name, erp_code, sku, brand, unit, description, barcode, supplier_name, initial_stock, bin_code
                 $name = $row['name'] ?? null;
                 $erpCode = $row['erp_code'] ?? null;
                 $barcode = $row['barcode'] ?? null;
@@ -107,6 +110,39 @@ class ImportItemsJob implements ShouldQueue
                 if (!empty($row['supplier_name'])) {
                     $supplier = Supplier::firstOrCreate(['name' => trim($row['supplier_name'])]);
                     $variant->suppliers()->syncWithoutDetaching([$supplier->id]);
+                }
+
+                // Handle Bin and Initial Stock
+                $binCode = $row['bin_code'] ?? null;
+                $initialStock = $row['initial_stock'] ?? 0;
+
+                if (!empty($binCode)) {
+                    $location = Location::firstOrCreate(
+                        ['code' => 'MAIN'],
+                        ['description' => 'Main Warehouse']
+                    );
+
+                    $bin = Bin::firstOrCreate(
+                        [
+                            'item_variant_id' => $variant->id,
+                            'code' => strtoupper(trim($binCode))
+                        ],
+                        [
+                            'location_id' => $location->id,
+                            'current_qty' => 0
+                        ]
+                    );
+
+                    if ($initialStock > 0) {
+                        $inventoryService = app(InventoryService::class);
+                        $inventoryService->moveStock(
+                            $bin,
+                            (int)$initialStock,
+                            'ADJUSTMENT',
+                            'Initial Stock via CSV Import',
+                            (string)$this->userId
+                        );
+                    }
                 }
 
                 DB::commit();

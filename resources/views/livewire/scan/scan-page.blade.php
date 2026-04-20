@@ -302,84 +302,92 @@
 </style>
 
 <script>
-    let html5QrCode;
+    (function() {
+        var html5QrCode;
 
-    function startScanner() {
-        document.getElementById('scanner-container').classList.remove('hidden');
-        if (!html5QrCode) html5QrCode = new Html5Qrcode("reader");
-        
-        const config = { 
-            fps: 20, 
-            qrbox: { width: 280, height: 160 }, // Robust rectangular for barcodes
-            aspectRatio: 1.0,
-            experimentalFeatures: {
-                useBarCodeDetectorIfSupported: true // High performance on iOS
-            },
-            videoConstraints: {
-                facingMode: "environment",
-                width: { min: 640, ideal: 1280 },
-                height: { min: 480, ideal: 720 }
+        window.startScanner = function() {
+            var container = document.getElementById('scanner-container');
+            if (container) container.classList.remove('hidden');
+            
+            if (!html5QrCode) html5QrCode = new Html5Qrcode("reader");
+            
+            var config = { 
+                fps: 20, 
+                qrbox: { width: 280, height: 160 }, 
+                aspectRatio: 1.0,
+                experimentalFeatures: {
+                    useBarCodeDetectorIfSupported: true 
+                },
+                videoConstraints: {
+                    facingMode: "environment",
+                    width: { min: 640, ideal: 1280 },
+                    height: { min: 480, ideal: 720 }
+                }
+            };
+
+            html5QrCode.start(
+                { facingMode: "environment" },
+                config,
+                function(decodedText) {
+                    window.playSuccessBeep();
+                    window.stopScanner();
+                    @this.set('barcode', decodedText);
+                    @this.call('handleScan');
+                },
+                function() {}
+            ).catch(function(err) {
+                console.error("Camera startup error", err);
+                alert("Could not start camera. Please ensure permissions are granted.");
+                window.stopScanner();
+            });
+        };
+
+        window.stopScanner = function() {
+            var container = document.getElementById('scanner-container');
+            if (html5QrCode && html5QrCode.isScanning) {
+                html5QrCode.stop().then(function() {
+                    if (container) container.classList.add('hidden');
+                }).catch(function(err) {
+                    console.error("Error stopping scanner", err);
+                    if (container) container.classList.add('hidden');
+                });
+            } else {
+                if (container) container.classList.add('hidden');
             }
         };
 
-        html5QrCode.start(
-            { facingMode: "environment" },
-            config,
-            (decodedText) => {
-                playSuccessBeep();
-                stopScanner();
-                @this.set('barcode', decodedText);
-                @this.call('handleScan');
-            },
-            () => {}
-        ).catch(err => {
-            console.error("Camera startup error", err);
-            alert("Could not start camera. Please ensure permissions are granted.");
-            stopScanner();
+        window.addEventListener('scan-completed', function(event) {
+            window.playSuccessBeep();
+            if (navigator.vibrate) navigator.vibrate(100);
         });
-    }
 
-    function stopScanner() {
-        if (html5QrCode && html5QrCode.isScanning) {
-            html5QrCode.stop().then(() => {
-                document.getElementById('scanner-container').classList.add('hidden');
-            }).catch(err => console.error("Error stopping scanner", err));
-        } else {
-            document.getElementById('scanner-container').classList.add('hidden');
-        }
-    }
+        window.addEventListener('focus-barcode-input', function(event) {
+            var input = document.getElementById('barcode-input');
+            if (input) { input.focus(); input.select(); }
+        });
 
-    window.addEventListener('scan-completed', event => {
-        playSuccessBeep();
-        if (navigator.vibrate) navigator.vibrate(100);
-    });
+        window.playSuccessBeep = function() {
+            try {
+                var AudioCtx = window.AudioContext || window.webkitAudioContext;
+                if (!AudioCtx) return;
+                var audioCtx = new AudioCtx();
+                var oscillator = audioCtx.createOscillator();
+                var gainNode = audioCtx.createGain();
+                oscillator.connect(gainNode);
+                gainNode.connect(audioCtx.destination);
+                oscillator.type = 'sine';
+                oscillator.frequency.setValueAtTime(880, audioCtx.currentTime);
+                gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+                oscillator.start(); oscillator.stop(audioCtx.currentTime + 0.1);
+            } catch(e) {}
+        };
 
-    window.addEventListener('focus-barcode-input', event => {
-        const input = document.getElementById('barcode-input');
-        if (input) { input.focus(); input.select(); }
-    });
-
-    function playSuccessBeep() {
-        try {
-            const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            const oscillator = audioCtx.createOscillator();
-            const gainNode = audioCtx.createGain();
-            oscillator.connect(gainNode);
-            gainNode.connect(audioCtx.destination);
-            oscillator.type = 'sine';
-            oscillator.frequency.setValueAtTime(880, audioCtx.currentTime);
-            gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
-            gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
-            oscillator.start(); oscillator.stop(audioCtx.currentTime + 0.1);
-        } catch(e) {}
-    }
-
-    document.addEventListener('keydown', (e) => {
-        if (document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'TEXTAREA') {
-            const input = document.getElementById('barcode-input');
-            if (input && /^[a-zA-Z0-9]$/.test(e.key)) input.focus();
-        }
-    });
-
-    // Custom helper for window print success callback or similar if needed
+        document.addEventListener('keydown', function(e) {
+            if (document.activeElement && document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'TEXTAREA') {
+                var input = document.getElementById('barcode-input');
+                if (input && /^[a-zA-Z0-9]$/.test(e.key)) input.focus();
+            }
+        });
+    })();
 </script>

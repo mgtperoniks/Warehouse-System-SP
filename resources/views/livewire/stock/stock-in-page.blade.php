@@ -3,7 +3,7 @@
          FLASH / LIVE FEEDBACK TOAST
     ================================================ --}}
     <div x-data="{ show: false, message: '', type: 'success' }"
-         x-on:message-dispatched.window="show = true; message = $event.detail.message; type = $event.detail.type; setTimeout(() => show = false, 4000)"
+         x-on:message-dispatched.window="show = true; message = $event.detail.message; type = $event.detail.type; setTimeout(function() { show = false; }, 4000)"
          x-show="show"
          x-transition:enter="transition ease-out duration-300"
          x-transition:enter-start="opacity-0 -translate-y-2"
@@ -87,7 +87,7 @@
                         Move phone slowly for better focus
                     </div>
                     <button type="button" onclick="stopScanner()"
-                            class="absolute top-4 right-4 bg-red-500 text-white px-4 py-2 text-sm font-bold rounded-xl shadow-lg z-50 hover:bg-red-600 flex items-center gap-2 transition-all">
+                           <div x-data="{ show: true }" x-show="show" x-init="setTimeout(() => { show = false; }, 3000)" class="bg-emerald-500 text-white px-6 py-3 rounded-2xl shadow-lg border-b-4 border-emerald-700 flex items-center gap-3 animate-bounce">
                         <span class="material-symbols-outlined text-sm">close</span> Cancel
                     </button>
                 </div>
@@ -322,77 +322,95 @@
          JS: audio beep + focus helpers
     ================================================ --}}
     <script>
-        document.addEventListener('livewire:initialized', () => {
-            function playBeep(freq, duration) {
-                try {
-                    const ctx = new (window.AudioContext || window.webkitAudioContext)();
-                    const osc  = ctx.createOscillator();
-                    const gain = ctx.createGain();
-                    osc.connect(gain); gain.connect(ctx.destination);
-                    osc.type = 'sine'; osc.frequency.value = freq;
-                    gain.gain.setValueAtTime(0.05, ctx.currentTime);
-                    osc.start(); osc.stop(ctx.currentTime + duration);
-                } catch(e) {}
-            }
-            window.addEventListener('scan-completed', () => { if (navigator.vibrate) navigator.vibrate(50); playBeep(880, 0.08); });
-            window.addEventListener('scan-success',   () => playBeep(440, 0.04));
-        });
-
-        window.addEventListener('focus-barcode-input', () => {
-            setTimeout(() => {
-                const el = document.getElementById('barcode-input-stock-in');
-                if (el) { el.focus(); el.select(); }
-            }, 50);
-        });
-
-        document.addEventListener('keydown', e => {
-            if (e.ctrlKey && e.key === '/') document.getElementById('barcode-input-stock-in')?.focus();
-        });
-
-        let html5QrCode;
-
-        function startScanner() {
-            document.getElementById('scanner-container').classList.remove('hidden');
-            if (!html5QrCode) html5QrCode = new Html5Qrcode("reader");
-            
-            const config = { 
-                fps: 20, 
-                qrbox: { width: 280, height: 160 }, // Rectangular for barcodes
-                aspectRatio: 1.0,
-                experimentalFeatures: {
-                    useBarCodeDetectorIfSupported: true // High performance on iOS
-                },
-                videoConstraints: {
-                    facingMode: "environment",
-                    width: { min: 640, ideal: 1280 },
-                    height: { min: 480, ideal: 720 }
+        (function() {
+            document.addEventListener('livewire:initialized', function() {
+                function playBeep(freq, duration) {
+                    try {
+                        var AudioCtx = window.AudioContext || window.webkitAudioContext;
+                        if (!AudioCtx) return;
+                        var ctx = new AudioCtx();
+                        var osc  = ctx.createOscillator();
+                        var gain = ctx.createGain();
+                        osc.connect(gain); gain.connect(ctx.destination);
+                        osc.type = 'sine'; osc.frequency.value = freq;
+                        gain.gain.setValueAtTime(0.05, ctx.currentTime);
+                        osc.start(); osc.stop(ctx.currentTime + duration);
+                    } catch(e) {}
                 }
+                window.addEventListener('scan-completed', function() { 
+                    if (navigator.vibrate) navigator.vibrate(50); 
+                    playBeep(880, 0.08); 
+                });
+                window.addEventListener('scan-success', function() { 
+                    playBeep(440, 0.04); 
+                });
+            });
+
+            window.addEventListener('focus-barcode-input', function() {
+                setTimeout(function() {
+                    var el = document.getElementById('barcode-input-stock-in');
+                    if (el) { el.focus(); el.select(); }
+                }, 50);
+            });
+
+            document.addEventListener('keydown', function(e) {
+                if (e.ctrlKey && e.key === '/') {
+                    var el = document.getElementById('barcode-input-stock-in');
+                    if (el) el.focus();
+                }
+            });
+
+            var html5QrCode;
+
+            window.startScanner = function() {
+                var container = document.getElementById('scanner-container');
+                if (container) container.classList.remove('hidden');
+                
+                if (!html5QrCode) html5QrCode = new Html5Qrcode("reader");
+                
+                var config = { 
+                    fps: 20, 
+                    qrbox: { width: 280, height: 160 }, 
+                    aspectRatio: 1.0,
+                    experimentalFeatures: {
+                        useBarCodeDetectorIfSupported: true 
+                    },
+                    videoConstraints: {
+                        facingMode: "environment",
+                        width: { min: 640, ideal: 1280 },
+                        height: { min: 480, ideal: 720 }
+                    }
+                };
+
+                html5QrCode.start(
+                    { facingMode: "environment" },
+                    config,
+                    function(decodedText) {
+                        window.stopScanner();
+                        @this.set('barcode', decodedText);
+                        @this.call('handleScan');
+                    },
+                    function() {}
+                ).catch(function(err) {
+                    console.error("Camera startup error", err);
+                    alert("Could not start camera. Please ensure permissions are granted.");
+                    window.stopScanner();
+                });
             };
 
-            html5QrCode.start(
-                { facingMode: "environment" },
-                config,
-                (decodedText) => {
-                    stopScanner();
-                    @this.set('barcode', decodedText);
-                    @this.call('handleScan');
-                },
-                () => {}
-            ).catch(err => {
-                console.error("Camera startup error", err);
-                alert("Could not start camera. Please ensure permissions are granted.");
-                stopScanner();
-            });
-        }
-
-        function stopScanner() {
-            if (html5QrCode && html5QrCode.isScanning) {
-                html5QrCode.stop().then(() => {
-                    document.getElementById('scanner-container').classList.add('hidden');
-                }).catch(err => console.error("Error stopping scanner", err));
-            } else {
-                document.getElementById('scanner-container').classList.add('hidden');
-            }
-        }
+            window.stopScanner = function() {
+                var container = document.getElementById('scanner-container');
+                if (html5QrCode && html5QrCode.isScanning) {
+                    html5QrCode.stop().then(function() {
+                        if (container) container.classList.add('hidden');
+                    }).catch(function(err) {
+                        console.error("Error stopping scanner", err);
+                        if (container) container.classList.add('hidden');
+                    });
+                } else {
+                    if (container) container.classList.add('hidden');
+                }
+            };
+        })();
     </script>
 </div>

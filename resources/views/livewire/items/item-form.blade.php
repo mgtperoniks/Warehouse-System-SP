@@ -1,7 +1,7 @@
 <div>
     <!-- Cropper.js Assets -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.css" />
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.js"></script>
+    <link rel="stylesheet" href="{{ asset('assets/css/cropper.min.css') }}" />
+    <script src="{{ asset('assets/js/cropper.min.js') }}"></script>
 
     <!-- Alpine Data Wrap -->
     <div x-data="{ 
@@ -10,7 +10,8 @@
             editingIndex: null,
             editingType: 'new',
             
-            openCropper(type, index, url) {
+            openCropper: function(type, index, url) {
+                var self = this;
                 if (typeof Cropper === 'undefined') {
                     alert('Error: Cropper.js library missing.');
                     return;
@@ -21,8 +22,8 @@
                 this.cropping = true;
                 this.processing = true;
                 
-                this.$nextTick(() => {
-                    const image = this.$refs.cropperImage;
+                this.$nextTick(function() {
+                    var image = self.$refs.cropperImage;
                     if (!image) return;
 
                     if (image._cropper) {
@@ -30,7 +31,7 @@
                         image._cropper = null;
                     }
 
-                    const startEngine = () => {
+                    function startEngine() {
                         if (image._cropper) return; // Prevent double initialization
                         image._cropper = new Cropper(image, {
                             aspectRatio: 1,
@@ -40,17 +41,16 @@
                             autoCropArea: 1,
                             minContainerWidth: 250,
                             minContainerHeight: 250,
-                            ready: () => {
-                                this.processing = false;
+                            ready: function() {
+                                self.processing = false;
                             }
                         });
-                    };
+                    }
 
                     image.onload = startEngine;
                     
                     // CRITICAL CORS FIX: Force URL to be strictly relative to the current IP/Hostname
-                    // This prevents Canvas Tainting Security Errors if APP_URL doesn't perfectly match the accessed IP
-                    const parser = document.createElement('a');
+                    var parser = document.createElement('a');
                     parser.href = url;
                     image.src = parser.pathname + parser.search;
 
@@ -58,8 +58,9 @@
                 });
             },
             
-            saveCrop() {
-                const cropper = this.$refs.cropperImage ? this.$refs.cropperImage._cropper : null;
+            saveCrop: function() {
+                var self = this;
+                var cropper = this.$refs.cropperImage ? this.$refs.cropperImage._cropper : null;
                 if (!cropper || this.editingIndex === null) return;
                 
                 this.processing = true;
@@ -68,46 +69,46 @@
                         maxWidth: 1200,
                         maxHeight: 1200,
                         imageSmoothingQuality: 'high'
-                    }).toBlob((blob) => {
+                    }).toBlob(function(blob) {
                         try {
                             if (!blob) throw new Error('Image buffer is empty');
                             
                             // Essential: Convert Blob to File for Livewire compatibility
-                            const file = new File([blob], 'crop_' + Date.now() + '.jpg', { type: 'image/jpeg' });
+                            var file = new File([blob], 'crop_' + Date.now() + '.jpg', { type: 'image/jpeg' });
 
-                            if (this.editingType === 'new') {
-                                @this.upload('photos.' + this.editingIndex, file, 
-                                    (uploadedFilename) => {
-                                        this.cropping = false;
-                                        this.processing = false;
-                                        this.editingIndex = null;
+                            if (self.editingType === 'new') {
+                                @this.upload('photos.' + self.editingIndex, file, 
+                                    function(uploadedFilename) {
+                                        self.cropping = false;
+                                        self.processing = false;
+                                        self.editingIndex = null;
                                     }, 
-                                    () => {
+                                    function() {
                                         alert('Upload failed. Connection might be unstable.');
-                                        this.processing = false;
+                                        self.processing = false;
                                     }
                                 );
                             } else {
                                 @this.upload('croppedExistingPhoto', file, 
-                                    (uploadedFilename) => {
-                                        @this.applyExistingCrop(this.editingIndex).then(() => {
-                                            this.cropping = false;
-                                            this.processing = false;
-                                            this.editingIndex = null;
-                                        }).catch(err => {
+                                    function(uploadedFilename) {
+                                        @this.applyExistingCrop(self.editingIndex).then(function() {
+                                            self.cropping = false;
+                                            self.processing = false;
+                                            self.editingIndex = null;
+                                        }).catch(function(err) {
                                             alert('Server rejected the target crop update.');
-                                            this.processing = false;
+                                            self.processing = false;
                                         });
                                     }, 
-                                    () => {
+                                    function() {
                                         alert('Upload failed. Connection might be unstable.');
-                                        this.processing = false;
+                                        self.processing = false;
                                     }
                                 );
                             }
                         } catch (e) {
                             alert('Blob processing failed: ' + e.message);
-                            this.processing = false;
+                            self.processing = false;
                         }
                     }, 'image/jpeg', 0.85);
                 } catch (e) {

@@ -199,7 +199,7 @@
                 <div class="h-64 relative bg-slate-100 overflow-hidden group border-b-2 border-slate-50">
                     <img alt="{{ $selectedBin->itemVariant->item->name }}" 
                          class="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110" 
-                         src="{{ !empty($selectedBin->itemVariant->images) && count($selectedBin->itemVariant->images) > 0 ? asset('storage/' . $selectedBin->itemVariant->images[0]->path) : 'https://placehold.co/600x400/f8f9fb/003d9b?text=No+Photo' }}"/>
+                         src="{{ !empty($selectedBin->itemVariant->images) && count($selectedBin->itemVariant->images) > 0 ? asset('storage/' . $selectedBin->itemVariant->images[0]->path) : asset('assets/images/no-photo.png') }}"/>
                     
                     <div class="absolute bottom-0 left-0 right-0 p-8 bg-gradient-to-t from-black/80 via-black/40 to-transparent">
                         <div class="flex justify-between items-end">
@@ -281,60 +281,68 @@
     </main>
 
     <script>
-        let html5QrCode;
+        (function() {
+            var html5QrCode;
 
-        function startScanner() {
-            document.getElementById('scanner-container').classList.remove('hidden');
-            if (!html5QrCode) html5QrCode = new Html5Qrcode("reader");
-            
-            const config = { 
-                fps: 20, 
-                qrbox: { width: 280, height: 180 }, 
-                aspectRatio: 1.0,
-                experimentalFeatures: {
-                    useBarCodeDetectorIfSupported: true 
-                },
-                videoConstraints: {
-                    facingMode: "environment",
-                    width: { min: 640, ideal: 1280 },
-                    height: { min: 480, ideal: 720 }
+            window.startScanner = function() {
+                var container = document.getElementById('scanner-container');
+                if (container) container.classList.remove('hidden');
+                
+                if (!html5QrCode) html5QrCode = new Html5Qrcode("reader");
+                
+                var config = { 
+                    fps: 20, 
+                    qrbox: { width: 280, height: 180 }, 
+                    aspectRatio: 1.0,
+                    experimentalFeatures: {
+                        useBarCodeDetectorIfSupported: true 
+                    },
+                    videoConstraints: {
+                        facingMode: "environment",
+                        width: { min: 640, ideal: 1280 },
+                        height: { min: 480, ideal: 720 }
+                    }
+                };
+
+                html5QrCode.start(
+                    { facingMode: "environment" },
+                    config,
+                    function(decodedText) {
+                        window.stopScanner();
+                        @this.set('binScan', decodedText);
+                        @this.handleScan(decodedText);
+                    },
+                    function(errorMessage) {}
+                ).catch(function(err) {
+                    console.error("Camera startup error", err);
+                    alert("Could not start camera. Please ensure permissions are granted.");
+                    window.stopScanner();
+                });
+            };
+
+            window.stopScanner = function() {
+                var container = document.getElementById('scanner-container');
+                if (html5QrCode && html5QrCode.isScanning) {
+                    html5QrCode.stop().then(function() {
+                        if (container) container.classList.add('hidden');
+                    }).catch(function(err) {
+                        console.error("Error stopping scanner", err);
+                        if (container) container.classList.add('hidden');
+                    });
+                } else {
+                    if (container) container.classList.add('hidden');
                 }
             };
 
-            html5QrCode.start(
-                { facingMode: "environment" },
-                config,
-                (decodedText) => {
-                    stopScanner();
-                    @this.set('binScan', decodedText);
-                    // Force refresh/update 
-                    @this.handleScan(decodedText);
-                },
-                (errorMessage) => {}
-            ).catch(err => {
-                console.error("Camera startup error", err);
-                alert("Could not start camera. Please ensure permissions are granted.");
-                stopScanner();
+            // Auto-focus logic
+            document.addEventListener('livewire:initialized', function() {
+                window.addEventListener('focus-scanner', function() {
+                    setTimeout(function() {
+                        var el = document.getElementById('scanner-input');
+                        if (el) el.focus();
+                    }, 100);
+                });
             });
-        }
-
-        function stopScanner() {
-            if (html5QrCode && html5QrCode.isScanning) {
-                html5QrCode.stop().then(() => {
-                    document.getElementById('scanner-container').classList.add('hidden');
-                }).catch(err => console.error("Error stopping scanner", err));
-            } else {
-                document.getElementById('scanner-container').classList.add('hidden');
-            }
-        }
-
-        // Auto-focus logic
-        document.addEventListener('livewire:initialized', () => {
-            window.addEventListener('focus-scanner', () => {
-                setTimeout(() => {
-                    document.getElementById('scanner-input')?.focus();
-                }, 100);
-            });
-        });
+        })();
     </script>
 </div>

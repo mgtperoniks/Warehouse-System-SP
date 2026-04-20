@@ -8,7 +8,7 @@
             </div>
             
             @if(session()->has('message'))
-                <div x-data="{ show: true }" x-show="show" x-init="setTimeout(() => show = false, 3000)" class="bg-emerald-500 text-white px-6 py-3 rounded-2xl shadow-lg border-b-4 border-emerald-700 flex items-center gap-3 animate-bounce">
+                <div x-data="{ show: true }" x-show="show" x-init="setTimeout(function() { show = false; }, 3000)" class="bg-emerald-500 text-white px-6 py-3 rounded-2xl shadow-lg border-b-4 border-emerald-700 flex items-center gap-3 animate-bounce">
                     <span class="material-symbols-outlined">check_circle</span>
                     <span class="font-bold text-sm">{{ session('message') }}</span>
                 </div>

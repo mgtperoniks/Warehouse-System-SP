@@ -6,6 +6,7 @@
 @import '@fontsource/inter/700.css';
 @import '@fontsource/inter/800.css';
 @import '@fontsource/inter/900.css';
+@import 'material-symbols/outlined.css';
 
 @source '../views';
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views';

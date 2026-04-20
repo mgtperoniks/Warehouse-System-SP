@@ -6,6 +6,7 @@ use Livewire\Component;
 use Livewire\WithPagination;
 use App\Models\ItemVariant;
 use App\Models\Category;
+use App\Services\Inventory\ItemService;
 
 class ItemList extends Component
 {
@@ -13,17 +14,30 @@ class ItemList extends Component
 
     public $search = '';
     public $brandFilter = '';
-    public $sortField = 'created_at';
-    public $sortDir = 'desc';
+    public $stockStatusFilter = '';
+    public $sortField = 'name';
+    public $sortDir = 'asc';
+    public $perPage = 25;
 
     protected $queryString = [
         'search' => ['except' => ''],
         'brandFilter' => ['except' => ''],
-        'sortField' => ['except' => 'created_at'],
-        'sortDir' => ['except' => 'desc'],
+        'stockStatusFilter' => ['except' => ''],
+        'sortField' => ['except' => 'name'],
+        'sortDir' => ['except' => 'asc'],
     ];
 
     public function updatingSearch()
+    {
+        $this->resetPage();
+    }
+
+    public function updatingBrandFilter()
+    {
+        $this->resetPage();
+    }
+
+    public function updatingStockStatusFilter()
     {
         $this->resetPage();
     }
@@ -38,32 +52,18 @@ class ItemList extends Component
         }
     }
 
-    public function render()
+    public function render(ItemService $itemService)
     {
-        $query = ItemVariant::with(['item', 'primaryBarcode', 'bins', 'suppliers', 'images']);
+        $filters = [
+            'search' => $this->search,
+            'brand'  => $this->brandFilter,
+            'status' => $this->stockStatusFilter,
+            'sort_field' => $this->sortField,
+            'sort_dir' => $this->sortDir,
+        ];
 
-        if (!empty($this->search)) {
-            $query->where(function ($q) {
-                $q->whereHas('item', function ($sq) {
-                    $sq->where('name', 'like', '%' . $this->search . '%');
-                })
-                ->orWhere('erp_code', 'like', '%' . $this->search . '%')
-                ->orWhere('sku', 'like', '%' . $this->search . '%')
-                ->orWhereHas('barcodes', function ($sq) {
-                    $sq->where('barcode', 'like', '%' . $this->search . '%');
-                });
-            });
-        }
-
-        if (!empty($this->brandFilter)) {
-            $query->where('brand', $this->brandFilter);
-        }
-
-        $query->orderBy($this->sortField, $this->sortDir);
-
-        $variants = $query->paginate(24);
-
-        $brands = ItemVariant::select('brand')->distinct()->whereNotNull('brand')->pluck('brand');
+        $variants = $itemService->getPaginatedItems($filters, (int)$this->perPage);
+        $brands = $itemService->getBrands();
 
         return view('livewire.items.item-list', [
             'variants' => $variants,
