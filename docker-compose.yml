@@ -11,12 +11,15 @@ services:
     ports:
       - "6031:80"
     volumes:
-      - ./storage:/var/www/html/storage
+      - warehouse_storage:/var/www/html/storage
     env_file:
       - .env
     # The application connects to 'warehouse-db' via the warehouse-net network
     networks:
       - warehouse-net
+
+volumes:
+  warehouse_storage:
 
 networks:
   warehouse-net:

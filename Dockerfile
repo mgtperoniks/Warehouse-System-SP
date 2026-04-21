@@ -48,4 +48,4 @@ RUN mkdir -p storage/app/public storage/framework/cache storage/framework/sessio
 
 EXPOSE 80
 
-CMD service nginx start && php-fpm
+CMD ["sh", "-c", "chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache && service nginx start && php-fpm"]
