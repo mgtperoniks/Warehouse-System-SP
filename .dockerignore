@@ -1,0 +1,11 @@
+node_modules
+vendor
+.git
+.env
+storage/*.key
+/public/storage
+/public/build
+README.md
+Dockerfile
+docker-compose.yml
+.agent

@@ -1,0 +1,36 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: warehouse-system-app
+    restart: unless-stopped
+    ports:
+      - "6031:80"
+    volumes:
+      - ./storage:/var/www/html/storage
+    env_file:
+      - .env
+    environment:
+      - APP_ENV=production
+      - DB_CONNECTION=mysql
+      - DB_HOST=db
+      - DB_PORT=3306
+      - DB_DATABASE=warehouse_system-sp
+      - DB_USERNAME=root
+      - DB_PASSWORD=secret
+    depends_on:
+      - db
+
+  db:
+    image: mysql:8.0
+    container_name: warehouse-system-db
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: warehouse_system-sp
+      MYSQL_ROOT_PASSWORD: secret
+    volumes:
+      - warehouse_db_data:/var/lib/mysql
+
+volumes:
+  warehouse_db_data:
