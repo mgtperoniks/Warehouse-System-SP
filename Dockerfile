@@ -43,9 +43,13 @@ COPY .agent/nginx.conf /etc/nginx/sites-available/default
 
 # Set permissions and create storage structure
 RUN mkdir -p storage/app/public storage/framework/cache storage/framework/sessions storage/framework/views storage/logs && \
+    mkdir -p /etc/nginx/ssl && \
+    openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+    -keyout /etc/nginx/ssl/nginx.key -out /etc/nginx/ssl/nginx.crt \
+    -subj "/C=ID/ST=West Java/L=Cikarang/O=Peroniks/OU=IT/CN=10.88.8.46" && \
     chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache && \
     chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache
 
-EXPOSE 80
+EXPOSE 80 443
 
 CMD ["sh", "-c", "chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache && service nginx start && php-fpm"]

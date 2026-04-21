@@ -19,7 +19,7 @@ description: Safe deployment workflow - push code to production server without b
 ### STEP 1: Commit & Push dari Local (Laragon)
 
 ```powershell
-cd c:\laragon\www\qc-db
+cd c:\laragon\www\Warehouse-System-Sparepart
 
 # Cek perubahan
 git status
@@ -30,7 +30,7 @@ git add -A
 # Commit dengan pesan deskriptif
 git commit -m "feat: deskripsi singkat perubahan"
 
-# Push ke production remote
+# Push ke production remote (biasanya prod)
 git push prod main
 ```
 
@@ -39,25 +39,26 @@ git push prod main
 SSH ke server, lalu jalankan:
 
 ```bash
-cd /srv/docker/apps/qc-db
+cd /srv/docker/apps/Warehouse-System-SP
 
 # Backup database sebelum pull
-sudo docker compose exec db mysqldump -u root -p[PASSWORD] qcdb > /home/peroniks/backups/qcdb_backup_$(date +%Y%m%d_%H%M%S).sql
+# Password database: wh_sys_k8q2pL9zX_prod
+sudo docker compose exec warehouse-db mysqldump -u warehouse_system_user -p[PASSWORD] warehouse_system > /home/peroniks/backups/warehouse_backup_$(date +%Y%m%d_%H%M%S).sql
 ```
 
 ### STEP 3: Pull & Update di Server
 
 ```bash
-cd /srv/docker/apps/qc-db
+cd /srv/docker/apps/Warehouse-System-SP
 
 # Pull kode terbaru
 sudo git pull origin main
 
-# Build & Restart (agar environment sinkron)
+# Build & Restart (agar .env dan environment sinkron)
 sudo docker compose build --no-cache
 sudo docker compose up -d
 
-# Hubungkan kembali symlink storage (penting untuk stamp/signature)
+# Hubungkan kembali symlink storage
 sudo docker compose exec app php artisan storage:link
 
 # Clear semua cache
@@ -76,7 +77,7 @@ sudo docker compose exec app php artisan route:cache
 
 ### STEP 4: Verifikasi
 
-1. Buka aplikasi di browser
+1. Buka aplikasi di browser (http://10.88.8.46:6031)
 2. Cek apakah fitur baru berfungsi
 3. Cek apakah data lama masih ada
 
@@ -99,7 +100,7 @@ php artisan db:wipe
 - [ ] Sudah test di local (Laragon)?
 - [ ] Ada migration baru? Jika ya, backup database dulu!
 - [ ] Commit message sudah jelas?
-- [ ] Push ke remote `prod` (bukan `origin`)?
+- [ ] Push ke remote `prod`?
 
 ---
 
@@ -107,8 +108,8 @@ php artisan db:wipe
 
 ```bash
 # Restore database dari backup
-sudo docker compose exec -T db mysql -u root -p[PASSWORD] qcdb < /home/peroniks/backups/qcdb_backup_YYYYMMDD_HHMMSS.sql
+sudo docker compose exec -T warehouse-db mysql -u warehouse_system_user -p[PASSWORD] warehouse_system < /home/peroniks/backups/warehouse_backup_YYYYMMDD_HHMMSS.sql
 
-# Rollback ke commit sebelumnya (gunakan dengan hati-hati)
+# Rollback ke commit sebelumnya
 sudo git reset --hard HEAD~1
 ```

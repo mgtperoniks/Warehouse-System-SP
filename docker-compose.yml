@@ -10,8 +10,10 @@ services:
     restart: unless-stopped
     ports:
       - "6031:80"
+      - "6032:443"
     volumes:
       - warehouse_storage:/var/www/html/storage
+      - ./.env:/var/www/html/.env
     env_file:
       - .env
     # The application connects to 'warehouse-db' via the warehouse-net network
