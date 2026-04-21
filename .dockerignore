@@ -2,7 +2,7 @@ node_modules
 vendor
 .git
 .env
-storage/*.key
+storage/
 /public/storage
 /public/build
 README.md
