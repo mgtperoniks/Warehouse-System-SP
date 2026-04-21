@@ -1,24 +1,11 @@
 <div class="relative min-h-screen flex items-center justify-center p-4 bg-slate-900 overflow-hidden font-inter text-slate-100">
-    <!-- Tailwind CDN Fallback -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    fontFamily: {
-                        inter: ['Inter', 'sans-serif'],
-                    },
-                }
-            }
-        }
-    </script>
 
     <!-- Background Image with Professional Overlay -->
     <div class="absolute inset-0 z-0">
         <img src="{{ asset('images/auth/warehouse.jpg') }}" 
              class="w-full h-full object-cover" 
              style="filter: brightness(0.45) contrast(1.1);"
-             onerror="this.src='https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?q=80&w=2070&auto=format&fit=crop'"
+             onerror="this.style.display='none'"
              alt="Warehouse Background">
         <div class="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"></div>
     </div>
@@ -33,7 +20,7 @@
                      style="width: 100px; height: 100px;">
                     <img src="{{ asset('images/auth/logo.png') }}" 
                          style="width: 100%; height: 100%; object-fit: contain;"
-                         onerror="this.src='https://placehold.co/200x200?text=LOGO'"
+                         onerror="this.style.display='none'"
                          alt="Company Logo">
                 </div>
                 <h1 class="text-2xl font-black tracking-tighter uppercase leading-none drop-shadow-md">PT. PERONI</h1>
@@ -91,9 +78,6 @@
         </div>
     </div>
 
-    <!-- Global Resources -->
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap" rel="stylesheet">
     <style>
         body { font-family: 'Inter', sans-serif; height: 100vh; margin: 0; overflow: hidden; background-color: #020617; }
         input::placeholder { color: rgba(255, 255, 255, 0.2); }
