@@ -41,6 +41,7 @@
                 <span class="material-symbols-outlined">dashboard</span>
                 <span class="font-inter text-sm font-bold">Dashboard</span>
             </a>
+            @if(auth()->user()->role !== 'auditor')
             <a class="flex items-center gap-3 px-4 py-3 {{ request()->routeIs('scan') ? 'bg-white dark:bg-slate-800 text-green-600 dark:text-green-400 border-l-4 border-green-600 shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-200' }} rounded-xl transition-all duration-200" href="{{ route('scan') }}">
                 <span class="material-symbols-outlined">barcode_scanner</span>
                 <span class="font-inter text-sm font-bold">Scan</span>
@@ -49,6 +50,7 @@
                 <span class="material-symbols-outlined">input</span>
                 <span class="font-inter text-sm font-bold">Stock In</span>
             </a>
+            @endif
             <a class="flex items-center gap-3 px-4 py-3 {{ request()->routeIs('items') ? 'bg-white dark:bg-slate-800 text-green-600 dark:text-green-400 border-l-4 border-green-600 shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-200' }} rounded-xl transition-all duration-200" href="{{ route('items') }}">
                 <span class="material-symbols-outlined">inventory_2</span>
                 <span class="font-inter text-sm font-bold">Items</span>
@@ -91,7 +93,19 @@
                     <button class="p-2 text-slate-600 hover:bg-slate-100 rounded-full transition-colors active:scale-95">
                         <span class="material-symbols-outlined">settings</span>
                     </button>
-                    <img alt="User profile" class="w-8 h-8 rounded-full border-2 border-slate-200" src="{{ asset('images/placeholders/avatar.svg') }}"/>
+                    <div class="flex items-center gap-2 pl-2 border-l border-slate-200">
+                        <form action="{{ route('logout') }}" method="POST" class="inline">
+                            @csrf
+                            <button type="submit" class="p-2 text-slate-600 hover:bg-slate-100 rounded-full transition-colors active:scale-95" title="Sign Out">
+                                <span class="material-symbols-outlined">logout</span>
+                            </button>
+                        </form>
+                        <div class="text-right hidden sm:block">
+                            <p class="text-[10px] font-black text-slate-900 uppercase leading-none">{{ auth()->user()->name }}</p>
+                            <p class="text-[8px] font-bold text-slate-400 uppercase tracking-widest">{{ auth()->user()->role }}</p>
+                        </div>
+                        <img alt="User profile" class="w-8 h-8 rounded-full border-2 border-slate-200" src="{{ asset('images/placeholders/avatar.svg') }}"/>
+                    </div>
                 </div>
             </div>
         </header>
@@ -107,6 +121,7 @@
             <span class="material-symbols-outlined" style="{{ request()->routeIs('dashboard') ? "font-variation-settings: 'FILL' 1;" : '' }}">dashboard</span>
             <span class="font-inter text-[10px] font-bold uppercase tracking-widest">Home</span>
         </a>
+        @if(auth()->user()->role !== 'auditor')
         <a href="{{ route('scan') }}" class="flex flex-col items-center justify-center {{ request()->routeIs('scan') ? 'bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300 rounded-xl px-4 py-2 shadow-sm' : 'text-slate-500' }} transition-all duration-200">
             <span class="material-symbols-outlined" style="{{ request()->routeIs('scan') ? "font-variation-settings: 'FILL' 1;" : '' }}">barcode_scanner</span>
             <span class="font-inter text-[10px] font-bold uppercase tracking-widest">Scan</span>
@@ -115,6 +130,7 @@
             <span class="material-symbols-outlined" style="{{ request()->routeIs('stock-in') ? "font-variation-settings: 'FILL' 1;" : '' }}">input</span>
             <span class="font-inter text-[10px] font-bold uppercase tracking-widest">In</span>
         </a>
+        @endif
         <a href="{{ route('items') }}" class="flex flex-col items-center justify-center {{ request()->routeIs('items') ? 'bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300 rounded-xl px-4 py-2 shadow-sm' : 'text-slate-500' }} transition-all duration-200">
             <span class="material-symbols-outlined" style="{{ request()->routeIs('items') ? "font-variation-settings: 'FILL' 1;" : '' }}">inventory_2</span>
             <span class="font-inter text-[10px] font-bold uppercase tracking-widest">Items</span>
