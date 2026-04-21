@@ -1,0 +1,25 @@
+# Warehouse Infrastructure - Central Database Service
+# Managing a shared MySQL instance for all warehouse applications.
+
+services:
+  warehouse-db:
+    image: mysql:8.0
+    container_name: warehouse-db
+    restart: unless-stopped
+    # No ports exposed to host for security - use warehouse-net for communication
+    environment:
+      MYSQL_ROOT_PASSWORD: wh_root_S7m9K2gH_secure
+    volumes:
+      - warehouse_db_data:/var/lib/mysql
+      # Auto-provision databases and users on first start
+      - ./mysql/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    networks:
+      - warehouse-net
+
+networks:
+  warehouse-net:
+    external: true
+
+volumes:
+  warehouse_db_data:
+    name: warehouse_db_data

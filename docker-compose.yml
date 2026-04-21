@@ -1,3 +1,6 @@
+# Warehouse System Application (Core Operations)
+# Combined PHP 8.3 FPM + Nginx Service
+
 services:
   app:
     build:
@@ -11,26 +14,10 @@ services:
       - ./storage:/var/www/html/storage
     env_file:
       - .env
-    environment:
-      - APP_ENV=production
-      - DB_CONNECTION=mysql
-      - DB_HOST=db
-      - DB_PORT=3306
-      - DB_DATABASE=warehouse_system-sp
-      - DB_USERNAME=root
-      - DB_PASSWORD=secret
-    depends_on:
-      - db
+    # The application connects to 'warehouse-db' via the warehouse-net network
+    networks:
+      - warehouse-net
 
-  db:
-    image: mysql:8.0
-    container_name: warehouse-system-db
-    restart: unless-stopped
-    environment:
-      MYSQL_DATABASE: warehouse_system-sp
-      MYSQL_ROOT_PASSWORD: secret
-    volumes:
-      - warehouse_db_data:/var/lib/mysql
-
-volumes:
-  warehouse_db_data:
+networks:
+  warehouse-net:
+    external: true
