@@ -32,8 +32,13 @@ WORKDIR /var/www/html
 # Copy project files
 COPY . .
 
+# Create necessary directories and set permissions BEFORE composer/npm
+RUN mkdir -p storage/app/public storage/framework/cache storage/framework/sessions storage/framework/views storage/logs bootstrap/cache && \
+    chown -R www-data:www-data storage bootstrap/cache && \
+    chmod -R 775 storage bootstrap/cache
+
 # Install PHP dependencies
-RUN composer install --no-interaction --optimize-autoloader --no-dev
+RUN composer install --no-interaction --no-scripts --optimize-autoloader --no-dev
 
 # Install Node dependencies and build assets
 RUN npm install && npm run build
@@ -41,15 +46,13 @@ RUN npm install && npm run build
 # Setup Nginx
 COPY .agent/nginx.conf /etc/nginx/sites-available/default
 
-# Set permissions and create storage structure
-RUN mkdir -p storage/app/public storage/framework/cache storage/framework/sessions storage/framework/views storage/logs && \
-    mkdir -p /etc/nginx/ssl && \
+# Generate SSL and final permission check
+RUN mkdir -p /etc/nginx/ssl && \
     openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
     -keyout /etc/nginx/ssl/nginx.key -out /etc/nginx/ssl/nginx.crt \
     -subj "/C=ID/ST=West Java/L=Cikarang/O=Peroniks/OU=IT/CN=10.88.8.46" && \
-    chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache && \
-    chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache
+    chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
 
 EXPOSE 80 443
 
-CMD ["sh", "-c", "chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache && service nginx start && php-fpm"]
+CMD ["sh", "-c", "php artisan package:discover --ansi && php artisan storage:link --force && service nginx start && php-fpm"]
