@@ -25,6 +25,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/scan', [ScanController::class, 'index'])->name('scan');
     Route::get('/items', [ItemController::class, 'index'])->name('items');
     Route::get('/items/create', [ItemController::class, 'create'])->name('items.create');
+    Route::get('/items/bulk-import', \App\Livewire\Items\BulkImport::class)->name('items.bulk-import');
     Route::post('/items', [ItemController::class, 'store'])->name('items.store');
     Route::get('/items/{variant}', [ItemController::class, 'show'])->name('items.show');
     Route::get('/items/{variant}/edit', [ItemController::class, 'edit'])->name('items.edit');
