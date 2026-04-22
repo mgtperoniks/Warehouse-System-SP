@@ -22,36 +22,46 @@ class DashboardController extends Controller
                               ->count();
         $outOfStockCount = Bin::where('current_qty', '<=', 0)->count();
 
-        // ─── 7-Day Trend Chart ────────────────────────────────────────────
-        $chartDays     = 7;
-        $chartLabels   = [];
-        $chartStockIn  = [];
+        // ─── Trend Charts (7d & 30d) ──────────────────────────────────────
+        $maxDays = 30;
+        $startDate = Carbon::today()->subDays($maxDays - 1);
+
+        $movements = StockMovement::where('created_at', '>=', $startDate)
+            ->select(
+                DB::raw('DATE(created_at) as date'),
+                DB::raw('SUM(CASE WHEN type = "IN" THEN qty ELSE 0 END) as total_in'),
+                DB::raw('SUM(CASE WHEN type = "OUT" THEN qty ELSE 0 END) as total_out')
+            )
+            ->groupBy('date')
+            ->get()
+            ->keyBy('date');
+
+        // Prepare 7-day data
+        $chartLabels = [];
+        $chartStockIn = [];
         $chartStockOut = [];
-
-        for ($i = $chartDays - 1; $i >= 0; $i--) {
-            $date            = Carbon::today()->subDays($i);
-            $chartLabels[]   = $date->format('d M');
-
-            $chartStockIn[]  = StockMovement::whereDate('created_at', $date)
-                                            ->where('type', 'IN')
-                                            ->sum('qty');
-
-            $chartStockOut[] = StockMovement::whereDate('created_at', $date)
-                                            ->where('type', 'OUT')
-                                            ->sum('qty');
+        for ($i = 6; $i >= 0; $i--) {
+            $dateStr = Carbon::today()->subDays($i)->format('Y-m-d');
+            $label = Carbon::today()->subDays($i)->format('d M');
+            $data = $movements->get($dateStr);
+            
+            $chartLabels[] = $label;
+            $chartStockIn[] = $data ? (int)$data->total_in : 0;
+            $chartStockOut[] = $data ? (int)$data->total_out : 0;
         }
 
-        // ─── Monthly Trend (30d) ──────────────────────────────────────────
-        $chartDays30     = 30;
-        $chartLabels30   = [];
-        $chartIn30       = [];
-        $chartOut30      = [];
-
-        for ($i = $chartDays30 - 1; $i >= 0; $i--) {
-            $date             = Carbon::today()->subDays($i);
-            $chartLabels30[]  = $date->format('d M');
-            $chartIn30[]      = StockMovement::whereDate('created_at', $date)->where('type', 'IN')->sum('qty');
-            $chartOut30[]     = StockMovement::whereDate('created_at', $date)->where('type', 'OUT')->sum('qty');
+        // Prepare 30-day data
+        $chartLabels30 = [];
+        $chartIn30 = [];
+        $chartOut30 = [];
+        for ($i = 29; $i >= 0; $i--) {
+            $dateStr = Carbon::today()->subDays($i)->format('Y-m-d');
+            $label = Carbon::today()->subDays($i)->format('d M');
+            $data = $movements->get($dateStr);
+            
+            $chartLabels30[] = $label;
+            $chartIn30[] = $data ? (int)$data->total_in : 0;
+            $chartOut30[] = $data ? (int)$data->total_out : 0;
         }
 
         // ─── Recent Transactions ──────────────────────────────────────────
