@@ -14,7 +14,12 @@ class ItemService
     public function getPaginatedItems(array $filters = [], int $perPage = 25): LengthAwarePaginator
     {
         $query = ItemVariant::query()
-            ->select('item_variants.*')
+            ->select(
+                'item_variants.*',
+                'stock_data.total_stock',
+                'stock_data.total_min_stock',
+                'movement_data.last_movement_at'
+            )
             ->join('items', 'items.id', '=', 'item_variants.item_id')
             ->with(['item', 'barcodes']);
 
