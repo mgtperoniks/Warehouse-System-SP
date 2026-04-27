@@ -62,7 +62,7 @@ class BulkImport extends Component
                     'sku' => $sku,
                     'unit' => $unit,
                     'brand' => trim($row[4] ?? ''),
-                    'price' => (float)($row[8] ?? 0),
+                    'price' => (float) filter_var($row[8] ?? 0, FILTER_SANITIZE_NUMBER_FLOAT, FILTER_FLAG_ALLOW_FRACTION),
                     'description' => trim($row[9] ?? ''),
                 ]);
 
@@ -86,30 +86,44 @@ class BulkImport extends Component
 
                 // 6. Handle Bin & Initial Stock
                 $binCode = trim($row[6] ?? '');
-                $initialStock = (int)($row[7] ?? 0);
+                
+                // Robust numeric parsing for stock (handling potential formatting from Excel/Handsontable)
+                $stockRaw = $row[7] ?? 0;
+                $initialStock = is_numeric($stockRaw) ? (int)$stockRaw : (int)filter_var($stockRaw, FILTER_SANITIZE_NUMBER_INT);
 
-                if (!empty($binCode)) {
+                // Process if there is a bin code OR if there is initial stock to be added
+                if (!empty($binCode) || $initialStock > 0) {
                     $location = Location::firstOrCreate(
                         ['code' => 'MAIN'],
                         ['description' => 'Main Warehouse']
                     );
 
+                    // If bin code is empty but we have stock, default to 'FRONT' or similar
+                    $finalBinCode = !empty($binCode) ? strtoupper($binCode) : 'FRONT';
+
                     $bin = Bin::create([
                         'location_id' => $location->id,
                         'item_variant_id' => $variant->id,
-                        'code' => strtoupper($binCode),
+                        'code' => $finalBinCode,
                         'current_qty' => 0
                     ]);
 
                     if ($initialStock > 0) {
-                        $inventoryService = app(InventoryService::class);
-                        $inventoryService->moveStock(
-                            $bin,
-                            $initialStock,
-                            'ADJUSTMENT',
-                            'Initial Stock via Bulk Import',
-                            (string)auth()->id()
-                        );
+                        try {
+                            $inventoryService = app(InventoryService::class);
+                            $inventoryService->moveStock(
+                                $bin,
+                                $initialStock,
+                                'ADJUSTMENT',
+                                'Initial Stock via Bulk Import',
+                                (string)auth()->id()
+                            );
+                        } catch (\Exception $stockEx) {
+                            Log::warning("Stock movement failed for {$erpCode}: " . $stockEx->getMessage());
+                            // We don't necessarily want to roll back the whole item if just stock fails, 
+                            // but in this case, the user wants the stock to be there.
+                            throw $stockEx; 
+                        }
                     }
                 }
 
