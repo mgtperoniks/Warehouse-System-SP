@@ -38,5 +38,8 @@ Route::middleware('auth')->group(function () {
     // Settings / Master Data
     Route::get('/settings/departments', \App\Livewire\Settings\DepartmentPage::class)->name('settings.departments');
     Route::get('/settings/users', \App\Livewire\Settings\UserPage::class)->name('settings.users');
+
+    // Test Routes
+    Route::get('/barcode/test-print', [\App\Http\Controllers\BarcodeTestController::class, 'index'])->name('barcode.test-print');
 });
 
