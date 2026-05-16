@@ -20,7 +20,7 @@ class TsplRenderer implements LabelRendererInterface
     {
         $this->validateData($data, ['item_name', 'erp_code', 'barcode', 'last_stock_in_date']);
 
-        // Final thermal safety: Character limit reduced to 24 to handle font "2" heat spread.
+        // Use 24 character limit for Font "2" to ensure zero horizontal bleeding
         $nameLines = $this->formatItemName($data['item_name'], 24);
         $erp = $this->sanitize($data['erp_code']);
         $barcode = $this->sanitize($data['barcode']);
@@ -36,32 +36,31 @@ class TsplRenderer implements LabelRendererInterface
         $cmds[] = "CLS";
         $cmds[] = "SET TEAR ON";
         
-        // --- Header Zone (Item Name) ---
-        // Final calibration: increased Y-offset spacing to prevent hardware thermal bleed.
-        $cmds[] = "TEXT 10,12,\"" . self::FONT_TITLE . "\",0,1,1,\"" . $nameLines['line1'] . "\"";
+        // --- Header Zone (Deterministic 2-Line Name) ---
+        // Line 1 fixed at Y=16
+        $cmds[] = "TEXT 10,16,\"" . self::FONT_TITLE . "\",0,1,1,\"" . $nameLines['line1'] . "\"";
         
-        $erpY = 44; // Safe Y if only 1 line exists
+        $erpY = 68; // ERP position if only 1 line exists
         if (!empty($nameLines['line2'])) {
+            // Line 2 fixed at Y=40
             $cmds[] = "TEXT 10,40,\"" . self::FONT_TITLE . "\",0,1,1,\"" . $nameLines['line2'] . "\"";
-            $erpY = 68; // Push ERP down to prevent overlap with name line 2
+            $erpY = 92; // Push ERP down to Y=92 if 2 lines exist
         }
 
-        // ERP rendering: Downgrade to FONT_NORMAL ("1")
-        $cmds[] = "TEXT 10,$erpY,\"" . self::FONT_NORMAL . "\",0,1,1,\"ERP: $erp\"";
+        // ERP rendering (Restore FONT_TITLE for high-visibility hierarchy)
+        $cmds[] = "TEXT 10,$erpY,\"" . self::FONT_TITLE . "\",0,1,1,\"ERP: $erp\"";
         
-        // --- Barcode Zone ---
-        // Width multiplier balanced at 2,2 for 30x50mm industrial labels.
-        $cmds[] = "BARCODE 35,92,\"128\",50,0,0,2,2,\"$barcode\"";
+        // --- Barcode Zone (Restored Big Barcode) ---
+        // Width multiplier 3 for bold industrial dominance at Y=128
+        $cmds[] = "BARCODE 35,128,\"128\",50,0,0,3,3,\"$barcode\"";
         
-        // --- Human Readable Barcode Text ---
-        // Dynamic X positioning for centered alignment based on barcode length.
+        // --- Human Readable Barcode Text (Y=182) ---
         $barcodeTextX = max(120, 220 - (mb_strlen($barcode) * 8));
-        $cmds[] = "TEXT $barcodeTextX,148,\"" . self::FONT_TITLE . "\",0,1,1,2,\"$barcode\"";
+        $cmds[] = "TEXT $barcodeTextX,182,\"" . self::FONT_TITLE . "\",0,1,1,2,\"$barcode\"";
         
-        // --- Footer Zone ---
-        // Shifted for maximum breathing room at the bottom.
-        $cmds[] = "TEXT 10,205,\"" . self::FONT_NORMAL . "\",0,1,1,\"Last In: $lastIn\"";
-        $cmds[] = "TEXT 390,205,\"" . self::FONT_NORMAL . "\",0,1,1,3,\"Bin: $bin\"";
+        // --- Footer Zone (Y=225) ---
+        $cmds[] = "TEXT 10,225,\"" . self::FONT_NORMAL . "\",0,1,1,\"Last In: $lastIn\"";
+        $cmds[] = "TEXT 390,225,\"" . self::FONT_NORMAL . "\",0,1,1,3,\"Bin: $bin\"";
         
         $cmds[] = "PRINT 1,1";
 
