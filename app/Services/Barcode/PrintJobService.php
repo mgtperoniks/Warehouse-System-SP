@@ -13,6 +13,20 @@ class PrintJobService
      */
     public function createTscJob(string $payload, string $printerName, string $templateType, int $copies = 1): PrintJob
     {
+        \Log::info('[PRINT_TRIGGER] createTscJob Initiated', [
+            'user' => Auth::user()?->name ?? 'Guest',
+            'user_id' => Auth::id(),
+            'route' => \Route::currentRouteName(),
+            'url' => request()->fullUrl(),
+            'ip' => request()->ip(),
+            'method' => request()->method(),
+            'payload_keys' => array_keys(request()->all()),
+            'agent' => request()->userAgent(),
+            'backtrace' => collect(debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 6))
+                ->map(fn($t) => ($t['class'] ?? '') . '@' . ($t['function'] ?? ''))
+                ->toArray()
+        ]);
+
         \Log::info('>>> [BEFORE] createTscJob', ['template' => $templateType]);
 
         $job = PrintJob::create([

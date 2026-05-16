@@ -170,6 +170,27 @@ class PrintPage extends Component
     public function print(): void
     {
         Log::info('--- [START] PrintPage: print() triggered ---');
+        
+        // 1. Protection: Only allow POST requests (Livewire actions are POST)
+        if (request()->method() !== 'POST') {
+            Log::warning('[SECURITY] PrintPage: print() blocked - Non-POST request detected', [
+                'method' => request()->method(),
+                'ip' => request()->ip()
+            ]);
+            return;
+        }
+
+        // 2. Anti-Duplicate: Session Lock (2 seconds per user)
+        $lockKey = 'print_lock_' . auth()->id();
+        if (cache()->has($lockKey)) {
+            Log::warning('[ANTI-DUPLICATE] PrintPage: print() blocked - Rapid fire trigger detected', [
+                'user_id' => auth()->id(),
+                'ip' => request()->ip()
+            ]);
+            return;
+        }
+        cache()->put($lockKey, true, 2);
+
         Log::info('PrintPage Details', [
             'variant_id' => $this->selectedVariantId,
             'label_type' => $this->labelType,

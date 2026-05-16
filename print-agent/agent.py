@@ -15,12 +15,16 @@ SERVER_URL = CONFIG['server_url']
 MACHINE_ID = CONFIG['machine_id']
 PRINTER_NAME = CONFIG['printer_name']
 POLL_INTERVAL = CONFIG['poll_interval']
-IGNORE_OLD_JOBS = CONFIG.get('ignore_existing_pending_on_startup', False)
-STARTUP_TIME = datetime.datetime.now(datetime.timezone.utc)
 LOG_FILE = "agent.log"
 
+# --- ARCHITECTURE POLICY ---
+# SERVER (Laravel) = Single source of truth for queue authority and stale job filtering.
+# AGENT (Python)  = Dumb execution worker. Responsibility: Claim -> Verify -> Print -> Notify.
+# ---------------------------
+
 def log(msg):
-    """Logs message to console and file with timestamp."""
+    """Logs message to console and file with timestamp (Local Time for Log Visibility)."""
+    # We use local time for the log prefix to match the operator's clock
     timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
     line = f"[{timestamp}] {msg}"
     print(line)
@@ -66,8 +70,6 @@ def print_raw(data):
 def process_jobs():
     log(f"Agent started. Machine: {MACHINE_ID}, Printer: {PRINTER_NAME}")
     log(f"Polling URL: {SERVER_URL}")
-    if IGNORE_OLD_JOBS:
-        log(f"[SAFETY] Ignoring jobs created before {STARTUP_TIME.isoformat()}")
 
     # Validate Printer Existence
     try:
@@ -96,20 +98,6 @@ def process_jobs():
                 job_id = job['id']
                 payload = job['payload_tspl']
                 expected_hash = job['payload_hash']
-                created_at_str = job['created_at']
-
-                # Safety Check: Ignore old jobs if enabled
-                if IGNORE_OLD_JOBS:
-                    try:
-                        created_at = datetime.datetime.fromisoformat(created_at_str.replace('Z', '+00:00'))
-                        if created_at < STARTUP_TIME:
-                            log(f"[QUEUE] Ignoring stale pending job ID {job_id} (Created: {created_at_str})")
-                            requests.post(f"{SERVER_URL}/print-jobs/{job_id}/failed", json={
-                                "error": "Ignored due to agent startup safety (ignore_existing_pending_on_startup=true)"
-                            })
-                            continue
-                    except Exception as parse_err:
-                        log(f"Warning: Failed to parse job timestamp: {parse_err}")
 
                 log(f"Job claimed: ID {job_id}")
 
