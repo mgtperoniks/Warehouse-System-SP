@@ -26,6 +26,7 @@ class StockInPage extends Component
     public $binCode = ''; // For model bind
     public $supplier_id = null;
     public $last_used_bin_id = null;
+    public $binAutoAssigned = false;
     public $reference = '';
     public $cart = [];
     public $lastAction = '';
@@ -238,13 +239,32 @@ class StockInPage extends Component
                 $this->supplier_id = $this->currentItem->suppliers->first()->id;
             }
 
-            // Auto-fill bin
-            if ($this->last_used_bin_id) {
-                $this->bin_id = $this->last_used_bin_id;
-                $bin = Bin::find($this->bin_id);
-                if ($bin) {
-                    $this->binCode = $bin->code;
+            // Auto-fill bin based on primary candidate bins
+            $candidateBins = Bin::forActiveWarehouse()
+                ->where('item_variant_id', $this->currentItem->id)
+                ->get();
+
+            if ($candidateBins->count() === 1) {
+                $bin = $candidateBins->first();
+                $this->bin_id = $bin->id;
+                $this->binCode = $bin->code;
+                $this->binAutoAssigned = true;
+            } elseif ($candidateBins->count() > 1) {
+                $this->bin_id = null;
+                $this->binCode = '';
+                $this->binAutoAssigned = false;
+                
+                if ($this->last_used_bin_id && $candidateBins->pluck('id')->contains($this->last_used_bin_id)) {
+                    $this->bin_id = $this->last_used_bin_id;
+                    $bin = Bin::find($this->bin_id);
+                    if ($bin) {
+                        $this->binCode = $bin->code;
+                    }
                 }
+            } else {
+                $this->bin_id = null;
+                $this->binCode = '';
+                $this->binAutoAssigned = false;
             }
 
             if ($this->autoAddMode) {
@@ -406,7 +426,7 @@ class StockInPage extends Component
 
             // Cleanup & Start New Session
             $this->cart = [];
-            $this->reset(['barcode', 'currentItem', 'qty', 'bin_id', 'binCode', 'supplier_id', 'lastAction', 'reference']);
+            $this->reset(['barcode', 'currentItem', 'qty', 'bin_id', 'binCode', 'supplier_id', 'lastAction', 'reference', 'binAutoAssigned']);
             
             $this->createNewReceiptSession();
 

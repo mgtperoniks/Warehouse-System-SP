@@ -299,9 +299,20 @@
 
                 {{-- Bin selection --}}
                 <div class="bg-white dark:bg-slate-900 rounded-md {{ $errors->has('bin_id') ? 'border-error' : '' }}">
+                    @if($binAutoAssigned)
+                        <div class="flex items-center justify-between mb-1.5">
+                            <span class="text-[9px] font-black text-emerald-600 bg-emerald-50 dark:bg-emerald-950/30 px-1.5 py-0.5 rounded uppercase tracking-wider flex items-center gap-1">
+                                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block animate-pulse"></span>
+                                🟢 AUTO ASSIGNED (PRIMARY BIN)
+                            </span>
+                        </div>
+                    @endif
                     <div class="relative flex items-center">
                         <span class="material-symbols-outlined absolute left-2.5 text-green-600 text-lg">warehouse</span>
-                        <select wire:key="stock-in-bin-select" wire:model="binCode" class="w-full h-9 pl-8 pr-8 bg-slate-50 border border-slate-200 dark:border-slate-855 rounded-md font-bold text-on-surface focus:ring-1 focus:ring-green-500/20 focus:border-green-500 text-xs py-1 transition-all">
+                        <select wire:key="stock-in-bin-select" 
+                                wire:model="binCode" 
+                                @if($binAutoAssigned) disabled @endif
+                                class="w-full h-9 pl-8 pr-8 bg-slate-50 border border-slate-200 dark:border-slate-855 rounded-md font-bold text-on-surface focus:ring-1 focus:ring-green-500/20 focus:border-green-500 text-xs py-1 transition-all @if($binAutoAssigned) opacity-80 cursor-not-allowed bg-emerald-50/10 @endif">
                             <option value="">— Select Target Bin —</option>
                             @foreach($bins as $bin)
                                 <option value="{{ $bin->code }}">{{ $bin->code }} (Current: {{ $bin->current_qty }} / {{ $bin->max_capacity }} Pcs)</option>
