@@ -228,7 +228,7 @@
                         <div class="flex items-center gap-2">
                             <label class="text-[9px] font-black text-slate-400 uppercase tracking-widest shrink-0">Supplier:</label>
                             <div class="relative flex-1">
-                                <select wire:model="supplier_id" class="w-full h-9 pl-3 pr-8 bg-slate-50 border border-slate-200 dark:border-slate-855 rounded-md font-bold text-on-surface focus:ring-1 focus:ring-green-500/20 focus:border-green-500 text-xs py-1 transition-all">
+                                <select wire:key="stock-in-supplier-select" wire:model="supplier_id" class="w-full h-9 pl-3 pr-8 bg-slate-50 border border-slate-200 dark:border-slate-855 rounded-md font-bold text-on-surface focus:ring-1 focus:ring-green-500/20 focus:border-green-500 text-xs py-1 transition-all">
                                     <option value="">— Select Supplier —</option>
                                     @foreach($suppliers as $supplier)
                                         <option value="{{ $supplier->id }}">{{ $supplier->name }}</option>
@@ -301,7 +301,7 @@
                 <div class="bg-white dark:bg-slate-900 rounded-md {{ $errors->has('bin_id') ? 'border-error' : '' }}">
                     <div class="relative flex items-center">
                         <span class="material-symbols-outlined absolute left-2.5 text-green-600 text-lg">warehouse</span>
-                        <select wire:model.live="binCode" class="w-full h-9 pl-8 pr-8 bg-slate-50 border border-slate-200 dark:border-slate-855 rounded-md font-bold text-on-surface focus:ring-1 focus:ring-green-500/20 focus:border-green-500 text-xs py-1 transition-all">
+                        <select wire:key="stock-in-bin-select" wire:model="binCode" class="w-full h-9 pl-8 pr-8 bg-slate-50 border border-slate-200 dark:border-slate-855 rounded-md font-bold text-on-surface focus:ring-1 focus:ring-green-500/20 focus:border-green-500 text-xs py-1 transition-all">
                             <option value="">— Select Target Bin —</option>
                             @foreach($bins as $bin)
                                 <option value="{{ $bin->code }}">{{ $bin->code }} (Current: {{ $bin->current_qty }} / {{ $bin->max_capacity }} Pcs)</option>
@@ -626,6 +626,7 @@
                 },
 
                 init() {
+                    console.log("ALPINE ENGINE INITIALIZED");
                     console.log("[WMS Inbound Scanner] Bootstrapped in " + this.engineMode.toUpperCase() + " mode.");
                     
                     // Initialize Tab Governance heartbeats
@@ -744,6 +745,7 @@
                 },
 
                 handleScanInput() {
+                    console.log("SCAN ENTER DETECTED");
                     const raw = this.barcodeText.trim();
                     console.log("[WMS STOCK IN] Raw scan input registered:", raw);
                     if (!raw) return;
@@ -753,15 +755,6 @@
                     this.debugDuplicateBlock = 'NO';
                     this.debugDispatch = 'PENDING';
                     this.debugLookup = 'PENDING';
-
-                    if (this.engineMode !== 'enhanced') {
-                        console.log("[WMS STOCK IN] Legacy Mode Active - setting value & submitting direct scan to Livewire.");
-                        this.debugDispatch = 'DISPATCHED';
-                        @this.set('barcode', raw);
-                        @this.call('submitScan');
-                        this.barcodeText = '';
-                        return;
-                    }
 
                     // Strict Inbound Regex Parser: BARCODE*QTY
                     let barcodeVal = raw;
@@ -808,10 +801,12 @@
 
                     this.barcodeText = ''; // Clear DOM immediately
 
+                    // Direct backend invocation bypassing the custom dispatch bus
                     const start = Date.now();
-                    console.log("[WMS STOCK IN] Dispatching 'barcode-scanned' livewire event with payload:", { barcode: barcodeVal, qty: qtyVal });
+                    console.log("[WMS STOCK IN] Executing direct Livewire call: submitScan(" + barcodeVal + ", " + qtyVal + ")");
                     this.debugDispatch = 'DISPATCHED';
-                    @this.dispatch('barcode-scanned', { barcode: barcodeVal, qty: qtyVal });
+                    
+                    @this.call('submitScan', barcodeVal, qtyVal);
                     
                     window.__WMS_SCANNER_DEBUG.logScan(Date.now() - start);
                 },
@@ -958,5 +953,46 @@
                 if (container) container.classList.add('hidden');
             }
         };
+
+        // 🔌 Industrial Hard Vanilla JS Keydown Fallback Listener (Delegated at document level for maximum morph durability)
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && e.target && e.target.id === 'barcode-input') {
+                const inputEl = e.target;
+                // Check if Alpine has handled this. If Alpine was successfully bootstrapped and x-data scannerEngine is running,
+                // we let handleScanInput() do its direct invocation. Otherwise, we fallback to hard vanilla Livewire trigger.
+                const alpineRunning = !!(inputEl.__x || (window.Alpine && window.Alpine.discover && window.Alpine.discover(inputEl)));
+                
+                if (!alpineRunning) {
+                    e.preventDefault();
+                    console.log("SCAN ENTER DETECTED - [VANILLA HARD FALLBACK ACTIVE]");
+                    const raw = inputEl.value.trim();
+                    if (raw) {
+                        // Find closest Livewire component
+                        const lwEl = inputEl.closest('[wire\\:id]');
+                        if (lwEl) {
+                            const lwId = lwEl.getAttribute('wire:id');
+                            const lwComponent = window.Livewire.find(lwId);
+                            if (lwComponent) {
+                                console.log("[VANILLA FALLBACK] Direct submitScan call via Livewire context for raw barcode:", raw);
+                                
+                                // Parse standard shorthand format (BARCODE*QTY)
+                                let barcodeVal = raw;
+                                let qtyVal = 1;
+                                if (raw.includes('*')) {
+                                    const match = raw.match(/^([a-zA-Z0-9_-]+)\*(\d+)$/);
+                                    if (match) {
+                                        barcodeVal = match[1];
+                                        qtyVal = parseInt(match[2], 10);
+                                    }
+                                }
+                                
+                                lwComponent.call('submitScan', barcodeVal, qtyVal);
+                                inputEl.value = '';
+                            }
+                        }
+                    }
+                }
+            }
+        });
     </script>
 </div>

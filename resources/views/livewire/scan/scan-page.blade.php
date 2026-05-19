@@ -593,6 +593,7 @@
             },
 
             init() {
+                console.log("ALPINE ENGINE INITIALIZED");
                 console.log("[WMS Scanner Engine] Bootstrapped in " + this.engineMode.toUpperCase() + " mode.");
                 
                 // Initialize Tab Governance heartbeats
@@ -712,7 +713,8 @@
                     playBuzz(0);
                     playBuzz(0.09); // Second pulse after 90ms
                 }
-                     handleScanInput() {
+                    handleScanInput() {
+                console.log("SCAN ENTER DETECTED");
                 const raw = this.barcodeText.trim();
                 console.log("[WMS SCANNER] Raw scan input registered:", raw);
                 if (!raw) return;
@@ -722,15 +724,6 @@
                 this.debugDuplicateBlock = 'NO';
                 this.debugDispatch = 'PENDING';
                 this.debugLookup = 'PENDING';
-
-                if (this.engineMode !== 'enhanced') {
-                    console.log("[WMS SCANNER] Legacy Mode Active - setting value & submitting direct scan to Livewire.");
-                    this.debugDispatch = 'DISPATCHED';
-                    @this.set('barcode', raw);
-                    @this.call('submitScan');
-                    this.barcodeText = '';
-                    return;
-                }
 
                 // Strict Regex Parser: Enforce BARCODE*QTY
                 let barcodeVal = raw;
@@ -778,11 +771,12 @@
 
                 this.barcodeText = ''; // Clear input immediately!
 
-                // Dispatch event asynchronously
+                // Direct backend invocation bypassing the custom dispatch bus
                 const start = Date.now();
-                console.log("[WMS SCANNER] Dispatching 'barcode-scanned' livewire event with payload:", { barcode: barcodeVal, qty: qtyVal });
+                console.log("[WMS SCANNER] Executing direct Livewire call: submitScan(" + barcodeVal + ", " + qtyVal + ")");
                 this.debugDispatch = 'DISPATCHED';
-                @this.dispatch('barcode-scanned', { barcode: barcodeVal, qty: qtyVal });
+                
+                @this.call('submitScan', barcodeVal, qtyVal);
                 
                 window.__WMS_SCANNER_DEBUG.logScan(Date.now() - start);
             },
@@ -884,5 +878,46 @@
                 }
             }
         }));
+    });
+
+    // 🔌 Industrial Hard Vanilla JS Keydown Fallback Listener (Delegated at document level for maximum morph durability)
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && e.target && e.target.id === 'barcode-input') {
+            const inputEl = e.target;
+            // Check if Alpine has handled this. If Alpine was successfully bootstrapped and x-data scannerEngine is running,
+            // we let handleScanInput() do its direct invocation. Otherwise, we fallback to hard vanilla Livewire trigger.
+            const alpineRunning = !!(inputEl.__x || (window.Alpine && window.Alpine.discover && window.Alpine.discover(inputEl)));
+            
+            if (!alpineRunning) {
+                e.preventDefault();
+                console.log("SCAN ENTER DETECTED - [VANILLA HARD FALLBACK ACTIVE]");
+                const raw = inputEl.value.trim();
+                if (raw) {
+                    // Find closest Livewire component
+                    const lwEl = inputEl.closest('[wire\\:id]');
+                    if (lwEl) {
+                        const lwId = lwEl.getAttribute('wire:id');
+                        const lwComponent = window.Livewire.find(lwId);
+                        if (lwComponent) {
+                            console.log("[VANILLA FALLBACK] Direct submitScan call via Livewire context for raw barcode:", raw);
+                            
+                            // Parse standard shorthand format (BARCODE*QTY)
+                            let barcodeVal = raw;
+                            let qtyVal = 1;
+                            if (raw.includes('*')) {
+                                const match = raw.match(/^([a-zA-Z0-9_-]+)\*(\d+)$/);
+                                if (match) {
+                                    barcodeVal = match[1];
+                                    qtyVal = parseInt(match[2], 10);
+                                }
+                            }
+                            
+                            lwComponent.call('submitScan', barcodeVal, qtyVal);
+                            inputEl.value = '';
+                        }
+                    }
+                }
+            }
+        }
     });
 </script>
