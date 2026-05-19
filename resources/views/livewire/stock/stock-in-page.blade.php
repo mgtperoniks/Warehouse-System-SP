@@ -497,7 +497,7 @@
             }
         };
 
-        document.addEventListener('alpine:init', () => {
+        const registerScannerEngine = () => {
             Alpine.data('scannerEngine', () => ({
                 engineMode: localStorage.getItem('wms_scanner_engine') || 'enhanced',
                 volume: localStorage.getItem('wms_scanner_volume') || 'normal',
@@ -898,9 +898,14 @@
                             this.focusCooldown = false;
                         }, 200);
                     }
-                }
             }));
-        });
+        };
+
+        if (window.Alpine) {
+            registerScannerEngine();
+        } else {
+            document.addEventListener('alpine:init', registerScannerEngine);
+        }
 
         // Camera Scanner Helpers
         var html5QrCode;

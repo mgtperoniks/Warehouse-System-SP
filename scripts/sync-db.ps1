@@ -1,274 +1,227 @@
-<#
-.SYNOPSIS
-    Production to Local Laragon Database Synchronization Script
-.DESCRIPTION
-    A robust, one-command synchronization script between the production warehouse database
-    and the local Laragon workstation. Includes auto-backup, FK bypass, and cache clearing.
-.PARAMETER RemoteHost
-    Host IP or hostname of the production warehouse server. Default is 10.88.8.46.
-.PARAMETER RemoteUser
-    SSH username. Default is peroniks.
-.PARAMETER RemotePath
-    Absolute app directory on server. Default is /srv/docker/apps/Warehouse-System-SP.
-.PARAMETER RemoteDbService
-    Docker Compose db service name on production. Default is warehouse-db.
-.PARAMETER RemoteDbName
-    Production target database name. Default is warehouse_system.
-.PARAMETER RemoteDbUser
-    Production database username. Default is warehouse_system_user.
-.PARAMETER RemoteDbPass
-    Production database password. Default is wh_sys_k8q2pL9zX_prod.
-.PARAMETER SyncOnly
-    Only create remote dump and download, do not import to local Laragon.
-.PARAMETER ImportOnly
-    Skip remote connect and download. Import the existing local 'prod_dump.sql' file.
-.PARAMETER NoCleanup
-    Do not delete the remote /tmp/prod_dump.sql or the local temporary SQL dump files.
-#>
+# ============================================================
+# WAREHOUSE SYSTEM - PRODUCTION DATABASE SYNC
+# ============================================================
 
-[CmdletBinding()]
-param(
-    [string]$RemoteHost = "10.88.8.46",
-    [string]$RemoteUser = "peroniks",
-    [string]$RemotePath = "/srv/docker/apps/Warehouse-System-SP",
-    [string]$RemoteDbService = "warehouse-db",
-    [string]$RemoteDbName = "warehouse_system",
-    [string]$RemoteDbUser = "warehouse_system_user",
-    [string]$RemoteDbPass = "wh_sys_k8q2pL9zX_prod",
+$REMOTE_USER = "peroniks"
+$REMOTE_HOST = "10.88.8.46"
 
-    [switch]$SyncOnly,
-    [switch]$ImportOnly,
-    [switch]$NoCleanup
-)
+$REMOTE_PATH = "/srv/docker/apps/Warehouse-System-SP"
 
-$ErrorActionPreference = "Stop"
+# Docker database container name
+$REMOTE_DB_CONTAINER = "warehouse-db"
 
-# --- HELPER FUNCTIONS ---
+# Production database credentials
+$DB_NAME = "warehouse_system"
+$DB_USER = "warehouse_system_user"
+$DB_PASS = "wh_sys_k8q2pL9zX_prod"
 
-function Write-Step($stepNum, $totalSteps, $message, $color) {
-    Write-Host ""
-    Write-Host "[$stepNum/$totalSteps] $message" -ForegroundColor $color -BackgroundColor Black
-    Write-Host "--------------------------------------------------------" -ForegroundColor $color
-}
+# Local Laragon database credentials
+$LOCAL_DB_NAME = "warehouse_system-sp"
+$LOCAL_DB_USER = "root"
+$LOCAL_DB_PASS = "123456788"
 
-function Find-BinFile($fileName) {
-    # 1. Try standard environment PATH
-    $resolved = Get-Command $fileName -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Source
-    if ($resolved) {
-        return $resolved
-    }
-
-    # 2. Try recursive lookup inside Laragon's default MySQL paths
-    $laragonDir = "C:\laragon\bin\mysql"
-    if (Test-Path $laragonDir) {
-        $finds = Get-ChildItem -Path $laragonDir -Filter $fileName -Recurse -File -ErrorAction SilentlyContinue
-        if ($finds) {
-            # Return the first found executable (usually matches the active MySQL version)
-            return $finds[0].FullName
-        }
-    }
-
-    return $null
-}
-
-function Get-EnvVar($varName, $defaultValue) {
-    if (Test-Path ".env") {
-        $lines = Get-Content ".env"
-        foreach ($line in $lines) {
-            $line = $line.Trim()
-            if ($line -like "$varName=*") {
-                $val = $line.Substring($varName.Length + 1).Trim()
-                # Remove quotes if present
-                if ($val.StartsWith('"') -and $val.EndsWith('"')) {
-                    $val = $val.Substring(1, $val.Length - 2)
-                } elseif ($val.StartsWith("'") -and $val.EndsWith("'")) {
-                    $val = $val.Substring(1, $val.Length - 2)
-                }
-                # Remove inline comments
-                if ($val.Contains("#")) {
-                    $val = $val.Split("#")[0].Trim()
-                }
-                return $val
-            }
-        }
-    }
-    return $defaultValue
-}
-
-# --- HEADER TITLE ---
-Write-Host "============================================================" -ForegroundColor Cyan
-Write-Host "     🏭 WAREHOUSE SYSTEM PRODUCTION DB SYNC WORKFLOW" -ForegroundColor Cyan
-Write-Host "============================================================" -ForegroundColor Cyan
-Write-Host "  Local Time : $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')" -ForegroundColor DarkGray
-Write-Host "  Workspace  : $(Get-Location)" -ForegroundColor DarkGray
-Write-Host "============================================================" -ForegroundColor Cyan
-
-# --- STEP 1: CREATE REMOTE DUMP ---
-Write-Step 1 4 "Creating production dump..." "Cyan"
-if (-not $ImportOnly) {
-    # Generate SSH docker compose exec mysqldump command
-    $sshCmd = "cd $RemotePath && sudo docker compose exec -T $RemoteDbService mysqldump -u $RemoteDbUser -p$RemoteDbPass $RemoteDbName > /tmp/prod_dump.sql"
-    
-    Write-Host "Connecting via SSH to peroniks@$RemoteHost..." -ForegroundColor DarkGray
-    Write-Host "Executing remote Docker DB dump inside Compose container..." -ForegroundColor DarkGray
-    
-    # Run SSH
-    ssh -o ConnectTimeout=10 $RemoteUser@$RemoteHost $sshCmd
-    if ($LASTEXITCODE -ne 0) {
-        Write-Host "❌ ERROR: Remote dump generation failed." -ForegroundColor Red -BackgroundColor Black
-        Write-Host "Please check: Host connectivity, SSH key/agent state, and remote Docker stack health." -ForegroundColor Yellow
-        exit 1
-    }
-    Write-Host "✅ Remote database dump created at: /tmp/prod_dump.sql" -ForegroundColor Green
-} else {
-    Write-Host "⏭️ Skipping remote dump (-ImportOnly is active)." -ForegroundColor Yellow
-}
-
-# --- STEP 2: DOWNLOAD DATABASE DUMP ---
-Write-Step 2 4 "Downloading database..." "Yellow"
-if (-not $ImportOnly) {
-    Write-Host "Initiating secure copy (SCP) download..." -ForegroundColor DarkGray
-    
-    # Run SCP
-    scp -q -o ConnectTimeout=10 "${RemoteUser}@${RemoteHost}:/tmp/prod_dump.sql" ./prod_dump.sql
-    if ($LASTEXITCODE -ne 0) {
-        Write-Host "❌ ERROR: Failed to download database dump via SCP." -ForegroundColor Red -BackgroundColor Black
-        exit 1
-    }
-    Write-Host "✅ Download complete. Saved as local: prod_dump.sql" -ForegroundColor Green
-} else {
-    Write-Host "⏭️ Skipping secure download (-ImportOnly is active)." -ForegroundColor Yellow
-}
-
-# --- STEP 3: AUTO LOCAL BACKUP & SAFE IMPORT ---
-Write-Step 3 4 "Importing into Laragon..." "Green"
-if (-not $SyncOnly) {
-    # 1. Locate MySQL utilities
-    $mysqlPath = Find-BinFile "mysql.exe"
-    $mysqldumpPath = Find-BinFile "mysqldump.exe"
-    
-    if (-not $mysqlPath) {
-        Write-Host "❌ ERROR: Could not locate 'mysql.exe' inside PATH or C:\laragon\bin\mysql" -ForegroundColor Red -BackgroundColor Black
-        exit 1
-    }
-    Write-Host "Located MySQL client: $mysqlPath" -ForegroundColor DarkGray
-    
-    # 2. Retrieve local database configurations from .env
-    $localDb = Get-EnvVar "DB_DATABASE" "warehouse_system"
-    $localUser = Get-EnvVar "DB_USERNAME" "root"
-    $localPass = Get-EnvVar "DB_PASSWORD" ""
-    $localHost = Get-EnvVar "DB_HOST" "127.0.0.1"
-    $localPort = Get-EnvVar "DB_PORT" "3306"
-    
-    Write-Host "Local Configuration Resolved:" -ForegroundColor DarkGray
-    Write-Host "  Database  : $localDb" -ForegroundColor DarkGray
-    Write-Host "  Username  : $localUser" -ForegroundColor DarkGray
-    Write-Host "  Host      : $localHost:$localPort" -ForegroundColor DarkGray
-    
-    # 3. Handle Auto-Backup of the existing state
-    if ($mysqldumpPath) {
-        Write-Host "Found mysqldump: $mysqldumpPath" -ForegroundColor DarkGray
-        Write-Host "Running automatic pre-import local backup safeguard..." -ForegroundColor DarkGray
-        
-        if (-not (Test-Path "backups")) {
-            New-Item -ItemType Directory -Path "backups" | Out-Null
-        }
-        
-        $timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
-        $backupFile = "backups/local_backup_$timestamp.sql"
-        
-        $passArg = if ($localPass) { "-p$localPass" } else { "" }
-        
-        # Invoke mysqldump safely redirecting to local backup file
-        $dumpCmd = "& '$mysqldumpPath' -h $localHost -P $localPort -u $localUser $passArg --databases $localDb"
-        Invoke-Expression $dumpCmd | Out-File -FilePath $backupFile -Encoding utf8
-        
-        if (Test-Path $backupFile) {
-            $backupSize = (Get-Item $backupFile).Length
-            if ($backupSize -gt 100) {
-                Write-Host "✅ Local safeguard backup created: $backupFile ($($backupSize) bytes)" -ForegroundColor Green
-            } else {
-                Write-Host "⚠️ Local database is empty/does not exist yet. Safeguard backup skipped." -ForegroundColor Yellow
-                Remove-Item $backupFile -Force -ErrorAction SilentlyContinue
-            }
-        }
-    } else {
-        Write-Host "⚠️ WARNING: mysqldump.exe not found. Skipping automatic safeguard backup." -ForegroundColor Yellow
-    }
-    
-    # 4. Verify Local Dump Source
-    if (-not (Test-Path "prod_dump.sql")) {
-        Write-Host "❌ ERROR: Cannot find 'prod_dump.sql' in the current workspace directory." -ForegroundColor Red -BackgroundColor Black
-        exit 1
-    }
-    
-    # 5. Ensure Local Database Exists
-    Write-Host "Ensuring target database '$localDb' is created..." -ForegroundColor DarkGray
-    $passArg = if ($localPass) { "-p$localPass" } else { "" }
-    & $mysqlPath -h $localHost -P $localPort -u $localUser $passArg -e "CREATE DATABASE IF NOT EXISTS \`$localDb\`;"
-    
-    # 6. Memory-Efficient Foreign Key Isolation Wrapper Import
-    Write-Host "Generating isolated wrapper to temporarily disable Foreign Key checks..." -ForegroundColor DarkGray
-    $wrapperPath = "temp_import_wrapper.sql"
-    $absoluteDumpPath = (Get-Item "prod_dump.sql").FullName.Replace("\", "/")
-    
-    $wrapperContent = @"
-SET FOREIGN_KEY_CHECKS=0;
-SOURCE $absoluteDumpPath;
-SET FOREIGN_KEY_CHECKS=1;
-"@
-    Set-Content -Path $wrapperPath -Value $wrapperContent
-    
-    Write-Host "Importing production dataset..." -ForegroundColor DarkGray
-    & $mysqlPath -h $localHost -P $localPort -u $localUser $passArg $localDb -e "source $wrapperPath"
-    if ($LASTEXITCODE -ne 0) {
-        Write-Host "❌ ERROR: Local database import failed." -ForegroundColor Red -BackgroundColor Black
-        if (Test-Path $wrapperPath) { Remove-Item $wrapperPath -Force -ErrorAction SilentlyContinue }
-        exit 1
-    }
-    
-    Write-Host "✅ Database import completed successfully under Foreign Key checks bypass." -ForegroundColor Green
-    
-    # 7. Local Cache Parity resets
-    Write-Host "Executing Laravel parity optimization clears..." -ForegroundColor DarkGray
-    if (Test-Path "artisan") {
-        & php artisan optimize:clear
-        & php artisan migrate
-        Write-Host "✅ Local Laravel cache reset and migrations fully synchronised." -ForegroundColor Green
-    } else {
-        Write-Host "⚠️ 'artisan' bootstrapper not found in root. Skipping cache clears." -ForegroundColor Yellow
-    }
-} else {
-    Write-Host "⏭️ Skipping database import (-SyncOnly is active)." -ForegroundColor Yellow
-}
-
-# --- STEP 4: CLEANUP TEMPORARY FILES ---
-Write-Step 4 4 "Cleaning temporary files..." "Red"
-if (-not $NoCleanup) {
-    if (Test-Path "temp_import_wrapper.sql") {
-        Remove-Item "temp_import_wrapper.sql" -Force
-        Write-Host "🗑️ Deleted local temporary wrapper." -ForegroundColor DarkGray
-    }
-    
-    if (-not $SyncOnly -and (Test-Path "prod_dump.sql")) {
-        Remove-Item "prod_dump.sql" -Force
-        Write-Host "🗑️ Deleted local temporary prod_dump.sql file." -ForegroundColor DarkGray
-    }
-    
-    if (-not $ImportOnly) {
-        Write-Host "Removing remote temporary dump from host server..." -ForegroundColor DarkGray
-        ssh $RemoteUser@$RemoteHost "rm -f /tmp/prod_dump.sql"
-    }
-    
-    Write-Host "✅ Temporary dump and wrapper cleanup complete." -ForegroundColor Green
-} else {
-    Write-Host "⏭️ Temporary cleanup disabled (-NoCleanup flag is active)." -ForegroundColor Yellow
-}
+# Temporary dump file
+$LOCAL_SQL = "prod_dump.sql"
 
 Write-Host ""
-Write-Host "============================================================" -ForegroundColor Green
-Write-Host " 🎉 PRODUCTION DB SYNCHRONISATION COMPLETED SUCCESSFULLY!" -ForegroundColor Green
-Write-Host "============================================================" -ForegroundColor Green
-Write-Host " Local workstation now matches 100% production parity." -ForegroundColor Green
-Write-Host " You can run your local tests or browser automation tests now." -ForegroundColor Green
-Write-Host "============================================================" -ForegroundColor Green
+Write-Host "==================================================" -ForegroundColor Cyan
+Write-Host "   WAREHOUSE SYSTEM PRODUCTION DATABASE SYNC" -ForegroundColor Cyan
+Write-Host "==================================================" -ForegroundColor Cyan
+
+# ============================================================
+# FIND MYSQL BINARIES
+# ============================================================
+
+$mysqlPath = "mysql"
+$mysqldumpPath = "mysqldump"
+
+if (-not (Get-Command "mysql" -ErrorAction SilentlyContinue)) {
+
+    Write-Host ""
+    Write-Host "Searching Laragon MySQL..." -ForegroundColor Gray
+
+    $mysqlExe = Get-ChildItem `
+        "C:\laragon\bin\mysql" `
+        -Filter "mysql.exe" `
+        -Recurse `
+        -ErrorAction SilentlyContinue |
+    Select-Object -First 1
+
+    if ($mysqlExe) {
+
+        $mysqlPath = $mysqlExe.FullName
+
+        Write-Host ("Found mysql.exe -> {0}" -f $mysqlPath) `
+            -ForegroundColor Green
+    }
+    else {
+
+        Write-Host ""
+        Write-Host "ERROR: mysql.exe not found." -ForegroundColor Red
+        exit
+    }
+}
+
+if (-not (Get-Command "mysqldump" -ErrorAction SilentlyContinue)) {
+
+    $mysqldumpExe = Get-ChildItem `
+        "C:\laragon\bin\mysql" `
+        -Filter "mysqldump.exe" `
+        -Recurse `
+        -ErrorAction SilentlyContinue |
+    Select-Object -First 1
+
+    if ($mysqldumpExe) {
+        $mysqldumpPath = $mysqldumpExe.FullName
+    }
+}
+
+# ============================================================
+# LOCAL BACKUP
+# ============================================================
+
+Write-Host ""
+Write-Host "[0/4] Creating local safeguard backup..." `
+    -ForegroundColor DarkCyan
+
+if (-not (Test-Path "backups")) {
+    New-Item -ItemType Directory -Path "backups" | Out-Null
+}
+
+$timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
+
+$backupFile = "backups/local_backup_$timestamp.sql"
+
+& $mysqldumpPath `
+    -u $LOCAL_DB_USER `
+    -h 127.0.0.1 `
+    "--password=$LOCAL_DB_PASS" `
+    --no-tablespaces `
+    $LOCAL_DB_NAME `
+    > $backupFile
+
+if ($LASTEXITCODE -eq 0) {
+
+    Write-Host ("Backup saved -> {0}" -f $backupFile) `
+        -ForegroundColor Green
+}
+else {
+
+    Write-Host "WARNING: Local backup failed." `
+        -ForegroundColor Yellow
+}
+
+# ============================================================
+# CREATE REMOTE DUMP
+# ============================================================
+
+Write-Host ""
+Write-Host "[1/4] Creating dump on production server..." `
+    -ForegroundColor Yellow
+
+ssh $REMOTE_USER@$REMOTE_HOST `
+    "docker exec -i $REMOTE_DB_CONTAINER mysqldump --no-tablespaces -u$DB_USER -p$DB_PASS $DB_NAME > $REMOTE_PATH/$LOCAL_SQL"
+
+if ($LASTEXITCODE -ne 0) {
+
+    Write-Host ""
+    Write-Host "ERROR: Failed creating production dump." `
+        -ForegroundColor Red
+
+    exit
+}
+
+Write-Host "Production dump created." -ForegroundColor Green
+
+# ============================================================
+# DOWNLOAD DUMP
+# ============================================================
+
+Write-Host ""
+Write-Host "[2/4] Downloading production dump..." `
+    -ForegroundColor Yellow
+
+$scpSource = "${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_PATH}/${LOCAL_SQL}"
+
+scp $scpSource .
+
+if (-not (Test-Path $LOCAL_SQL)) {
+
+    Write-Host ""
+    Write-Host "ERROR: Download failed." `
+        -ForegroundColor Red
+
+    exit
+}
+
+Write-Host "Download completed." -ForegroundColor Green
+
+# ============================================================
+# IMPORT LOCAL DATABASE
+# ============================================================
+
+Write-Host ""
+Write-Host "[3/4] Importing into Laragon..." `
+    -ForegroundColor Yellow
+
+Get-Content $LOCAL_SQL | `
+    & $mysqlPath `
+    -u $LOCAL_DB_USER `
+    -h 127.0.0.1 `
+    "--password=$LOCAL_DB_PASS" `
+    $LOCAL_DB_NAME
+
+if ($LASTEXITCODE -eq 0) {
+
+    Write-Host ""
+    Write-Host "SUCCESS: Database synchronized!" `
+        -ForegroundColor Green
+}
+else {
+
+    Write-Host ""
+    Write-Host "ERROR: Import failed." `
+        -ForegroundColor Red
+
+    exit
+}
+
+# ============================================================
+# CLEAR LARAVEL CACHE
+# ============================================================
+
+Write-Host ""
+Write-Host "[4/4] Clearing Laravel caches..." `
+    -ForegroundColor Yellow
+
+php artisan optimize:clear
+
+Write-Host "Laravel cache cleared." `
+    -ForegroundColor Green
+
+# ============================================================
+# CLEANUP
+# ============================================================
+
+Write-Host ""
+Write-Host "Cleaning temporary files..." `
+    -ForegroundColor Gray
+
+ssh $REMOTE_USER@$REMOTE_HOST `
+    "rm -f $REMOTE_PATH/$LOCAL_SQL"
+
+Remove-Item $LOCAL_SQL -ErrorAction SilentlyContinue
+
+# ============================================================
+# FINISHED
+# ============================================================
+
+Write-Host ""
+Write-Host "==================================================" `
+    -ForegroundColor Green
+
+Write-Host " PRODUCTION DATABASE SYNC COMPLETE" `
+    -ForegroundColor Green
+
+Write-Host "==================================================" `
+    -ForegroundColor Green

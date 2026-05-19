@@ -463,7 +463,7 @@
         }
     };
 
-    document.addEventListener('alpine:init', () => {
+    const registerScannerEngine = () => {
         Alpine.data('scannerEngine', () => ({
             engineMode: localStorage.getItem('wms_scanner_engine') || 'enhanced',
             volume: localStorage.getItem('wms_scanner_volume') || 'normal',
@@ -878,7 +878,13 @@
                 }
             }
         }));
-    });
+    };
+
+    if (window.Alpine) {
+        registerScannerEngine();
+    } else {
+        document.addEventListener('alpine:init', registerScannerEngine);
+    }
 
     // 🔌 Industrial Hard Vanilla JS Keydown Fallback Listener (Delegated at document level for maximum morph durability)
     document.addEventListener('keydown', (e) => {
