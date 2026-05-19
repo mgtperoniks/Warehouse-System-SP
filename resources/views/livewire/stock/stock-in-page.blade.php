@@ -157,6 +157,43 @@
                 </div>
             </div>
 
+            @if(config('app.debug'))
+            <!-- Compact Temporary Industrial Scanner Debug Telemetry Panel -->
+            <div class="mt-2 p-2 bg-slate-950 border border-slate-800 rounded-md text-[9px] font-mono text-slate-400 grid grid-cols-2 sm:grid-cols-5 gap-2 uppercase tracking-wider shadow-inner" style="letter-spacing: 0.05em;">
+                <div class="border-r border-slate-800 pr-1">
+                    <span class="text-slate-550 dark:text-slate-500 block text-[8px] font-black">LAST INPUT:</span>
+                    <span class="font-bold text-white text-[10px]" x-text="debugLastInput || '-'"></span>
+                </div>
+                <div class="border-r border-slate-800 pr-1">
+                    <span class="text-slate-550 dark:text-slate-500 block text-[8px] font-black">MODE:</span>
+                    <span class="font-bold text-slate-200" :class="engineMode === 'enhanced' ? 'text-emerald-400' : 'text-slate-400'" x-text="engineMode.toUpperCase()"></span>
+                </div>
+                <div class="border-r border-slate-800 pr-1">
+                    <span class="text-slate-550 dark:text-slate-500 block text-[8px] font-black">DISPATCH:</span>
+                    <span class="font-bold" 
+                          :class="{
+                              'text-amber-400 animate-pulse': debugDispatch === 'DISPATCHED',
+                              'text-emerald-400': debugDispatch === 'SUCCESS',
+                              'text-red-400': debugDispatch === 'FAILED',
+                              'text-slate-400': debugDispatch === 'PENDING'
+                          }" x-text="debugDispatch"></span>
+                </div>
+                <div class="border-r border-slate-800 pr-1">
+                    <span class="text-slate-550 dark:text-slate-500 block text-[8px] font-black">LOOKUP:</span>
+                    <span class="font-bold" 
+                          :class="{
+                              'text-emerald-400': debugLookup === 'FOUND',
+                              'text-red-400': debugLookup === 'NOT FOUND',
+                              'text-slate-400': debugLookup === 'PENDING'
+                          }" x-text="debugLookup"></span>
+                </div>
+                <div>
+                    <span class="text-slate-550 dark:text-slate-500 block text-[8px] font-black">DUP BLOCK:</span>
+                    <span class="font-bold" :class="debugDuplicateBlock === 'YES' ? 'text-red-500 font-black animate-pulse' : 'text-slate-400'" x-text="debugDuplicateBlock"></span>
+                </div>
+            </div>
+            @endif
+
             {{-- ── Camera Scanner (hidden by default) ── --}}
             <div id="scanner-container" class="hidden bg-black rounded-md overflow-hidden relative border border-slate-200 dark:border-slate-800 shadow-2xl z-20" wire:ignore>
                 <div id="reader" style="width: 100%;"></div>
@@ -472,6 +509,13 @@
                 flashError: false,
                 invalidFormatMessage: '',
                 showMomentum: false,
+
+                // Temporary debug telemetry fields
+                debugLastInput: '',
+                debugDispatch: 'PENDING',
+                debugLookup: 'PENDING',
+                debugDuplicateBlock: 'NO',
+
                 momentumData: {
                     name: '',
                     sku: '',
@@ -703,11 +747,20 @@
 
                 handleScanInput() {
                     const raw = this.barcodeText.trim();
+                    console.log("[WMS STOCK IN] Raw scan input registered:", raw);
                     if (!raw) return;
 
+                    // Update debug telemetry states
+                    this.debugLastInput = raw;
+                    this.debugDuplicateBlock = 'NO';
+                    this.debugDispatch = 'PENDING';
+                    this.debugLookup = 'PENDING';
+
                     if (this.engineMode !== 'enhanced') {
+                        console.log("[WMS STOCK IN] Legacy Mode Active - setting value & submitting direct scan to Livewire.");
+                        this.debugDispatch = 'DISPATCHED';
                         @this.set('barcode', raw);
-                        @this.call('handleScan');
+                        @this.call('submitScan');
                         this.barcodeText = '';
                         return;
                     }
@@ -719,6 +772,7 @@
                     if (raw.includes('*')) {
                         const match = raw.match(/^([a-zA-Z0-9_-]+)\*(\d+)$/);
                         if (!match) {
+                            console.warn("[WMS STOCK IN] Enhanced parsing failed (invalid * separator structure):", raw);
                             this.triggerInvalidFormat();
                             return;
                         }
@@ -726,7 +780,10 @@
                         qtyVal = parseInt(match[2], 10);
                     }
 
+                    console.log("[WMS STOCK IN] Parsed values - Barcode:", barcodeVal, "Qty:", qtyVal);
+
                     if (!barcodeVal || qtyVal <= 0 || isNaN(qtyVal)) {
+                        console.warn("[WMS STOCK IN] Parsed values validation failed:", { barcodeVal, qtyVal });
                         this.triggerInvalidFormat();
                         return;
                     }
@@ -737,6 +794,8 @@
                         qtyVal === this.lastScan.qty && 
                         (now - this.lastScan.timestamp) < 400) {
                         
+                        console.warn("[WMS STOCK IN] Duplicate scan blocked by temporal duplicate block (400ms):", barcodeVal);
+                        this.debugDuplicateBlock = 'YES';
                         window.__WMS_SCANNER_DEBUG.duplicateBlocks++;
                         this.playAudio('error');
                         this.barcodeText = '';
@@ -752,6 +811,8 @@
                     this.barcodeText = ''; // Clear DOM immediately
 
                     const start = Date.now();
+                    console.log("[WMS STOCK IN] Dispatching 'barcode-scanned' livewire event with payload:", { barcode: barcodeVal, qty: qtyVal });
+                    this.debugDispatch = 'DISPATCHED';
                     @this.dispatch('barcode-scanned', { barcode: barcodeVal, qty: qtyVal });
                     
                     window.__WMS_SCANNER_DEBUG.logScan(Date.now() - start);
@@ -759,6 +820,9 @@
 
                 triggerInvalidFormat() {
                     this.invalidFormatMessage = '❌ INVALID FORMAT - Use BARCODE*QTY (e.g. 89912345*10)';
+                    console.warn("[WMS STOCK IN] Scanner rejected input format:", this.barcodeText);
+                    this.debugDispatch = 'FAILED';
+                    this.debugLookup = 'PENDING';
                     window.__WMS_SCANNER_DEBUG.invalidFormatRejects++;
                     this.playAudio('error');
                     this.barcodeText = '';
@@ -769,6 +833,9 @@
                 },
 
                 triggerSuccess(data) {
+                    console.log("[WMS STOCK IN] Successfully processed scan in backend:", data);
+                    this.debugDispatch = 'SUCCESS';
+                    this.debugLookup = 'FOUND';
                     this.playAudio('success');
                     
                     this.flashSuccess = true;
@@ -795,6 +862,9 @@
                 },
 
                 triggerError(message) {
+                    console.error("[WMS STOCK IN] Backend processing failed for scan:", message);
+                    this.debugDispatch = 'FAILED';
+                    this.debugLookup = 'NOT FOUND';
                     this.playAudio('error');
 
                     this.flashError = true;

@@ -41,7 +41,7 @@ class StockInPage extends Component
     public $itemName = '';
 
     protected $listeners = [
-        'barcode-scanned' => 'handleScannedBarcode',
+        'barcode-scanned' => 'submitScan',
         'focus-barcode-input' => 'focusInput',
         'logTakeover' => 'logTakeover'
     ];
@@ -166,23 +166,63 @@ class StockInPage extends Component
         }
     }
 
-    public function handleScannedBarcode($data)
+    /**
+     * 📥 Unified Ingestion Engine Pipeline for Stock In
+     */
+    public function submitScan($input = null)
     {
-        $barcodeVal = $data['barcode'];
-        $qtyVal = $data['qty'] ?? 1;
+        $barcodeVal = '';
+        $qtyVal = 1;
+
+        // 1. Differentiate input source signatures
+        if (is_array($input)) {
+            // Case A: Alpine.js / Custom Scanner dispatch dictionary
+            $barcodeVal = $input['barcode'] ?? '';
+            $qtyVal = (int) ($input['qty'] ?? 1);
+        } elseif (is_string($input) || is_numeric($input)) {
+            // Case B: Direct method parameter call
+            $barcodeVal = (string) $input;
+        } else {
+            // Case C: Standard model fallback
+            $barcodeVal = (string) $this->barcode;
+        }
+
+        $barcodeVal = trim($barcodeVal);
+        if (empty($barcodeVal)) {
+            $this->currentItem = null;
+            return;
+        }
+
+        // 2. Sanitize (strip control characters)
+        $barcodeVal = trim(preg_replace('/[\x00-\x1F\x7F-\x9F]/u', '', $barcodeVal));
+
+        // 3. Parse shorthand formatting (BARCODE*QTY)
+        if (!is_array($input) && str_contains($barcodeVal, '*')) {
+            $match = [];
+            if (preg_match('/^([a-zA-Z0-9.\-_]+)\*(\d+)$/', $barcodeVal, $match)) {
+                $barcodeVal = $match[1];
+                $qtyVal = (int) $match[2];
+            } else {
+                $msg = 'Invalid shorthand format. Use BARCODE*QTY (e.g. 1000000017*5).';
+                $this->dispatch('scan-failed', ['message' => $msg]);
+                return;
+            }
+        }
+
+        if (empty($barcodeVal) || $qtyVal <= 0) {
+            $msg = 'Invalid barcode payload or quantity.';
+            $this->dispatch('scan-failed', ['message' => $msg]);
+            return;
+        }
 
         $this->barcode = $barcodeVal;
         $this->qty = $qtyVal;
-        $this->handleScan();
-    }
 
-    public function handleScan()
-    {
-        if (empty($this->barcode)) return;
-
+        // Normalize
         $barcodeService = new BarcodeService();
         $this->barcode = $barcodeService->normalize($this->barcode);
 
+        // 4. Resolve variant
         $barcodeObj = ItemBarcode::with(['variant.item', 'variant.suppliers', 'variant.images'])
             ->where('barcode', $this->barcode)
             ->first();

@@ -23,9 +23,34 @@ class AppServiceProvider extends ServiceProvider
         if (config('app.env') === 'production') {
             \Illuminate\Support\Facades\URL::forceScheme('http');
             
-            // Explicitly force the root URL to match APP_URL from .env
-            if (config('app.url') !== 'http://localhost') {
-                \Illuminate\Support\Facades\URL::forceRootUrl(config('app.url'));
+            // Explicitly force the root URL, preserving the active port (e.g. :6031) on web requests
+            $appUrl = config('app.url');
+            if ($appUrl && $appUrl !== 'http://localhost') {
+                if (app()->runningInConsole()) {
+                    \Illuminate\Support\Facades\URL::forceRootUrl($appUrl);
+                } else {
+                    $request = request();
+                    if ($request) {
+                        $scheme = $request->getScheme();
+                        $host = $request->getHost();
+                        $port = $request->getPort();
+                        
+                        $rootUrl = $scheme . '://' . $host;
+                        if ($port && !in_array($port, [80, 443])) {
+                            $rootUrl .= ':' . $port;
+                        }
+                        
+                        // Append subfolder path if configured in APP_URL
+                        $path = parse_url($appUrl, PHP_URL_PATH);
+                        if ($path) {
+                            $rootUrl .= $path;
+                        }
+                        
+                        \Illuminate\Support\Facades\URL::forceRootUrl($rootUrl);
+                    } else {
+                        \Illuminate\Support\Facades\URL::forceRootUrl($appUrl);
+                    }
+                }
             }
         }
 
