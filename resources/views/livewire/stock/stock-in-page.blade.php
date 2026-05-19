@@ -898,6 +898,7 @@
                             this.focusCooldown = false;
                         }, 200);
                     }
+                }
             }));
         };
 
