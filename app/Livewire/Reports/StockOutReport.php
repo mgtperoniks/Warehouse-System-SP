@@ -42,8 +42,8 @@ class StockOutReport extends Component
 
     public function mount()
     {
-        // By default, set the date range to today to allow quick daily transfers
-        $this->startDate = Carbon::today()->format('Y-m-d');
+        // By default, set the date range to the current month to prevent massive unbounded query loads
+        $this->startDate = Carbon::now()->startOfMonth()->format('Y-m-d');
         $this->endDate = Carbon::today()->format('Y-m-d');
     }
 
@@ -72,9 +72,9 @@ class StockOutReport extends Component
                 $this->startDate = Carbon::now()->startOfWeek()->format('Y-m-d');
                 $this->endDate = Carbon::now()->endOfWeek()->format('Y-m-d');
                 break;
-            case 'all':
-                $this->startDate = '';
-                $this->endDate = '';
+            case 'this_month':
+                $this->startDate = Carbon::now()->startOfMonth()->format('Y-m-d');
+                $this->endDate = Carbon::now()->endOfMonth()->format('Y-m-d');
                 break;
         }
         $this->resetPage();
@@ -196,7 +196,7 @@ class StockOutReport extends Component
             $query->where('erp_transfer_status', $this->erpTransferStatus);
         }
 
-        $transactions = $query->orderBy('created_at', 'desc')->get();
+        $transactions = $query->orderBy('created_at', 'desc')->take(1000)->get();
 
         // Group by Department for daily BKB entry
         $groupedTransactions = $transactions->groupBy(function($tx) {

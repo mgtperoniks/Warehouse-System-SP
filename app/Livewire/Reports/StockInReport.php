@@ -39,7 +39,8 @@ class StockInReport extends Component
 
     public function mount()
     {
-        $this->startDate = Carbon::today()->format('Y-m-d');
+        // By default, set the date range to the current month to prevent massive unbounded query loads
+        $this->startDate = Carbon::now()->startOfMonth()->format('Y-m-d');
         $this->endDate = Carbon::today()->format('Y-m-d');
     }
 
@@ -67,9 +68,9 @@ class StockInReport extends Component
                 $this->startDate = Carbon::now()->startOfWeek()->format('Y-m-d');
                 $this->endDate = Carbon::now()->endOfWeek()->format('Y-m-d');
                 break;
-            case 'all':
-                $this->startDate = '';
-                $this->endDate = '';
+            case 'this_month':
+                $this->startDate = Carbon::now()->startOfMonth()->format('Y-m-d');
+                $this->endDate = Carbon::now()->endOfMonth()->format('Y-m-d');
                 break;
         }
         $this->resetPage();
@@ -156,7 +157,7 @@ class StockInReport extends Component
             $query->where('erp_transfer_status', $this->erpTransferStatus);
         }
 
-        $receipts = $query->orderBy('created_at', 'desc')->get();
+        $receipts = $query->orderBy('created_at', 'desc')->take(1000)->get();
 
         // Initialize suggestible BPB references (e.g. BPB-SP-20260518-003)
         $dateStr = Carbon::now()->format('Ymd');
