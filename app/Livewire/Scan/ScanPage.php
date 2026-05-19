@@ -241,13 +241,17 @@ class ScanPage extends Component
 
                 // 2. Create Stock Transaction Header
                 $trx = \App\Models\StockTransaction::create([
-                    'code'          => \App\Models\StockTransaction::generateCode(),
-                    'type'          => 'OUT',
-                    'status'        => 'CONFIRMED',
-                    'department_id' => $this->deptId,
-                    'user_id'       => $this->picId,
-                    'reference'     => $this->reference,
-                    'total_price'   => $totalTransactionPrice,
+                    'code'                => \App\Models\StockTransaction::generateCode(),
+                    'type'                => 'OUT',
+                    'status'              => 'CONFIRMED',
+                    'department_id'       => $this->deptId,
+                    'user_id'             => $this->picId,
+                    'reference'           => $this->reference,
+                    'total_price'         => $totalTransactionPrice,
+                    'warehouse_id'        => session('active_warehouse_id'),
+                    'operator_id'         => auth()->id(),
+                    'terminal_id'         => session('wms_terminal_id') ?: 'SPAREPART-DESK-A',
+                    'terminal_session_id' => session()->getId(),
                 ]);
 
                 foreach ($this->cart as $item) {
