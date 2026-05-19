@@ -65,23 +65,25 @@ class ScanPage extends Component
      * 📥 Unified Ingestion Engine Pipeline
      * Canonical single entry point for all scan sources (wedged scanners, manual typing, and Alpine events).
      */
-    public function submitScan($input = null)
+    public function submitScan($barcode = null, $qty = null)
     {
         $this->message = '';
         $barcodeVal = '';
         $qtyVal = 1;
 
         // 1. Differentiate input source signatures
-        if (is_array($input)) {
+        if (is_array($barcode)) {
             // Case A: Alpine.js / Custom Scanner dispatch dictionary
-            $barcodeVal = $input['barcode'] ?? '';
-            $qtyVal = (int) ($input['qty'] ?? 1);
-        } elseif (is_string($input) || is_numeric($input)) {
-            // Case B: Direct method parameter call (typed manually or via camera)
-            $barcodeVal = (string) $input;
+            $barcodeVal = $barcode['barcode'] ?? '';
+            $qtyVal = (int) ($barcode['qty'] ?? 1);
+        } elseif ($barcode !== null) {
+            // Case B: Direct method parameter call (typed manually or via camera) or Named Arguments
+            $barcodeVal = (string) $barcode;
+            $qtyVal = $qty !== null ? (int) $qty : 1;
         } else {
             // Case C: Standard model fallback (lazy keyboard inputs / form returns)
             $barcodeVal = (string) $this->barcode;
+            $qtyVal = (int) ($this->qty ?: 1);
         }
 
         $barcodeVal = trim($barcodeVal);
@@ -94,7 +96,7 @@ class ScanPage extends Component
         $barcodeVal = trim(preg_replace('/[\x00-\x1F\x7F-\x9F]/u', '', $barcodeVal));
 
         // 3. Parse shorthand formatting (e.g. BARCODE*QTY) if not parsed client-side
-        if (!is_array($input) && str_contains($barcodeVal, '*')) {
+        if (!is_array($barcode) && str_contains($barcodeVal, '*')) {
             $match = [];
             if (preg_match('/^([a-zA-Z0-9.\-_]+)\*(\d+)$/', $barcodeVal, $match)) {
                 $barcodeVal = $match[1];

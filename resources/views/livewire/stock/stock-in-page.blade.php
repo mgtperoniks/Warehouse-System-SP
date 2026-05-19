@@ -157,7 +157,6 @@
                 </div>
             </div>
 
-            @if(config('app.debug'))
             <!-- Compact Temporary Industrial Scanner Debug Telemetry Panel -->
             <div class="mt-2 p-2 bg-slate-950 border border-slate-800 rounded-md text-[9px] font-mono text-slate-400 grid grid-cols-2 sm:grid-cols-5 gap-2 uppercase tracking-wider shadow-inner" style="letter-spacing: 0.05em;">
                 <div class="border-r border-slate-800 pr-1">
@@ -192,7 +191,6 @@
                     <span class="font-bold" :class="debugDuplicateBlock === 'YES' ? 'text-red-500 font-black animate-pulse' : 'text-slate-400'" x-text="debugDuplicateBlock"></span>
                 </div>
             </div>
-            @endif
 
             {{-- ── Camera Scanner (hidden by default) ── --}}
             <div id="scanner-container" class="hidden bg-black rounded-md overflow-hidden relative border border-slate-200 dark:border-slate-800 shadow-2xl z-20" wire:ignore>
