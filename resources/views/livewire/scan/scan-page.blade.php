@@ -713,7 +713,9 @@
                     playBuzz(0);
                     playBuzz(0.09); // Second pulse after 90ms
                 }
-                    handleScanInput() {
+            },
+
+            handleScanInput() {
                 console.log("SCAN ENTER DETECTED");
                 const raw = this.barcodeText.trim();
                 console.log("[WMS SCANNER] Raw scan input registered:", raw);
