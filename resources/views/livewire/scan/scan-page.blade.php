@@ -355,7 +355,17 @@
                     </div>
                     <div class="text-right shrink-0 flex items-center gap-2">
                         <div class="text-right">
-                            <div class="text-xs font-black text-emerald-600">x{{ $item['qty'] }}</div>
+                            <div class="mb-1">
+                                <input 
+                                    type="number" 
+                                    value="{{ $item['qty'] }}" 
+                                    wire:blur="updateCartQty({{ $index }}, $event.target.value)"
+                                    @keydown.enter="$el.blur()"
+                                    @focus="$el.select()"
+                                    class="w-16 h-7 text-center bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded focus:ring-1 focus:ring-emerald-500 font-mono text-xs font-bold text-slate-900 dark:text-slate-100"
+                                    min="1"
+                                />
+                            </div>
                             <div class="text-[8px] font-mono text-slate-400">SKU: {{ $item['erp_code'] }}</div>
                         </div>
                         <button wire:click="removeFromCart({{ $index }})" class="material-symbols-outlined text-slate-350 hover:text-red-500 transition-colors text-[18px] outline-none">close</button>
@@ -732,7 +742,7 @@
                 let qtyVal = 1;
 
                 if (raw.includes('*')) {
-                    const match = raw.match(/^([a-zA-Z0-9_-]+)\*(\d+)$/);
+                    const match = raw.match(/^([a-zA-Z0-9.\-_]+)\*(\d+)$/);
                     if (!match) {
                         console.warn("[WMS SCANNER] Enhanced parsing failed (invalid * separator structure):", raw);
                         this.triggerInvalidFormat();
@@ -913,7 +923,7 @@
                             let barcodeVal = raw;
                             let qtyVal = 1;
                             if (raw.includes('*')) {
-                                const match = raw.match(/^([a-zA-Z0-9_-]+)\*(\d+)$/);
+                                const match = raw.match(/^([a-zA-Z0-9.\-_]+)\*(\d+)$/);
                                 if (match) {
                                     barcodeVal = match[1];
                                     qtyVal = parseInt(match[2], 10);

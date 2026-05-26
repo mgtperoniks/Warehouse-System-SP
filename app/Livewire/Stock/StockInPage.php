@@ -239,32 +239,56 @@ class StockInPage extends Component
                 $this->supplier_id = $this->currentItem->suppliers->first()->id;
             }
 
-            // Auto-fill bin based on primary candidate bins
-            $candidateBins = Bin::forActiveWarehouse()
-                ->where('item_variant_id', $this->currentItem->id)
+            // Resolve true operational Main Location deterministically from item master metadata, ignoring historical/other warehouse bins
+            $variantBins = Bin::where('item_variant_id', $this->currentItem->id)
+                ->where(function ($q) {
+                    $q->whereNull('warehouse_id')
+                      ->orWhere('warehouse_id', session('active_warehouse_id'));
+                })
                 ->get();
+            $mainBin = null;
 
-            if ($candidateBins->count() === 1) {
-                $bin = $candidateBins->first();
-                $this->bin_id = $bin->id;
-                $this->binCode = $bin->code;
-                $this->binAutoAssigned = true;
-            } elseif ($candidateBins->count() > 1) {
-                $this->bin_id = null;
-                $this->binCode = '';
-                $this->binAutoAssigned = false;
-                
-                if ($this->last_used_bin_id && $candidateBins->pluck('id')->contains($this->last_used_bin_id)) {
-                    $this->bin_id = $this->last_used_bin_id;
-                    $bin = Bin::find($this->bin_id);
-                    if ($bin) {
-                        $this->binCode = $bin->code;
-                    }
+            if ($variantBins->count() === 1) {
+                // Deterministic: Single eligible bin exists
+                $mainBin = $variantBins->first();
+            } elseif ($variantBins->count() > 1) {
+                // Multiple eligible bins exist: Replicate detail page logic by locating the primary/main global marker (where warehouse_id is null)
+                $globalBins = $variantBins->filter(fn($b) => is_null($b->warehouse_id));
+                if ($globalBins->count() === 1) {
+                    $mainBin = $globalBins->first();
                 }
+            }
+
+            $mainBinCode = $mainBin ? $mainBin->code : null;
+
+            // Automatically resolve matching bin in active warehouse by exact code (only when exactly one match exists)
+            $targetBin = null;
+            if ($mainBinCode) {
+                $activeWarehouseBins = Bin::forActiveWarehouse()
+                    ->where('code', $mainBinCode)
+                    ->get();
+
+                if ($activeWarehouseBins->count() === 1) {
+                    $targetBin = $activeWarehouseBins->first();
+                }
+            }
+
+            // Auto-fill binCode immediately ONLY if exact match exists
+            if ($targetBin) {
+                $this->bin_id = $targetBin->id;
+                $this->binCode = $targetBin->code;
+                $this->binAutoAssigned = true;
             } else {
                 $this->bin_id = null;
                 $this->binCode = '';
                 $this->binAutoAssigned = false;
+
+                // Safe Fallback: Dispatch lightweight warning but do not guess another bin
+                if (!$mainBinCode) {
+                    $this->dispatch('scan-failed', ['message' => 'Warning: Item has no registered Main Location. Please select target bin manually.']);
+                } else {
+                    $this->dispatch('scan-failed', ['message' => "Warning: Main Location {$mainBinCode} not registered in active warehouse. Please select target bin manually."]);
+                }
             }
 
             if ($this->autoAddMode) {

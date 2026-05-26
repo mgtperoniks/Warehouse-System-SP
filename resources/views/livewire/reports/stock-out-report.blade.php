@@ -101,19 +101,29 @@
             </div>
 
             <div class="flex items-center gap-2">
-                <!-- EXPORT CENTER -->
-                <button wire:click="toggleErpTransferView" class="flex items-center gap-1 px-3 py-1 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-[10px] font-black uppercase tracking-wider transition-all shadow-sm">
-                    <span class="material-symbols-outlined text-sm">screenshare</span>
-                    {{ $isErpTransferView ? 'Close ERP View' : 'ERP Transfer View Mode' }}
-                </button>
-                <a href="{{ route('reports.stock-out.csv', request()->query()) }}" class="flex items-center gap-1 px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[10px] font-black uppercase tracking-wider transition-all shadow-sm">
-                    <span class="material-symbols-outlined text-sm">download</span>
-                    Export CSV Flat
-                </a>
-                <a href="{{ route('reports.stock-out.print', request()->query()) }}" target="_blank" class="flex items-center gap-1 px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-[10px] font-black uppercase tracking-wider transition-all shadow-sm">
-                    <span class="material-symbols-outlined text-sm">print</span>
-                    Print / PDF Preview
-                </a>
+                @if($reportGenerated)
+                    <!-- EXPORT CENTER -->
+                    <button wire:click="toggleErpTransferView" class="flex items-center gap-1 px-3 py-1 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-[10px] font-black uppercase tracking-wider transition-all shadow-sm">
+                        <span class="material-symbols-outlined text-sm">screenshare</span>
+                        {{ $isErpTransferView ? 'Close ERP View' : 'ERP Transfer View Mode' }}
+                    </button>
+                    <a href="{{ route('reports.stock-out.csv', request()->query()) }}" class="flex items-center gap-1 px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[10px] font-black uppercase tracking-wider transition-all shadow-sm">
+                        <span class="material-symbols-outlined text-sm">download</span>
+                        Export CSV Flat
+                    </a>
+                    <a href="{{ route('reports.stock-out.print', request()->query()) }}" target="_blank" class="flex items-center gap-1 px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-[10px] font-black uppercase tracking-wider transition-all shadow-sm">
+                        <span class="material-symbols-outlined text-sm">print</span>
+                        Print / PDF Preview
+                    </a>
+                @else
+                    <button wire:click="generateReport" 
+                            wire:loading.attr="disabled"
+                            wire:loading.class="opacity-50"
+                            class="flex items-center gap-1.5 px-4 py-2 bg-green-700 hover:bg-green-800 text-white rounded-lg text-[10px] font-black uppercase tracking-wider transition-all shadow-md hover:shadow-lg active:scale-95">
+                        <span class="material-symbols-outlined text-xs">play_arrow</span>
+                        Generate Report
+                    </button>
+                @endif
             </div>
         </div>
     </div>
@@ -132,8 +142,24 @@
         </div>
     @endif
 
-    <!-- MULTI-MONITOR ERP TRANSFER VIEW COMPONENT -->
-    @if($isErpTransferView)
+    @if(!$reportGenerated)
+        <div class="w-full bg-white border border-slate-200 rounded-xl p-6 shadow-sm flex items-center gap-4 text-left">
+            <div class="w-12 h-12 bg-slate-100 text-slate-650 rounded-full flex items-center justify-center shrink-0 shadow-inner">
+                <span class="material-symbols-outlined text-2xl" style="font-variation-settings: 'FILL' 1;">analytics</span>
+            </div>
+            <div class="space-y-0.5">
+                <h3 class="text-xs font-black text-slate-800 uppercase tracking-widest font-mono">No Report Generated</h3>
+                <p class="text-xs text-slate-500 font-medium">Select filters then press Generate Report.</p>
+                <div class="flex items-center gap-2 mt-1.5 text-[10px] font-mono font-bold text-slate-500">
+                    <span><span class="text-slate-400">RECOMMENDED:</span> 7–30 days</span>
+                    <span class="text-slate-300">•</span>
+                    <span><span class="text-red-500">MAXIMUM:</span> 45 days</span>
+                </div>
+            </div>
+        </div>
+    @else
+        <!-- MULTI-MONITOR ERP TRANSFER VIEW COMPONENT -->
+        @if($isErpTransferView)
         <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 mb-4 text-slate-100 shadow-2xl">
             <div class="flex items-center justify-between border-b border-slate-800 pb-3 mb-4">
                 <div class="flex items-center gap-2">
@@ -346,6 +372,7 @@
                 </button>
             </div>
         </div>
+    @endif
     @endif
 </div>
 

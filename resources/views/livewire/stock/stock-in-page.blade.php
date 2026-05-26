@@ -228,7 +228,7 @@
                         <div class="flex items-center gap-2">
                             <label class="text-[9px] font-black text-slate-400 uppercase tracking-widest shrink-0">Supplier:</label>
                             <div class="relative flex-1">
-                                <select wire:key="stock-in-supplier-select" wire:model="supplier_id" class="w-full h-9 pl-3 pr-8 bg-slate-50 border border-slate-200 dark:border-slate-855 rounded-md font-bold text-on-surface focus:ring-1 focus:ring-green-500/20 focus:border-green-500 text-xs py-1 transition-all">
+                                <select wire:key="supplier-select-stable" wire:model="supplier_id" class="w-full h-9 pl-3 pr-8 bg-slate-50 border border-slate-200 dark:border-slate-855 rounded-md font-bold text-on-surface focus:ring-1 focus:ring-green-500/20 focus:border-green-500 text-xs py-1 transition-all">
                                     <option value="">— Select Supplier —</option>
                                     @foreach($suppliers as $supplier)
                                         <option value="{{ $supplier->id }}">{{ $supplier->name }}</option>
@@ -309,9 +309,8 @@
                     @endif
                     <div class="relative flex items-center">
                         <span class="material-symbols-outlined absolute left-2.5 text-green-600 text-lg">warehouse</span>
-                        <select wire:key="stock-in-bin-select" 
+                        <select wire:key="bin-select-stable" 
                                 wire:model="binCode" 
-                                @if($binAutoAssigned) disabled @endif
                                 class="w-full h-9 pl-8 pr-8 bg-slate-50 border border-slate-200 dark:border-slate-855 rounded-md font-bold text-on-surface focus:ring-1 focus:ring-green-500/20 focus:border-green-500 text-xs py-1 transition-all @if($binAutoAssigned) opacity-80 cursor-not-allowed bg-emerald-50/10 @endif">
                             <option value="">— Select Target Bin —</option>
                             @foreach($bins as $bin)

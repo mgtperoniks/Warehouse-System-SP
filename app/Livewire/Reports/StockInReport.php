@@ -12,6 +12,8 @@ class StockInReport extends Component
 {
     use WithPagination;
 
+    public bool $reportGenerated = false;
+
     // Filters
     public $startDate;
     public $endDate;
@@ -44,11 +46,44 @@ class StockInReport extends Component
         $this->endDate = Carbon::today()->format('Y-m-d');
     }
 
-    public function updatedStartDate() { $this->resetPage(); }
-    public function updatedEndDate() { $this->resetPage(); }
+    public function updatedStartDate() 
+    { 
+        $this->reportGenerated = false;
+        $this->resetPage(); 
+    }
+    
+    public function updatedEndDate() 
+    { 
+        $this->reportGenerated = false;
+        $this->resetPage(); 
+    }
+
     public function updatedOperatorId() { $this->resetPage(); }
     public function updatedReceiptCode() { $this->resetPage(); }
     public function updatedErpTransferStatus() { $this->resetPage(); }
+
+    public function generateReport()
+    {
+        if (empty($this->startDate) || empty($this->endDate)) {
+            session()->flash('warning', 'Please select both Start Date and End Date.');
+            return;
+        }
+
+        $start = Carbon::parse($this->startDate);
+        $end = Carbon::parse($this->endDate);
+
+        if ($start->gt($end)) {
+            session()->flash('warning', 'Start Date cannot be after End Date.');
+            return;
+        }
+
+        if ($start->diffInDays($end) > 45) {
+            session()->flash('warning', 'The selected date range exceeds the maximum limit of 45 days.');
+            return;
+        }
+
+        $this->reportGenerated = true;
+    }
 
     /**
      * Apply quick preset date boundaries.
@@ -73,6 +108,7 @@ class StockInReport extends Component
                 $this->endDate = Carbon::now()->endOfMonth()->format('Y-m-d');
                 break;
         }
+        $this->reportGenerated = false;
         $this->resetPage();
     }
 
@@ -137,38 +173,42 @@ class StockInReport extends Component
 
     public function render()
     {
-        $query = StockInReceipt::with(['operator', 'items.variant.item', 'items.bin', 'supplier'])
-            ->where('status', 'COMMITTED')
-            ->forActiveWarehouse();
+        $receipts = collect();
 
-        if ($this->startDate) {
-            $query->whereDate('created_at', '>=', $this->startDate);
-        }
-        if ($this->endDate) {
-            $query->whereDate('created_at', '<=', $this->endDate);
-        }
-        if ($this->operatorId) {
-            $query->where('operator_id', $this->operatorId);
-        }
-        if ($this->receiptCode) {
-            $query->where('receipt_code', 'like', '%' . $this->receiptCode . '%');
-        }
-        if ($this->erpTransferStatus) {
-            $query->where('erp_transfer_status', $this->erpTransferStatus);
-        }
+        if ($this->reportGenerated) {
+            $query = StockInReceipt::with(['operator', 'items.variant.item', 'items.bin', 'supplier'])
+                ->where('status', 'COMMITTED')
+                ->forActiveWarehouse();
 
-        $receipts = $query->orderBy('created_at', 'desc')->take(1000)->get();
+            if ($this->startDate) {
+                $query->whereDate('created_at', '>=', $this->startDate);
+            }
+            if ($this->endDate) {
+                $query->whereDate('created_at', '<=', $this->endDate);
+            }
+            if ($this->operatorId) {
+                $query->where('operator_id', $this->operatorId);
+            }
+            if ($this->receiptCode) {
+                $query->where('receipt_code', 'like', '%' . $this->receiptCode . '%');
+            }
+            if ($this->erpTransferStatus) {
+                $query->where('erp_transfer_status', $this->erpTransferStatus);
+            }
 
-        // Initialize suggestible BPB references (e.g. BPB-SP-20260518-003)
-        $dateStr = Carbon::now()->format('Ymd');
-        $whCode = session('active_warehouse_code', 'SPAREPART');
-        $whSuffix = $whCode === 'SPAREPART' ? 'SP' : ($whCode === 'RAW_MATERIAL' ? 'RM' : ($whCode === 'CONSUMABLE' ? 'CS' : 'WH'));
+            $receipts = $query->orderBy('created_at', 'desc')->take(1000)->get();
 
-        foreach ($receipts as $index => $receipt) {
-            if (!isset($this->suggestedBpbRefs[$receipt->id])) {
-                // Generate sequential code BPB-SP-YYYYMMDD-003
-                $seq = str_pad($index + 1, 3, '0', STR_PAD_LEFT);
-                $this->suggestedBpbRefs[$receipt->id] = "BPB-{$whSuffix}-{$dateStr}-{$seq}";
+            // Initialize suggestible BPB references (e.g. BPB-SP-20260518-003)
+            $dateStr = Carbon::now()->format('Ymd');
+            $whCode = session('active_warehouse_code', 'SPAREPART');
+            $whSuffix = $whCode === 'SPAREPART' ? 'SP' : ($whCode === 'RAW_MATERIAL' ? 'RM' : ($whCode === 'CONSUMABLE' ? 'CS' : 'WH'));
+
+            foreach ($receipts as $index => $receipt) {
+                if (!isset($this->suggestedBpbRefs[$receipt->id])) {
+                    // Generate sequential code BPB-SP-YYYYMMDD-003
+                    $seq = str_pad($index + 1, 3, '0', STR_PAD_LEFT);
+                    $this->suggestedBpbRefs[$receipt->id] = "BPB-{$whSuffix}-{$dateStr}-{$seq}";
+                }
             }
         }
 

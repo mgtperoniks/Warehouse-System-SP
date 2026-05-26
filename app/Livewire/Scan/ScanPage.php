@@ -214,6 +214,38 @@ class ScanPage extends Component
         $this->qty = 1;
     }
 
+    public function removeFromCart($index)
+    {
+        if (isset($this->cart[$index])) {
+            unset($this->cart[$index]);
+            $this->cart = array_values($this->cart);
+            $this->persistCart();
+            $this->dispatch('focus-barcode-input');
+        }
+    }
+
+    public function updateCartQty($index, $qty)
+    {
+        if (isset($this->cart[$index])) {
+            $qtyVal = (int) $qty;
+            if ($qtyVal < 1) {
+                $qtyVal = 1;
+            }
+
+            $itemVariantId = $this->cart[$index]['item_variant_id'];
+            $totalStockAvailable = \App\Models\Bin::where('item_variant_id', $itemVariantId)->sum('current_qty');
+
+            if ($qtyVal > $totalStockAvailable) {
+                $qtyVal = $totalStockAvailable;
+                $this->showMessage("Clamped quantity to available stock limit ({$totalStockAvailable}).", 'error');
+            }
+
+            $this->cart[$index]['qty'] = $qtyVal;
+            $this->persistCart();
+            $this->dispatch('focus-barcode-input');
+        }
+    }
+
     private function persistCart()
     {
         session()->put('scan_cart', $this->cart);

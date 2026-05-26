@@ -13,6 +13,8 @@ class StockOutReport extends Component
 {
     use WithPagination;
 
+    public bool $reportGenerated = false;
+
     // Filters
     public $startDate;
     public $endDate;
@@ -47,12 +49,45 @@ class StockOutReport extends Component
         $this->endDate = Carbon::today()->format('Y-m-d');
     }
 
-    public function updatedStartDate() { $this->resetPage(); }
-    public function updatedEndDate() { $this->resetPage(); }
+    public function updatedStartDate() 
+    { 
+        $this->reportGenerated = false;
+        $this->resetPage(); 
+    }
+    
+    public function updatedEndDate() 
+    { 
+        $this->reportGenerated = false;
+        $this->resetPage(); 
+    }
+
     public function updatedDepartmentId() { $this->resetPage(); }
     public function updatedPicId() { $this->resetPage(); }
     public function updatedCode() { $this->resetPage(); }
     public function updatedErpTransferStatus() { $this->resetPage(); }
+
+    public function generateReport()
+    {
+        if (empty($this->startDate) || empty($this->endDate)) {
+            session()->flash('warning', 'Please select both Start Date and End Date.');
+            return;
+        }
+
+        $start = Carbon::parse($this->startDate);
+        $end = Carbon::parse($this->endDate);
+
+        if ($start->gt($end)) {
+            session()->flash('warning', 'Start Date cannot be after End Date.');
+            return;
+        }
+
+        if ($start->diffInDays($end) > 45) {
+            session()->flash('warning', 'The selected date range exceeds the maximum limit of 45 days.');
+            return;
+        }
+
+        $this->reportGenerated = true;
+    }
 
     /**
      * Apply date preset quick filters.
@@ -77,6 +112,7 @@ class StockOutReport extends Component
                 $this->endDate = Carbon::now()->endOfMonth()->format('Y-m-d');
                 break;
         }
+        $this->reportGenerated = false;
         $this->resetPage();
     }
 
@@ -171,51 +207,55 @@ class StockOutReport extends Component
 
     public function render()
     {
-        // Build base transaction query
-        $query = StockTransaction::with(['department', 'user', 'items.variant.item'])
-            ->where('type', 'OUT')
-            ->where('status', 'CONFIRMED')
-            ->forActiveWarehouse();
+        $groupedTransactions = collect();
 
-        if ($this->startDate) {
-            $query->whereDate('created_at', '>=', $this->startDate);
-        }
-        if ($this->endDate) {
-            $query->whereDate('created_at', '<=', $this->endDate);
-        }
-        if ($this->departmentId) {
-            $query->where('department_id', $this->departmentId);
-        }
-        if ($this->picId) {
-            $query->where('user_id', $this->picId);
-        }
-        if ($this->code) {
-            $query->where('code', 'like', '%' . $this->code . '%');
-        }
-        if ($this->erpTransferStatus) {
-            $query->where('erp_transfer_status', $this->erpTransferStatus);
-        }
+        if ($this->reportGenerated) {
+            // Build base transaction query
+            $query = StockTransaction::with(['department', 'user', 'items.variant.item'])
+                ->where('type', 'OUT')
+                ->where('status', 'CONFIRMED')
+                ->forActiveWarehouse();
 
-        $transactions = $query->orderBy('created_at', 'desc')->take(1000)->get();
+            if ($this->startDate) {
+                $query->whereDate('created_at', '>=', $this->startDate);
+            }
+            if ($this->endDate) {
+                $query->whereDate('created_at', '<=', $this->endDate);
+            }
+            if ($this->departmentId) {
+                $query->where('department_id', $this->departmentId);
+            }
+            if ($this->picId) {
+                $query->where('user_id', $this->picId);
+            }
+            if ($this->code) {
+                $query->where('code', 'like', '%' . $this->code . '%');
+            }
+            if ($this->erpTransferStatus) {
+                $query->where('erp_transfer_status', $this->erpTransferStatus);
+            }
 
-        // Group by Department for daily BKB entry
-        $groupedTransactions = $transactions->groupBy(function($tx) {
-            return $tx->department_id ? $tx->department->name : 'UNMAPPED / GENERAL';
-        });
+            $transactions = $query->orderBy('created_at', 'desc')->take(1000)->get();
 
-        // Initialize suggestible BKB references for each department
-        $dateStr = Carbon::now()->format('Ymd');
-        $whCode = session('active_warehouse_code', 'SP');
-        $whSuffix = $whCode === 'SPAREPART' ? 'SP' : ($whCode === 'RAW_MATERIAL' ? 'RM' : ($whCode === 'CONSUMABLE' ? 'CS' : 'WH'));
+            // Group by Department for daily BKB entry
+            $groupedTransactions = $transactions->groupBy(function($tx) {
+                return $tx->department_id ? $tx->department->name : 'UNMAPPED / GENERAL';
+            });
 
-        foreach ($groupedTransactions as $deptName => $txs) {
-            $firstTx = $txs->first();
-            if ($firstTx && $firstTx->department_id) {
-                $deptId = $firstTx->department_id;
-                if (!isset($this->suggestedBkbRefs[$deptId])) {
-                    $deptCode = strtoupper($firstTx->department->code ?? 'GEN');
-                    // Suggest BK-BBT-20260518-001 (based on first item's ID or dynamic index)
-                    $this->suggestedBkbRefs[$deptId] = "BK-{$deptCode}-{$dateStr}-001";
+            // Initialize suggestible BKB references for each department
+            $dateStr = Carbon::now()->format('Ymd');
+            $whCode = session('active_warehouse_code', 'SP');
+            $whSuffix = $whCode === 'SPAREPART' ? 'SP' : ($whCode === 'RAW_MATERIAL' ? 'RM' : ($whCode === 'CONSUMABLE' ? 'CS' : 'WH'));
+
+            foreach ($groupedTransactions as $deptName => $txs) {
+                $firstTx = $txs->first();
+                if ($firstTx && $firstTx->department_id) {
+                    $deptId = $firstTx->department_id;
+                    if (!isset($this->suggestedBkbRefs[$deptId])) {
+                        $deptCode = strtoupper($firstTx->department->code ?? 'GEN');
+                        // Suggest BK-BBT-20260518-001 (based on first item's ID or dynamic index)
+                        $this->suggestedBkbRefs[$deptId] = "BK-{$deptCode}-{$dateStr}-001";
+                    }
                 }
             }
         }
