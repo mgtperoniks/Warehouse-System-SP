@@ -31,6 +31,7 @@ class StockInPage extends Component
     public $cart = [];
     public $lastAction = '';
     public $autoAddMode = false;
+    public $recommendedBinCode = null;
 
     // Single-Session & Persistence Properties
     public $showResumeModal = false;
@@ -82,6 +83,18 @@ class StockInPage extends Component
     public function updatedAutoAddMode($value)
     {
         session()->put('stock_in_auto_add', $value);
+    }
+
+    public function updatedQty($value)
+    {
+        if ($value !== null && $value !== '') {
+            $intValue = (int)$value;
+            if ($intValue < 1) {
+                $this->qty = 1;
+            } else {
+                $this->qty = $intValue;
+            }
+        }
     }
 
     public function updatedBinCode($value)
@@ -152,7 +165,7 @@ class StockInPage extends Component
 
         $this->cart = [];
         foreach ($items as $item) {
-            $key = $item->item_variant_id . '-' . $item->bin_id . '-' . ($item->supplier_id ?? 'none');
+            $key = $item->item_variant_id . '-' . ($item->bin_id ?? 'none') . '-' . ($item->supplier_id ?? 'none');
             $this->cart[$key] = [
                 'id' => $item->id,
                 'item_variant_id' => $item->item_variant_id,
@@ -160,7 +173,7 @@ class StockInPage extends Component
                 'erp_code' => $item->variant->erp_code,
                 'qty' => $item->qty,
                 'bin_id' => $item->bin_id,
-                'bin_name' => $item->bin->code,
+                'bin_name' => $item->bin ? $item->bin->code : 'UNASSIGNED',
                 'supplier_id' => $item->supplier_id,
                 'supplier_name' => $item->supplier ? $item->supplier->name : 'N/A',
             ];
@@ -260,6 +273,7 @@ class StockInPage extends Component
             }
 
             $mainBinCode = $mainBin ? $mainBin->code : null;
+            $this->recommendedBinCode = $mainBinCode;
 
             // Automatically resolve matching bin in active warehouse by exact code (only when exactly one match exists)
             $targetBin = null;
@@ -282,13 +296,6 @@ class StockInPage extends Component
                 $this->bin_id = null;
                 $this->binCode = '';
                 $this->binAutoAssigned = false;
-
-                // Safe Fallback: Dispatch lightweight warning but do not guess another bin
-                if (!$mainBinCode) {
-                    $this->dispatch('scan-failed', ['message' => 'Warning: Item has no registered Main Location. Please select target bin manually.']);
-                } else {
-                    $this->dispatch('scan-failed', ['message' => "Warning: Main Location {$mainBinCode} not registered in active warehouse. Please select target bin manually."]);
-                }
             }
 
             if ($this->autoAddMode) {
@@ -349,20 +356,15 @@ class StockInPage extends Component
     {
         if (!$this->currentItem) return;
 
-        if (!$this->bin_id) {
-            $this->addError('bin_id', 'Destination bin is required.');
-            $this->dispatch('scan-failed', ['message' => 'Destination bin is required.']);
-            return;
-        }
+        $this->qty = max(1, (int) ($this->qty ?: 1));
 
         $this->validate([
             'qty' => 'required|integer|min:1',
-            'bin_id' => 'required|exists:bins,id',
         ]);
 
         $variantId = $this->currentItem->id;
-        $binId = $this->bin_id;
-        $supplierId = $this->supplier_id;
+        $binId = $this->bin_id ?: null;
+        $supplierId = $this->supplier_id ?: null;
 
         // Sync to Database Draft items
         StockInItem::updateOrCreate([
@@ -381,8 +383,8 @@ class StockInPage extends Component
             'purchase_order_ref' => $this->reference ?: null
         ]);
 
-        $bin = Bin::find($binId);
-        $this->lastAction = "+{$this->qty} " . $this->currentItem->item->name . " added to " . ($bin ? $bin->code : 'Bin');
+        $bin = $binId ? Bin::find($binId) : null;
+        $this->lastAction = "+{$this->qty} " . $this->currentItem->item->name . ($bin ? " added to " . $bin->code : " added");
         $this->last_used_bin_id = $binId;
         
         // Sync local cart from Database
@@ -394,6 +396,7 @@ class StockInPage extends Component
         $this->barcode = '';
         $this->currentItem = null;
         $this->qty = 1;
+        $this->recommendedBinCode = null;
         
         $this->dispatch('scan-completed');
         $this->dispatch('focus-barcode-input');
@@ -404,12 +407,22 @@ class StockInPage extends Component
         if (isset($this->cart[$key])) {
             $itemData = $this->cart[$key];
             
-            // Delete from Database
-            StockInItem::where('stock_in_receipt_id', $this->activeReceipt->id)
-                ->where('item_variant_id', $itemData['item_variant_id'])
-                ->where('bin_id', $itemData['bin_id'])
-                ->where('supplier_id', $itemData['supplier_id'])
-                ->delete();
+            $query = StockInItem::where('stock_in_receipt_id', $this->activeReceipt->id)
+                ->where('item_variant_id', $itemData['item_variant_id']);
+
+            if ($itemData['bin_id'] === null) {
+                $query->whereNull('bin_id');
+            } else {
+                $query->where('bin_id', $itemData['bin_id']);
+            }
+
+            if ($itemData['supplier_id'] === null) {
+                $query->whereNull('supplier_id');
+            } else {
+                $query->where('supplier_id', $itemData['supplier_id']);
+            }
+
+            $query->delete();
 
             unset($this->cart[$key]);
 
@@ -426,17 +439,34 @@ class StockInPage extends Component
         try {
             DB::transaction(function () use ($inventoryService) {
                 foreach ($this->cart as $item) {
-                    $bin = Bin::findOrFail($item['bin_id']);
+                    $bin = $item['bin_id'] ? Bin::find($item['bin_id']) : null;
                     
-                    // Commit active inventory stock adjustment
-                    $inventoryService->moveStock(
-                        $bin,
-                        $item['qty'],
-                        'IN',
-                        $this->reference ?: 'Manual Stock IN',
-                        auth()->id(), // created_by
-                        $item['supplier_id']
-                    );
+                    if ($bin) {
+                        // Commit active inventory stock adjustment
+                        $inventoryService->moveStock(
+                            $bin,
+                            $item['qty'],
+                            'IN',
+                            $this->reference ?: 'Manual Stock IN',
+                            auth()->id(), // created_by
+                            $item['supplier_id']
+                        );
+                    } else {
+                        // If no bin, record the movement directly with bin_id null
+                        \App\Models\StockMovement::create([
+                            'item_variant_id'       => $item['item_variant_id'],
+                            'bin_id'                => null,
+                            'supplier_id'           => $item['supplier_id'],
+                            'type'                  => 'IN',
+                            'qty'                   => $item['qty'],
+                            'reference'             => $this->reference ?: 'Manual Stock IN',
+                            'created_by'            => auth()->id(),
+                            'warehouse_id'          => session('active_warehouse_id'),
+                            'operator_id'           => auth()->id(),
+                            'terminal_id'           => session('wms_terminal_id') ?: 'SPAREPART-DESK-A',
+                            'terminal_session_id'   => session()->getId(),
+                        ]);
+                    }
                 }
 
                 // Commit Inbound Receipt Draft
@@ -450,7 +480,7 @@ class StockInPage extends Component
 
             // Cleanup & Start New Session
             $this->cart = [];
-            $this->reset(['barcode', 'currentItem', 'qty', 'bin_id', 'binCode', 'supplier_id', 'lastAction', 'reference', 'binAutoAssigned']);
+            $this->reset(['barcode', 'currentItem', 'qty', 'bin_id', 'binCode', 'supplier_id', 'lastAction', 'reference', 'binAutoAssigned', 'recommendedBinCode']);
             
             $this->createNewReceiptSession();
 

@@ -223,20 +223,6 @@
                     <div class="col-span-9 flex flex-col justify-center gap-1.5 pl-2">
                         <h2 class="text-xs font-black tracking-tight text-on-surface leading-tight pr-24">{{ $currentItem->item->name }}</h2>
                         <p class="text-slate-400 font-mono-scannable text-[9px] tracking-wider uppercase">ERP: {{ $currentItem->erp_code }}</p>
-                        
-                        {{-- Supplier selector --}}
-                        <div class="flex items-center gap-2">
-                            <label class="text-[9px] font-black text-slate-400 uppercase tracking-widest shrink-0">Supplier:</label>
-                            <div class="relative flex-1">
-                                <select wire:key="supplier-select-stable" wire:model="supplier_id" class="w-full h-9 pl-3 pr-8 bg-slate-50 border border-slate-200 dark:border-slate-855 rounded-md font-bold text-on-surface focus:ring-1 focus:ring-green-500/20 focus:border-green-500 text-xs py-1 transition-all">
-                                    <option value="">— Select Supplier —</option>
-                                    @foreach($suppliers as $supplier)
-                                        <option value="{{ $supplier->id }}">{{ $supplier->name }}</option>
-                                    @endforeach
-                                </select>
-                                <span class="material-symbols-outlined absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none text-sm">keyboard_arrow_down</span>
-                            </div>
-                        </div>
                     </div>
                 </div>
 
@@ -285,41 +271,36 @@
                 <div class="flex items-center justify-between border-b md:border-b-0 md:border-r border-slate-100 dark:border-slate-800 pb-sm md:pb-0 md:pr-sm">
                     <label class="text-[9px] font-black text-slate-400 uppercase tracking-widest shrink-0">Received Qty:</label>
                     <div class="flex items-center gap-2">
-                        <button wire:click="$set('qty', {{ $qty > 1 ? $qty - 1 : 1 }})"
+                        <button type="button" wire:click="$set('qty', {{ $qty > 1 ? $qty - 1 : 1 }})"
                                 class="w-9 h-9 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-750 flex items-center justify-center hover:bg-slate-100 dark:hover:bg-slate-700 transition-all active:scale-90 font-bold">
                             -
                         </button>
-                        <span class="text-xl font-black text-emerald-600 w-12 text-center leading-none font-mono-scannable">{{ $qty }}</span>
-                        <button wire:click="$set('qty', {{ (int)$qty + 1 }})"
+                        <input type="number" 
+                               min="1" 
+                               wire:model.live="qty" 
+                               onfocus="this.select()"
+                               @focus="editingQty = true"
+                               @blur="editingQty = false"
+                               @keydown.enter.prevent="$wire.addToCart()"
+                               class="w-16 h-9 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-750 text-center font-mono font-black text-emerald-600 dark:text-emerald-450 focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 py-1 transition-all outline-none" />
+                        <button type="button" wire:click="$set('qty', {{ (int)$qty + 1 }})"
                                 class="w-9 h-9 rounded-md bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-750 flex items-center justify-center hover:bg-slate-100 dark:hover:bg-slate-700 transition-all active:scale-90 font-bold">
                             +
                         </button>
                     </div>
                 </div>
 
-                {{-- Bin selection --}}
-                <div class="bg-white dark:bg-slate-900 rounded-md {{ $errors->has('bin_id') ? 'border-error' : '' }}">
-                    @if($binAutoAssigned)
-                        <div class="flex items-center justify-between mb-1.5">
-                            <span class="text-[9px] font-black text-emerald-600 bg-emerald-50 dark:bg-emerald-950/30 px-1.5 py-0.5 rounded uppercase tracking-wider flex items-center gap-1">
-                                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block animate-pulse"></span>
-                                🟢 AUTO ASSIGNED (PRIMARY BIN)
-                            </span>
-                        </div>
-                    @endif
-                    <div class="relative flex items-center">
-                        <span class="material-symbols-outlined absolute left-2.5 text-green-600 text-lg">warehouse</span>
-                        <select wire:key="bin-select-stable" 
-                                wire:model="binCode" 
-                                class="w-full h-9 pl-8 pr-8 bg-slate-50 border border-slate-200 dark:border-slate-855 rounded-md font-bold text-on-surface focus:ring-1 focus:ring-green-500/20 focus:border-green-500 text-xs py-1 transition-all @if($binAutoAssigned) opacity-80 cursor-not-allowed bg-emerald-50/10 @endif">
-                            <option value="">— Select Target Bin —</option>
-                            @foreach($bins as $bin)
-                                <option value="{{ $bin->code }}">{{ $bin->code }} (Current: {{ $bin->current_qty }} / {{ $bin->max_capacity }} Pcs)</option>
-                            @endforeach
-                        </select>
-                        <span class="material-symbols-outlined absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none text-sm">keyboard_arrow_down</span>
+                {{-- Recommended Location Informational Block (Readonly only, No interaction) --}}
+                <div class="bg-slate-50 dark:bg-slate-805/50 border border-slate-200 dark:border-slate-800 rounded-md p-3 flex items-center gap-3">
+                    <span class="material-symbols-outlined text-slate-400 text-xl">warehouse</span>
+                    <div>
+                        <p class="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none">Recommended Location</p>
+                        @if($recommendedBinCode)
+                            <p class="text-xs font-black text-emerald-600 dark:text-emerald-400 mt-1 leading-none font-mono-scannable">{{ $recommendedBinCode }}</p>
+                        @else
+                            <p class="text-[10px] font-bold text-slate-500 dark:text-slate-400 mt-1 leading-none">No Main Location Assigned</p>
+                        @endif
                     </div>
-                    @error('bin_id') <p class="text-[9px] text-error font-bold mt-1 ml-1">{{ $message }}</p> @enderror
                 </div>
             </div>
 
@@ -517,6 +498,7 @@
                 flashError: false,
                 invalidFormatMessage: '',
                 showMomentum: false,
+                editingQty: false,
 
                 // Temporary debug telemetry fields
                 debugLastInput: '',
@@ -883,6 +865,7 @@
                 },
 
                 recoverFocus() {
+                    if (this.editingQty) return;
                     if (this.focusCooldown) return;
 
                     const active = document.activeElement;
@@ -898,6 +881,7 @@
                 },
 
                 forceFocus() {
+                    if (this.editingQty) return;
                     const inputEl = document.getElementById('barcode-input');
                     if (inputEl) {
                         this.focusCooldown = true;
