@@ -45,6 +45,11 @@ class ItemForm extends Component
     public $croppedExistingPhoto = null;
     public $editingExistingId = null;
 
+    // ERP Family & Barcode Auto-Suggestion States
+    public $erpFamily = '';
+    public $lastBarcode = '';
+    public $suggestedBarcode = '';
+
     protected function rules()
     {
         $variantId = $this->variant ? $this->variant->id : 'NULL';
@@ -59,6 +64,91 @@ class ItemForm extends Component
             'bin_code' => 'nullable|string|max:50',
             'initial_stock' => 'nullable|integer|min:0',
         ];
+    }
+
+    public function updated($property)
+    {
+        if ($property === 'erp_code') {
+            $this->suggestBarcodeForErp($this->erp_code);
+        }
+    }
+
+    public function suggestBarcodeForErp($value)
+    {
+        $value = trim($value);
+        if (empty($value)) {
+            $this->erpFamily = '';
+            $this->lastBarcode = '';
+            $this->suggestedBarcode = '';
+            return;
+        }
+
+        $parts = explode('.', $value);
+        if (count($parts) >= 2) {
+            $part1 = preg_replace('/[^0-9]/', '', $parts[0]);
+            $part2 = preg_replace('/[^0-9]/', '', $parts[1]);
+            if ($part1 !== '' && $part2 !== '') {
+                // Enforce first segment = 1 digit, second segment = 2 digits using str_pad
+                $part1 = str_pad($part1, 1, '0', STR_PAD_LEFT);
+                $part2 = str_pad($part2, 2, '0', STR_PAD_LEFT);
+
+                $this->erpFamily = $parts[0] . '.' . $parts[1] . ' → ' . $part1 . $part2;
+                $familyPrefix = '1' . $part1 . $part2;
+
+                // Find latest barcode in same family
+                $latest = \App\Models\ItemBarcode::where('barcode', 'like', $familyPrefix . '%')
+                    ->orderByRaw('CAST(barcode AS UNSIGNED) DESC')
+                    ->first();
+
+                if ($latest) {
+                    $this->lastBarcode = $latest->barcode;
+                    $lastNum = (int)$latest->barcode;
+                    $nextNum = $lastNum + 1;
+                    $this->suggestedBarcode = number_format($nextNum, 0, '', '');
+                } else {
+                    $this->lastBarcode = 'NONE';
+                    $this->suggestedBarcode = $familyPrefix . '000001';
+                }
+
+                // Auto-populate newBarcode if it is currently empty, or if it is a generated family barcode from a different family prefix
+                $isGeneratedBarcode = false;
+                if (!empty($this->newBarcode)) {
+                    if (str_starts_with($this->newBarcode, '1') && strlen($this->newBarcode) === 10 && ctype_digit($this->newBarcode)) {
+                        $isGeneratedBarcode = true;
+                    }
+                }
+
+                if (empty($this->newBarcode) || $isGeneratedBarcode) {
+                    $this->newBarcode = $this->suggestedBarcode;
+                }
+
+                // Auto-register barcode into barcodes[] if empty or if it contains a single generated barcode from a different family prefix
+                $shouldAutoRegister = false;
+                if (empty($this->barcodes)) {
+                    $shouldAutoRegister = true;
+                } elseif (count($this->barcodes) === 1) {
+                    $firstBc = $this->barcodes[0]['code'];
+                    if (str_starts_with($firstBc, '1') && strlen($firstBc) === 10 && ctype_digit($firstBc) && !str_starts_with($firstBc, $familyPrefix)) {
+                        $shouldAutoRegister = true;
+                    }
+                }
+
+                if ($shouldAutoRegister) {
+                    $this->barcodes = [
+                        [
+                            'code' => $this->suggestedBarcode,
+                            'is_primary' => true
+                        ]
+                    ];
+                    $this->primaryBarcodeIndex = 0;
+                }
+                return;
+            }
+        }
+
+        $this->erpFamily = '';
+        $this->lastBarcode = '';
+        $this->suggestedBarcode = '';
     }
 
     public function mount($mode = 'create', $variant = null)
@@ -94,6 +184,9 @@ class ItemForm extends Component
 
             // Load primary bin code
             $this->bin_code = $variant->bins()->first()?->code ?? '';
+
+            // Generate barcode suggestion context
+            $this->suggestBarcodeForErp($this->erp_code);
         }
     }
 
@@ -107,6 +200,19 @@ class ItemForm extends Component
                 $this->addError('newBarcode', 'Barcode already added.');
                 return;
             }
+        }
+
+        // Global duplicate protection
+        $variantId = $this->variant ? $this->variant->id : null;
+        $exists = \App\Models\ItemBarcode::where('barcode', $this->newBarcode)
+            ->when($variantId, function($q) use ($variantId) {
+                $q->where('item_variant_id', '!=', $variantId);
+            })
+            ->exists();
+        
+        if ($exists) {
+            $this->addError('newBarcode', 'This barcode is already registered to another item variant in the system.');
+            return;
         }
 
         $this->barcodes[] = [
@@ -178,6 +284,20 @@ class ItemForm extends Component
     {
         $this->validate();
 
+        // Hard duplicate protection validation prior to database commit
+        foreach ($this->barcodes as $bc) {
+            $variantId = $this->variant ? $this->variant->id : null;
+            $exists = \App\Models\ItemBarcode::where('barcode', $bc['code'])
+                ->when($variantId, function($q) use ($variantId) {
+                    $q->where('item_variant_id', '!=', $variantId);
+                })
+                ->exists();
+            if ($exists) {
+                $this->addError('newBarcode', "The barcode '{$bc['code']}' is already registered to another item variant in the system.");
+                return;
+            }
+        }
+
         DB::transaction(function () {
             // Manage Item (Name grouping)
             if ($this->mode === 'create') {
@@ -204,10 +324,57 @@ class ItemForm extends Component
 
             // Sync Barcodes
             $this->variant->barcodes()->delete(); // Simple sync: delete all and recreate
+            
+            // Extract active family prefix from ERP code
+            $familyPrefix = '';
+            if (!empty($this->erp_code)) {
+                $parts = explode('.', $this->erp_code);
+                if (count($parts) >= 2) {
+                    $part1 = preg_replace('/[^0-9]/', '', $parts[0]);
+                    $part2 = preg_replace('/[^0-9]/', '', $parts[1]);
+                    if ($part1 !== '' && $part2 !== '') {
+                        $part1 = str_pad($part1, 1, '0', STR_PAD_LEFT);
+                        $part2 = str_pad($part2, 2, '0', STR_PAD_LEFT);
+                        $familyPrefix = '1' . $part1 . $part2;
+                    }
+                }
+            }
+
             foreach ($this->barcodes as $bc) {
+                $barcodeVal = $bc['code'];
+
+                // If it belongs to the active family prefix and matches standard sequence length, regenerate dynamically at insert-time for concurrency safety!
+                if ($this->mode === 'create' && $familyPrefix !== '' && str_starts_with($barcodeVal, $familyPrefix) && strlen($barcodeVal) === 10) {
+                    // Re-query absolute latest barcode in same family from DB inside locked transaction
+                    $latest = ItemBarcode::where('barcode', 'like', $familyPrefix . '%')
+                        ->orderByRaw('CAST(barcode AS UNSIGNED) DESC')
+                        ->lockForUpdate()
+                        ->first();
+
+                    if ($latest) {
+                        $lastNum = (int)$latest->barcode;
+                        $nextNum = $lastNum + 1;
+                        $barcodeVal = number_format($nextNum, 0, '', '');
+                    } else {
+                        $barcodeVal = $familyPrefix . '000001';
+                    }
+                }
+
+                // Hard duplicate protection validation prior to insert
+                $variantId = $this->variant ? $this->variant->id : null;
+                $exists = ItemBarcode::where('barcode', $barcodeVal)
+                    ->when($variantId, function($q) use ($variantId) {
+                        $q->where('item_variant_id', '!=', $variantId);
+                    })
+                    ->exists();
+
+                if ($exists) {
+                    throw new \Exception("Concurrency collision: Barcode '{$barcodeVal}' is already registered to another item variant in the system. Please reload.");
+                }
+
                 ItemBarcode::create([
                     'item_variant_id' => $this->variant->id,
-                    'barcode' => $bc['code'],
+                    'barcode' => $barcodeVal,
                     'type' => 'INTERNAL',
                     'is_primary' => $bc['is_primary']
                 ]);

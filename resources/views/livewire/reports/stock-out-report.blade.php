@@ -111,9 +111,9 @@
                         <span class="material-symbols-outlined text-sm">download</span>
                         Export CSV Flat
                     </a>
-                    <a href="{{ route('reports.stock-out.print', request()->query()) }}" target="_blank" class="flex items-center gap-1 px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-[10px] font-black uppercase tracking-wider transition-all shadow-sm">
-                        <span class="material-symbols-outlined text-sm">print</span>
-                        Print / PDF Preview
+                    <a href="{{ route('reports.stock-out.preview', request()->query()) }}" class="flex items-center gap-1 px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-[10px] font-black uppercase tracking-wider transition-all shadow-sm">
+                        <span class="material-symbols-outlined text-sm">visibility</span>
+                        View Digital Receipt
                     </a>
                 @else
                     <button wire:click="generateReport" 

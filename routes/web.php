@@ -41,6 +41,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/reports/stock-in', \App\Livewire\Reports\StockInReport::class)->name('reports.stock-in');
     Route::get('/reports/stock-out/csv', [\App\Http\Controllers\ReportController::class, 'exportStockOutCsv'])->name('reports.stock-out.csv');
     Route::get('/reports/stock-in/csv', [\App\Http\Controllers\ReportController::class, 'exportStockInCsv'])->name('reports.stock-in.csv');
+    Route::get('/reports/stock-out/preview', [\App\Http\Controllers\ReportController::class, 'previewStockOut'])->name('reports.stock-out.preview');
     Route::get('/reports/stock-out/print', [\App\Http\Controllers\ReportController::class, 'printStockOut'])->name('reports.stock-out.print');
     Route::get('/reports/stock-in/print', [\App\Http\Controllers\ReportController::class, 'printStockIn'])->name('reports.stock-in.print');
 

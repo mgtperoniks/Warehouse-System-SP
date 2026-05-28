@@ -82,7 +82,7 @@ class ItemService
         }
 
         // 4. Sorting
-        $sortField = $filters['sort_field'] ?? 'items.name';
+        $sortField = $filters['sort_field'] ?? 'erp_code';
         $sortDir = $filters['sort_dir'] ?? 'asc';
 
         // Map UI sort fields to DB columns
@@ -93,9 +93,13 @@ class ItemService
             'movement' => 'movement_data.last_movement_at',
         ];
 
-        $dbSortField = $sortMap[$sortField] ?? 'items.name';
+        $dbSortField = $sortMap[$sortField] ?? 'item_variants.erp_code';
         
-        $query->orderBy($dbSortField, $sortDir);
+        if ($dbSortField === 'item_variants.erp_code') {
+            $query->orderByRaw('COALESCE(item_variants.erp_code, "") ' . ($sortDir === 'desc' ? 'DESC' : 'ASC'));
+        } else {
+            $query->orderBy($dbSortField, $sortDir);
+        }
 
         // Return paginated results
         return $query->paginate($perPage);

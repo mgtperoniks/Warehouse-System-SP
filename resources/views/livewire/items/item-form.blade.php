@@ -141,8 +141,28 @@
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-sm">
                         <div>
                             <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">ERP Code</label>
-                            <input wire:model="erp_code" type="text" class="w-full h-11 bg-slate-50 border border-slate-200 dark:border-slate-800 rounded-md px-4 py-2.5 focus:ring-2 focus:ring-primary/20 focus:border-primary font-mono font-bold text-slate-700 transition-all uppercase text-sm" placeholder="ERP-XXXX">
+                            <input wire:model.live="erp_code" type="text" class="w-full h-11 bg-slate-50 border border-slate-200 dark:border-slate-800 rounded-md px-4 py-2.5 focus:ring-2 focus:ring-primary/20 focus:border-primary font-mono font-bold text-slate-700 transition-all uppercase text-sm" placeholder="ERP-XXXX">
                             @error('erp_code') <span class="text-error text-xs font-bold mt-1 block">{{ $message }}</span> @enderror
+
+                            @if($erpFamily)
+                                <div class="mt-2 bg-emerald-50/50 dark:bg-emerald-950/15 border border-emerald-100 dark:border-emerald-900/60 p-3 rounded-lg flex flex-col gap-1.5 text-xs text-slate-700 dark:text-slate-350">
+                                    <div class="flex justify-between items-center">
+                                        <span class="font-bold uppercase tracking-wider text-[9px] text-slate-450">ERP Family</span>
+                                        <span class="font-mono font-black text-emerald-700 dark:text-emerald-450">{{ $erpFamily }}</span>
+                                    </div>
+                                    <div class="flex justify-between items-center">
+                                        <span class="font-bold uppercase tracking-wider text-[9px] text-slate-450">Last Barcode</span>
+                                        <span class="font-mono font-bold">{{ $lastBarcode }}</span>
+                                    </div>
+                                    <div class="flex justify-between items-center border-t border-emerald-100/50 dark:border-emerald-900/40 pt-1.5 mt-0.5">
+                                        <span class="font-bold uppercase tracking-wider text-[9px] text-emerald-600 dark:text-emerald-400">Suggested</span>
+                                        <div class="flex items-center gap-2">
+                                            <span class="font-mono font-black text-emerald-600 dark:text-emerald-400">{{ $suggestedBarcode }}</span>
+                                            <button type="button" wire:click="$set('newBarcode', '{{ $suggestedBarcode }}')" class="px-1.5 py-0.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded text-[8px] font-black uppercase tracking-widest transition-all">Use</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            @endif
                         </div>
                         <div>
                             <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Internal SKU</label>
@@ -210,7 +230,8 @@
                     <span class="material-symbols-outlined text-emerald-500 text-xl">qr_code_scanner</span>
                     Master Barcodes
                 </h3>
-                
+
+
                 <div class="flex gap-sm mb-md">
                     <div class="flex-1 relative">
                         <span class="material-symbols-outlined absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-lg">barcode_scanner</span>

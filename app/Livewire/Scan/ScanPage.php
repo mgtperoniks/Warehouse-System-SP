@@ -329,10 +329,6 @@ class ScanPage extends Component
             });
 
             // 5. Success State
-            $this->lastTransactionId = $transaction->id;
-            $this->lastTransactionCode = $transaction->code;
-            $this->isSubmitted = true;
-            
             $this->cart = [];
             $this->persistCart();
             $this->barcode = '';
@@ -340,8 +336,7 @@ class ScanPage extends Component
             $this->qty = 1;
             $this->reference = '';
             
-            $this->showMessage('Transaction successfully completed!', 'success');
-
+            return redirect()->route('reports.stock-out.preview', ['code' => $transaction->code]);
         } catch (\Exception $e) {
             $this->showMessage($e->getMessage(), 'error');
         }

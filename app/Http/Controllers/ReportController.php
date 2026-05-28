@@ -175,6 +175,18 @@ class ReportController extends Controller
     }
 
     /**
+     * Professional preview layout for Stock Out (BKB)
+     */
+    public function previewStockOut(Request $request)
+    {
+        $query = StockTransaction::with(['department', 'user', 'items.variant.item']);
+        $query = $this->applyStockOutFilters($query, $request);
+        $transactions = $query->orderBy('created_at', 'desc')->get();
+
+        return view('reports.stock-out-preview', compact('transactions'));
+    }
+
+    /**
      * Printable A4 layout for Stock Out (BKB)
      */
     public function printStockOut(Request $request)

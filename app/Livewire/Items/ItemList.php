@@ -15,7 +15,7 @@ class ItemList extends Component
     public $search = '';
     public $brandFilter = '';
     public $stockStatusFilter = '';
-    public $sortField = 'name';
+    public $sortField = 'erp_code';
     public $sortDir = 'asc';
     public $perPage = 25;
 
@@ -23,7 +23,7 @@ class ItemList extends Component
         'search' => ['except' => ''],
         'brandFilter' => ['except' => ''],
         'stockStatusFilter' => ['except' => ''],
-        'sortField' => ['except' => 'name'],
+        'sortField' => ['except' => 'erp_code'],
         'sortDir' => ['except' => 'asc'],
     ];
 
