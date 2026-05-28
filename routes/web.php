@@ -44,6 +44,9 @@ Route::middleware('auth')->group(function () {
     Route::get('/reports/stock-out/preview', [\App\Http\Controllers\ReportController::class, 'previewStockOut'])->name('reports.stock-out.preview');
     Route::get('/reports/stock-out/print', [\App\Http\Controllers\ReportController::class, 'printStockOut'])->name('reports.stock-out.print');
     Route::get('/reports/stock-in/print', [\App\Http\Controllers\ReportController::class, 'printStockIn'])->name('reports.stock-in.print');
+    Route::get('/reports/movement-ledger', \App\Livewire\Reports\MovementLedgerReport::class)->name('reports.movement-ledger');
+    Route::get('/reports/movement-ledger/print', [\App\Http\Controllers\ReportController::class, 'printMovementLedger'])->name('reports.movement-ledger.print');
+    Route::get('/reports/movement-ledger/csv', [\App\Http\Controllers\ReportController::class, 'exportMovementLedgerCsv'])->name('reports.movement-ledger.csv');
 
     // Settings / Master Data
     Route::get('/settings/departments', \App\Livewire\Settings\DepartmentPage::class)->name('settings.departments');

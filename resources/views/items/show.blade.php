@@ -230,23 +230,99 @@
                         <span class="text-[8px] font-black uppercase tracking-widest">Manage</span>
                     </a>
                 </div>
-            </section>
 
-            <!-- Dense Recent Movements Placeholder -->
+            <!-- Dense Recent Movements -->
             <section class="bg-surface-container-lowest border border-slate-200 rounded-lg shadow-sm p-4" id="history">
                 <div class="flex items-center justify-between mb-3 border-b border-slate-100 pb-2">
                     <h3 class="text-xs font-black uppercase tracking-widest flex items-center gap-2 text-slate-550">
                         <span class="material-symbols-outlined text-slate-400 text-md">sync_alt</span>
                         Recent Movements
                     </h3>
-                    <span class="text-[9px] font-black uppercase tracking-widest text-slate-400 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded-full font-mono">LOG ENGINE</span>
+                    <span class="text-[9px] font-black uppercase tracking-widest text-slate-400 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded-full font-mono font-bold">LOG ENGINE</span>
                 </div>
                 
-                <div class="text-center py-4 border border-dashed border-slate-350 rounded-lg bg-slate-50/50">
-                    <span class="material-symbols-outlined text-2xl text-slate-350 mb-1">history_toggle_off</span>
-                    <h4 class="text-slate-700 text-[11px] font-black uppercase tracking-wider mb-0.5">Movement Log Integration Pending</h4>
-                    <p class="text-[9.5px] text-slate-400 max-w-[420px] mx-auto leading-relaxed font-bold">This item's in/out history will appear here once the Stock Movement module is fully linked.</p>
-                </div>
+                @if($movements->isEmpty())
+                    <div class="text-center py-6 border border-dashed border-slate-200 rounded-lg bg-slate-50/50">
+                        <span class="material-symbols-outlined text-2xl text-slate-350 mb-1">history_toggle_off</span>
+                        <h4 class="text-slate-700 text-[11px] font-black uppercase tracking-wider mb-0.5">No Movements Recorded</h4>
+                        <p class="text-[9.5px] text-slate-400 max-w-[420px] mx-auto leading-relaxed font-bold">This item has no recorded stock in, out, or adjustment movements.</p>
+                    </div>
+                @else
+                    <!-- Monospace Stream -->
+                    <div class="space-y-1 max-h-[280px] overflow-y-auto pr-1">
+                        @foreach($movements as $mov)
+                            <div class="flex flex-col sm:flex-row sm:items-center justify-between py-1.5 px-2 rounded hover:bg-slate-50 border-b border-slate-100 text-slate-650 font-mono text-[10.5px] leading-none gap-1 sm:gap-2">
+                                
+                                <div class="flex items-center gap-2 flex-wrap">
+                                    <!-- Fixed Timestamp -->
+                                    <span class="text-slate-400 select-none flex-shrink-0" style="width: 90px;">
+                                        {{ $mov->created_at->format('d M H:i') }}
+                                    </span>
+                                    
+                                    <!-- Soft Subtle Badge -->
+                                    <span class="flex-shrink-0 text-center" style="width: 42px;">
+                                        @if($mov->type === 'IN')
+                                            <span class="inline-block px-1.5 py-0.5 bg-emerald-50 text-emerald-700 font-bold rounded border border-emerald-100 text-[9px] uppercase tracking-wide">IN</span>
+                                        @elseif($mov->type === 'OUT')
+                                            <span class="inline-block px-1.5 py-0.5 bg-rose-50 text-rose-700 font-bold rounded border border-rose-100 text-[9px] uppercase tracking-wide">OUT</span>
+                                        @elseif($mov->type === 'ADJUSTMENT')
+                                            <span class="inline-block px-1.5 py-0.5 bg-purple-50 text-purple-700 font-bold rounded border border-purple-100 text-[9px] uppercase tracking-wide">ADJ</span>
+                                        @elseif($mov->type === 'REVERSAL')
+                                            <span class="inline-block px-1.5 py-0.5 bg-slate-100 text-slate-600 font-bold rounded border border-slate-200 text-[9px] uppercase tracking-wide">REV</span>
+                                        @else
+                                            <span class="inline-block px-1.5 py-0.5 bg-blue-50 text-blue-700 font-bold rounded border border-blue-100 text-[9px] uppercase tracking-wide">{{ $mov->type }}</span>
+                                        @endif
+                                    </span>
+                                    
+                                    <!-- Fixed Location -->
+                                    <span class="font-bold text-slate-500 flex-shrink-0 uppercase" style="width: 80px;">
+                                        [{{ $mov->bin ? $mov->bin->code : 'UNASSIGND' }}]
+                                    </span>
+                                </div>
+
+                                <div class="flex items-center gap-4 flex-grow w-full sm:w-auto justify-between sm:justify-end">
+                                    <!-- Truncated Reference -->
+                                    <span class="text-slate-400 truncate flex-grow text-left sm:max-w-[220px]" title="{{ $mov->reference }}">
+                                        @if($mov->supplier)
+                                            {{ $mov->reference ?: 'STOCK_IN' }} ({{ $mov->supplier->name }})
+                                        @else
+                                            {{ $mov->reference ?: 'SYSTEM_GEN' }}
+                                        @endif
+                                    </span>
+                                    
+                                    <div class="flex items-center gap-3 flex-shrink-0">
+                                        <!-- Qty (Right Aligned, Strong Emphasis) -->
+                                        <span class="font-black text-right text-[11px] tracking-wide" style="width: 50px;">
+                                            @if($mov->qty > 0)
+                                                <span class="text-emerald-600">+{{ number_format($mov->qty) }}</span>
+                                            @elseif($mov->qty < 0)
+                                                <span class="text-rose-600">{{ number_format($mov->qty) }}</span>
+                                            @else
+                                                <span class="text-slate-400">0</span>
+                                            @endif
+                                        </span>
+                                        
+                                        <!-- Operator (Fixed Width) -->
+                                        <span class="text-slate-400 font-bold text-right truncate uppercase" style="width: 65px;" title="Operator: {{ $mov->operator ? $mov->operator->name : ($mov->created_by ?: 'System') }}">
+                                            {{ substr($mov->operator ? $mov->operator->name : ($mov->created_by ?: 'System'), 0, 8) }}
+                                        </span>
+                                    </div>
+                                </div>
+                                
+                            </div>
+                        @endforeach
+                    </div>
+                    
+                    <!-- View Full History (Subtle Industrial) -->
+                    <div class="mt-3 pt-2 border-t border-slate-100 flex justify-end">
+                        <button type="button" 
+                                onclick="alert('Full History module is scheduled for Phase 2 implementation. The current direct logs contain all transactional records.')"
+                                class="flex items-center gap-1 px-2.5 py-1 bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-500 hover:text-slate-700 text-[9px] font-black uppercase tracking-wider rounded transition-colors active:scale-95">
+                            <span class="material-symbols-outlined text-[12px] font-bold">history</span>
+                            View Full History
+                        </button>
+                    </div>
+                @endif
             </section>
         </div>
     </div>

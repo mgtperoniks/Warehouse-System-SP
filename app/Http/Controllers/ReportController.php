@@ -209,4 +209,139 @@ class ReportController extends Controller
 
         return view('reports.stock-in-print', compact('receipts'));
     }
+
+    /**
+     * Printable A4 Landscape layout for Movement Ledger (Kartu Stok)
+     */
+    public function printMovementLedger(Request $request, \App\Services\Reports\MovementLedgerService $ledgerService)
+    {
+        $request->validate([
+            'selectedVariantId' => 'required|integer',
+            'startDate' => 'required|date',
+            'endDate' => 'required|date',
+        ]);
+
+        $variantId = $request->selectedVariantId;
+        $startDate = $request->startDate;
+        $endDate = $request->endDate;
+        $movementType = $request->get('movementType', 'ALL');
+
+        $variant = \App\Models\ItemVariant::with('item')->findOrFail($variantId);
+        
+        $movements = $ledgerService->getLedgerQuery($variantId, $startDate, $endDate, $movementType)->get();
+        $startingBalance = $ledgerService->getStartingBalance($variantId, $startDate);
+
+        if ($movements->count() > 200) {
+            return response("Operational Constraint Violation: Printing report is restricted to 200 rows of movements. Please use Excel Export for large datasets.", 403);
+        }
+
+        return view('reports.movement-ledger-print', compact('variant', 'movements', 'startingBalance', 'startDate', 'endDate', 'movementType'));
+    }
+
+    /**
+     * Memory-safe streaming CSV/Excel Export for Movement Ledger
+     */
+    public function exportMovementLedgerCsv(Request $request, \App\Services\Reports\MovementLedgerService $ledgerService)
+    {
+        $request->validate([
+            'selectedVariantId' => 'required|integer',
+            'startDate' => 'required|date',
+            'endDate' => 'required|date',
+        ]);
+
+        $variantId = $request->selectedVariantId;
+        $startDate = $request->startDate;
+        $endDate = $request->endDate;
+        $movementType = $request->get('movementType', 'ALL');
+
+        $variant = \App\Models\ItemVariant::with('item')->findOrFail($variantId);
+        $startingBalance = $ledgerService->getStartingBalance($variantId, $startDate);
+
+        $filename = "kartu-stok-" . $variant->erp_code . "-" . date('Ymd-His') . ".csv";
+
+        $headers = [
+            "Content-type"        => "text/csv",
+            "Content-Disposition" => "attachment; filename=" . $filename,
+            "Pragma"              => "no-cache",
+            "Cache-Control"       => "must-revalidate, post-check=0, pre-check=0",
+            "Expires"             => "0"
+        ];
+
+        $callback = function() use ($variantId, $startDate, $endDate, $movementType, $ledgerService, $startingBalance) {
+            $file = fopen('php://output', 'w');
+            
+            fprintf($file, chr(0xEF).chr(0xBB).chr(0xBF));
+
+            fputcsv($file, [
+                'DATE',
+                'REFERENCE',
+                'DEPARTMENT / PIC / SUPPLIER',
+                'TYPE',
+                'QTY IN',
+                'QTY OUT',
+                'RUNNING BALANCE',
+                'LOCATION',
+                'OPERATOR'
+            ]);
+
+            fputcsv($file, [
+                '-',
+                'INIT_BALANCE',
+                'Saldo awal sebelum rentang tanggal terpilih',
+                '-',
+                '-',
+                '-',
+                $startingBalance,
+                '-',
+                'SYSTEM'
+            ]);
+
+            $runningBalance = $startingBalance;
+
+            $ledgerService->getLedgerQuery($variantId, $startDate, $endDate, $movementType)
+                ->chunk(250, function($movements) use ($file, &$runningBalance) {
+                    foreach ($movements as $mov) {
+                        $runningBalance += $mov->qty;
+
+                        $picDept = 'N/A';
+                        if ($mov->type === 'IN') {
+                            if ($mov->receipt) {
+                                $picDept = ($mov->receipt->supplier ? $mov->receipt->supplier->name : 'BPB Inbound') . ' / ' . ($mov->receipt->operator ? $mov->receipt->operator->name : 'Operator');
+                            } elseif ($mov->supplier) {
+                                $picDept = $mov->supplier->name . ' / Inbound';
+                            } else {
+                                $picDept = 'General Stock In';
+                            }
+                        } elseif ($mov->type === 'OUT') {
+                            if ($mov->transaction) {
+                                $picDept = ($mov->transaction->department ? $mov->transaction->department->name : 'General') . ' / ' . ($mov->transaction->user ? $mov->transaction->user->name : 'PIC');
+                            } else {
+                                $picDept = 'Direct Checkout';
+                            }
+                        } elseif ($mov->type === 'ADJUSTMENT' || $mov->type === 'REVERSAL') {
+                            $picDept = 'Opname Adjustment / Reversal';
+                        }
+
+                        $qtyIn = $mov->qty > 0 ? $mov->qty : 0;
+                        $qtyOut = $mov->qty < 0 ? abs($mov->qty) : 0;
+
+                        fputcsv($file, [
+                            $mov->created_at->format('Y-m-d H:i:s'),
+                            $mov->reference ?: 'SYSTEM_GEN',
+                            strtoupper($picDept),
+                            $mov->type,
+                            $qtyIn ?: '-',
+                            $qtyOut ?: '-',
+                            $runningBalance,
+                            $mov->bin ? $mov->bin->code : 'UNASSIGND',
+                            strtoupper($mov->operator ? $mov->operator->name : ($mov->created_by ?: 'System'))
+                        ]);
+                    }
+                });
+
+            fclose($file);
+        };
+
+        return response()->stream($callback, 200, $headers);
+    }
 }

@@ -66,6 +66,16 @@ class StockMovement extends Model
         return $this->belongsTo(StockMovement::class, 'linked_transaction_id');
     }
 
+    public function transaction(): BelongsTo
+    {
+        return $this->belongsTo(StockTransaction::class, 'reference', 'code');
+    }
+
+    public function receipt(): BelongsTo
+    {
+        return $this->belongsTo(StockInReceipt::class, 'reference', 'receipt_code');
+    }
+
     public function scopeForActiveWarehouse($query)
     {
         $strict = env('WMS_GOVERNANCE_STRICT_MODE', true);

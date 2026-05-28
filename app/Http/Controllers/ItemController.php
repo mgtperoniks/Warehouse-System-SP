@@ -17,7 +17,14 @@ class ItemController extends Controller
     {
         // Eager load everything needed for the rich detail page
         $variant->load(['item', 'suppliers', 'images', 'barcodes', 'bins']);
-        return view('items.show', compact('variant'));
+
+        $movements = $variant->movements()
+            ->with(['bin', 'operator', 'supplier'])
+            ->latest('id')
+            ->limit(10)
+            ->get();
+
+        return view('items.show', compact('variant', 'movements'));
     }
 
     public function create()

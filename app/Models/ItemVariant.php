@@ -54,4 +54,9 @@ class ItemVariant extends Model
     {
         return $this->hasMany(ItemImage::class);
     }
+
+    public function movements(): HasMany
+    {
+        return $this->hasMany(StockMovement::class, 'item_variant_id');
+    }
 }

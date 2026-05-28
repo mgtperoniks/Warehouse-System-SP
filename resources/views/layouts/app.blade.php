@@ -27,77 +27,140 @@
             box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.2);
             border: 2px solid #22c55e !important;
         }
+        
+        /* Modern Minimalist Ultra-Thin Scrollbar */
+        .custom-sidebar-scroll {
+            scrollbar-gutter: stable;
+            overflow-x: hidden !important;
+        }
+        .custom-sidebar-scroll::-webkit-scrollbar {
+            width: 3px;
+        }
+        .custom-sidebar-scroll::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .custom-sidebar-scroll::-webkit-scrollbar-thumb {
+            background: rgba(148, 163, 184, 0.2);
+            border-radius: 9999px;
+            transition: background 0.2s ease;
+        }
+        .custom-sidebar-scroll::-webkit-scrollbar-thumb:hover {
+            background: rgba(148, 163, 184, 0.5);
+        }
+        /* Firefox Support */
+        .custom-sidebar-scroll {
+            scrollbar-width: thin;
+            scrollbar-color: rgba(148, 163, 184, 0.2) transparent;
+        }
     </style>
 </head>
 <body class="bg-surface text-on-surface flex min-h-screen antialiased">
     <!-- SideNavBar (Desktop Shell) -->
-    <aside class="fixed left-0 top-0 h-full p-2 space-y-3 h-screen w-[84px] hidden lg:flex flex-col border-r border-slate-200 dark:border-slate-800 bg-slate-100/85 dark:bg-slate-900/85 backdrop-blur-md z-40">
-        <div class="mb-4 text-center">
+    <aside class="fixed left-0 top-0 h-full p-2 h-screen w-[84px] hidden lg:flex flex-col border-r border-slate-200 dark:border-slate-800 bg-slate-100/85 dark:bg-slate-900/85 backdrop-blur-md z-40">
+        <!-- Sticky Top: Branding -->
+        <div class="mb-4 text-center flex-shrink-0">
             <div class="w-11 h-11 mx-auto rounded-lg bg-green-600 text-white flex items-center justify-center shadow-md shadow-green-600/20">
                 <span class="material-symbols-outlined text-xl">warehouse</span>
             </div>
             <h1 class="text-[10px] font-black tracking-tight text-slate-900 dark:text-white uppercase leading-none mt-1.5">Terminal 01</h1>
             <p class="text-[8px] text-slate-500 font-bold uppercase tracking-widest leading-none mt-0.5">Dock A</p>
         </div>
-        <nav class="flex-1 space-y-3">
-            <a class="relative group/nav flex items-center justify-center w-12 h-12 mx-auto {{ request()->routeIs('dashboard') ? 'bg-slate-200/90 dark:bg-slate-800/90 text-green-700 dark:text-green-300 border-l-[5px] border-green-600 shadow-sm font-bold' : 'text-slate-650 dark:text-slate-400 hover:bg-slate-200/60 dark:hover:bg-slate-800/60' }} rounded-xl transition-all duration-200" href="{{ route('dashboard') }}">
+
+        <!-- Scrollable Middle: Unified Grouped Navigation -->
+        <div class="flex-1 overflow-y-auto space-y-4 pb-6 pr-1 custom-sidebar-scroll">
+            
+            <!-- General Link -->
+            <a class="relative group/nav flex items-center justify-center w-12 h-12 mx-auto {{ request()->routeIs('dashboard') ? 'bg-slate-200/90 dark:bg-slate-800/90 text-green-700 dark:text-green-300 border-l-[5px] border-green-600 shadow-sm font-bold' : 'text-slate-655 dark:text-slate-400 hover:bg-slate-200/60 dark:hover:bg-slate-800/60' }} rounded-xl transition-all duration-200" href="{{ route('dashboard') }}">
                 <span class="material-symbols-outlined text-2xl">dashboard</span>
                 <span class="absolute left-16 bg-slate-900 dark:bg-slate-800 text-white text-xs font-bold px-2 py-1 rounded shadow-lg opacity-0 translate-x-[-10px] group-hover/nav:opacity-100 group-hover/nav:translate-x-0 transition-all pointer-events-none whitespace-nowrap z-50">
                     Dashboard
                 </span>
             </a>
-            <a class="relative group/nav flex items-center justify-center w-12 h-12 mx-auto {{ request()->routeIs('items') ? 'bg-slate-200/90 dark:bg-slate-800/90 text-green-700 dark:text-green-300 border-l-[5px] border-green-600 shadow-sm font-bold' : 'text-slate-650 dark:text-slate-400 hover:bg-slate-200/60 dark:hover:bg-slate-800/60' }} rounded-xl transition-all duration-200" href="{{ route('items') }}">
-                <span class="material-symbols-outlined text-2xl">inventory_2</span>
-                <span class="absolute left-16 bg-slate-900 dark:bg-slate-800 text-white text-xs font-bold px-2 py-1 rounded shadow-lg opacity-0 translate-x-[-10px] group-hover/nav:opacity-100 group-hover/nav:translate-x-0 transition-all pointer-events-none whitespace-nowrap z-50">
-                    Items Catalog
-                </span>
-            </a>
-            @if(auth()->user()->role !== 'auditor')
-            <a class="relative group/nav flex items-center justify-center w-12 h-12 mx-auto {{ request()->routeIs('scan') ? 'bg-slate-200/90 dark:bg-slate-800/90 text-green-700 dark:text-green-300 border-l-[5px] border-green-600 shadow-sm font-bold' : 'text-slate-650 dark:text-slate-400 hover:bg-slate-200/60 dark:hover:bg-slate-800/60' }} rounded-xl transition-all duration-200" href="{{ route('scan') }}">
-                <span class="material-symbols-outlined text-2xl">barcode_scanner</span>
-                <span class="absolute left-16 bg-slate-900 dark:bg-slate-800 text-white text-xs font-bold px-2 py-1 rounded shadow-lg opacity-0 translate-x-[-10px] group-hover/nav:opacity-100 group-hover/nav:translate-x-0 transition-all pointer-events-none whitespace-nowrap z-50">
-                    Scan Out
-                </span>
-            </a>
-            <a class="relative group/nav flex items-center justify-center w-12 h-12 mx-auto {{ request()->routeIs('stock-in') ? 'bg-slate-200/90 dark:bg-slate-800/90 text-green-700 dark:text-green-300 border-l-[5px] border-green-600 shadow-sm font-bold' : 'text-slate-650 dark:text-slate-400 hover:bg-slate-200/60 dark:hover:bg-slate-800/60' }} rounded-xl transition-all duration-200" href="{{ route('stock-in') }}">
-                <span class="material-symbols-outlined text-2xl">input</span>
-                <span class="absolute left-16 bg-slate-900 dark:bg-slate-800 text-white text-xs font-bold px-2 py-1 rounded shadow-lg opacity-0 translate-x-[-10px] group-hover/nav:opacity-100 group-hover/nav:translate-x-0 transition-all pointer-events-none whitespace-nowrap z-50">
-                    Stock In
-                </span>
-            </a>
-            @endif
-            <a class="relative group/nav flex items-center justify-center w-12 h-12 mx-auto {{ request()->routeIs('barcode.printing') ? 'bg-slate-200/90 dark:bg-slate-800/90 text-green-700 dark:text-green-300 border-l-[5px] border-green-600 shadow-sm font-bold' : 'text-slate-650 dark:text-slate-400 hover:bg-slate-200/60 dark:hover:bg-slate-800/60' }} rounded-xl transition-all duration-200" href="{{ route('barcode.printing') }}">
-                <span class="material-symbols-outlined text-2xl">print</span>
-                <span class="absolute left-16 bg-slate-900 dark:bg-slate-800 text-white text-xs font-bold px-2 py-1 rounded shadow-lg opacity-0 translate-x-[-10px] group-hover/nav:opacity-100 group-hover/nav:translate-x-0 transition-all pointer-events-none whitespace-nowrap z-50">
-                    Print Labels
-                </span>
-            </a>
-            <a class="relative group/nav flex items-center justify-center w-12 h-12 mx-auto {{ request()->routeIs('opname') ? 'bg-slate-200/90 dark:bg-slate-800/90 text-green-700 dark:text-green-300 border-l-[5px] border-green-600 shadow-sm font-bold' : 'text-slate-650 dark:text-slate-400 hover:bg-slate-200/60 dark:hover:bg-slate-800/60' }} rounded-xl transition-all duration-200" href="{{ route('opname') }}">
-                <span class="material-symbols-outlined text-2xl">fact_check</span>
-                <span class="absolute left-16 bg-slate-900 dark:bg-slate-800 text-white text-xs font-bold px-2 py-1 rounded shadow-lg opacity-0 translate-x-[-10px] group-hover/nav:opacity-100 group-hover/nav:translate-x-0 transition-all pointer-events-none whitespace-nowrap z-50">
-                    Opname Audit
-                </span>
-            </a>
-            <a class="relative group/nav flex items-center justify-center w-12 h-12 mx-auto {{ request()->routeIs('reports.*') ? 'bg-slate-200/90 dark:bg-slate-800/90 text-green-700 dark:text-green-300 border-l-[5px] border-green-600 shadow-sm font-bold' : 'text-slate-650 dark:text-slate-400 hover:bg-slate-200/60 dark:hover:bg-slate-800/60' }} rounded-xl transition-all duration-200" href="{{ route('reports.stock-out') }}">
-                <span class="material-symbols-outlined text-2xl">description</span>
-                <span class="absolute left-16 bg-slate-900 dark:bg-slate-800 text-white text-xs font-bold px-2 py-1 rounded shadow-lg opacity-0 translate-x-[-10px] group-hover/nav:opacity-100 group-hover/nav:translate-x-0 transition-all pointer-events-none whitespace-nowrap z-50">
-                    Reports Hub
-                </span>
-            </a>
-        </nav>
-        <div class="pt-3 border-t border-slate-200 dark:border-slate-800 space-y-3">
-            <a class="relative group/nav flex items-center justify-center w-12 h-12 mx-auto {{ request()->routeIs('settings.departments') ? 'bg-slate-200/90 dark:bg-slate-800/90 text-green-755 border-l-[5px] border-green-600 shadow-sm font-bold' : 'text-slate-650 hover:bg-slate-200/60' }} rounded-xl transition-all duration-200" href="{{ route('settings.departments') }}">
-                <span class="material-symbols-outlined text-2xl">corporate_fare</span>
-                <span class="absolute left-16 bg-slate-900 dark:bg-slate-800 text-white text-xs font-bold px-2 py-1 rounded shadow-lg opacity-0 translate-x-[-10px] group-hover/nav:opacity-100 group-hover/nav:translate-x-0 transition-all pointer-events-none whitespace-nowrap z-50">
-                    Departments
-                </span>
-            </a>
-            <a class="relative group/nav flex items-center justify-center w-12 h-12 mx-auto {{ request()->routeIs('settings.users') ? 'bg-slate-200/90 dark:bg-slate-800/90 text-green-755 border-l-[5px] border-green-600 shadow-sm font-bold' : 'text-slate-650 hover:bg-slate-200/60' }} rounded-xl transition-all duration-200" href="{{ route('settings.users') }}">
-                <span class="material-symbols-outlined text-2xl">person</span>
-                <span class="absolute left-16 bg-slate-900 dark:bg-slate-800 text-white text-xs font-bold px-2 py-1 rounded shadow-lg opacity-0 translate-x-[-10px] group-hover/nav:opacity-100 group-hover/nav:translate-x-0 transition-all pointer-events-none whitespace-nowrap z-50">
-                    Users / PIC
-                </span>
-            </a>
+
+            <!-- Group: Inventory -->
+            <div>
+                <div class="text-[8px] font-black text-slate-400 dark:text-slate-500 uppercase text-center select-none py-1 border-t border-slate-200/50 dark:border-slate-850 mt-2 mb-1">INV</div>
+                <div class="space-y-2">
+                    <a class="relative group/nav flex items-center justify-center w-12 h-12 mx-auto {{ request()->routeIs('items') ? 'bg-slate-200/90 dark:bg-slate-800/90 text-green-700 dark:text-green-300 border-l-[5px] border-green-600 shadow-sm font-bold' : 'text-slate-655 dark:text-slate-400 hover:bg-slate-200/60 dark:hover:bg-slate-800/60' }} rounded-xl transition-all duration-200" href="{{ route('items') }}">
+                        <span class="material-symbols-outlined text-2xl">inventory_2</span>
+                        <span class="absolute left-16 bg-slate-900 dark:bg-slate-800 text-white text-xs font-bold px-2 py-1 rounded shadow-lg opacity-0 translate-x-[-10px] group-hover/nav:opacity-100 group-hover/nav:translate-x-0 transition-all pointer-events-none whitespace-nowrap z-50">
+                            Items Catalog
+                        </span>
+                    </a>
+                    <a class="relative group/nav flex items-center justify-center w-12 h-12 mx-auto {{ request()->routeIs('barcode.printing') ? 'bg-slate-200/90 dark:bg-slate-800/90 text-green-700 dark:text-green-300 border-l-[5px] border-green-600 shadow-sm font-bold' : 'text-slate-655 dark:text-slate-400 hover:bg-slate-200/60 dark:hover:bg-slate-800/60' }} rounded-xl transition-all duration-200" href="{{ route('barcode.printing') }}">
+                        <span class="material-symbols-outlined text-2xl">print</span>
+                        <span class="absolute left-16 bg-slate-900 dark:bg-slate-800 text-white text-xs font-bold px-2 py-1 rounded shadow-lg opacity-0 translate-x-[-10px] group-hover/nav:opacity-100 group-hover/nav:translate-x-0 transition-all pointer-events-none whitespace-nowrap z-50">
+                            Print Labels
+                        </span>
+                    </a>
+                </div>
+            </div>
+
+            <!-- Group: Operations -->
+            <div>
+                <div class="text-[8px] font-black text-slate-400 dark:text-slate-500 uppercase text-center select-none py-1 border-t border-slate-200/50 dark:border-slate-850 mt-2 mb-1">OPS</div>
+                <div class="space-y-2">
+                    @if(auth()->user()->role !== 'auditor')
+                    <a class="relative group/nav flex items-center justify-center w-12 h-12 mx-auto {{ request()->routeIs('scan') ? 'bg-slate-200/90 dark:bg-slate-800/90 text-green-700 dark:text-green-300 border-l-[5px] border-green-600 shadow-sm font-bold' : 'text-slate-655 dark:text-slate-400 hover:bg-slate-200/60 dark:hover:bg-slate-800/60' }} rounded-xl transition-all duration-200" href="{{ route('scan') }}">
+                        <span class="material-symbols-outlined text-2xl">barcode_scanner</span>
+                        <span class="absolute left-16 bg-slate-900 dark:bg-slate-800 text-white text-xs font-bold px-2 py-1 rounded shadow-lg opacity-0 translate-x-[-10px] group-hover/nav:opacity-100 group-hover/nav:translate-x-0 transition-all pointer-events-none whitespace-nowrap z-50">
+                            Scan Out
+                        </span>
+                    </a>
+                    <a class="relative group/nav flex items-center justify-center w-12 h-12 mx-auto {{ request()->routeIs('stock-in') ? 'bg-slate-200/90 dark:bg-slate-800/90 text-green-700 dark:text-green-300 border-l-[5px] border-green-600 shadow-sm font-bold' : 'text-slate-655 dark:text-slate-400 hover:bg-slate-200/60 dark:hover:bg-slate-800/60' }} rounded-xl transition-all duration-200" href="{{ route('stock-in') }}">
+                        <span class="material-symbols-outlined text-2xl">input</span>
+                        <span class="absolute left-16 bg-slate-900 dark:bg-slate-800 text-white text-xs font-bold px-2 py-1 rounded shadow-lg opacity-0 translate-x-[-10px] group-hover/nav:opacity-100 group-hover/nav:translate-x-0 transition-all pointer-events-none whitespace-nowrap z-50">
+                            Stock In
+                        </span>
+                    </a>
+                    @endif
+                    <a class="relative group/nav flex items-center justify-center w-12 h-12 mx-auto {{ request()->routeIs('opname') ? 'bg-slate-200/90 dark:bg-slate-800/90 text-green-700 dark:text-green-300 border-l-[5px] border-green-600 shadow-sm font-bold' : 'text-slate-655 dark:text-slate-400 hover:bg-slate-200/60 dark:hover:bg-slate-800/60' }} rounded-xl transition-all duration-200" href="{{ route('opname') }}">
+                        <span class="material-symbols-outlined text-2xl">fact_check</span>
+                        <span class="absolute left-16 bg-slate-900 dark:bg-slate-800 text-white text-xs font-bold px-2 py-1 rounded shadow-lg opacity-0 translate-x-[-10px] group-hover/nav:opacity-100 group-hover/nav:translate-x-0 transition-all pointer-events-none whitespace-nowrap z-50">
+                            Opname Audit
+                        </span>
+                    </a>
+                </div>
+            </div>
+
+            <!-- Group: Reports -->
+            <div>
+                <div class="text-[8px] font-black text-slate-400 dark:text-slate-500 uppercase text-center select-none py-1 border-t border-slate-200/50 dark:border-slate-850 mt-2 mb-1">REP</div>
+                <div class="space-y-2">
+                    <a class="relative group/nav flex items-center justify-center w-12 h-12 mx-auto {{ request()->routeIs('reports.movement-ledger') ? 'bg-slate-200/90 dark:bg-slate-800/90 text-green-700 dark:text-green-300 border-l-[5px] border-green-600 shadow-sm font-bold' : 'text-slate-655 dark:text-slate-400 hover:bg-slate-200/60 dark:hover:bg-slate-800/60' }} rounded-xl transition-all duration-200" href="{{ route('reports.movement-ledger') }}">
+                        <span class="material-symbols-outlined text-2xl">receipt_long</span>
+                        <span class="absolute left-16 bg-slate-900 dark:bg-slate-800 text-white text-xs font-bold px-2 py-1 rounded shadow-lg opacity-0 translate-x-[-10px] group-hover/nav:opacity-100 group-hover/nav:translate-x-0 transition-all pointer-events-none whitespace-nowrap z-50">
+                            Kartu Stok
+                        </span>
+                    </a>
+                    <a class="relative group/nav flex items-center justify-center w-12 h-12 mx-auto {{ request()->routeIs('reports.stock-out') || request()->routeIs('reports.stock-in') ? 'bg-slate-200/90 dark:bg-slate-800/90 text-green-700 dark:text-green-300 border-l-[5px] border-green-600 shadow-sm font-bold' : 'text-slate-655 dark:text-slate-400 hover:bg-slate-200/60 dark:hover:bg-slate-800/60' }} rounded-xl transition-all duration-200" href="{{ route('reports.stock-out') }}">
+                        <span class="material-symbols-outlined text-2xl">description</span>
+                        <span class="absolute left-16 bg-slate-900 dark:bg-slate-800 text-white text-xs font-bold px-2 py-1 rounded shadow-lg opacity-0 translate-x-[-10px] group-hover/nav:opacity-100 group-hover/nav:translate-x-0 transition-all pointer-events-none whitespace-nowrap z-50">
+                            Reports Hub
+                        </span>
+                    </a>
+                </div>
+            </div>
+
+            <!-- Group: System Configuration -->
+            <div>
+                <div class="text-[8px] font-black text-slate-400 dark:text-slate-500 uppercase text-center select-none py-1 border-t border-slate-200/50 dark:border-slate-850 mt-2 mb-1">SYS</div>
+                <div class="space-y-2">
+                    <a class="relative group/nav flex items-center justify-center w-12 h-12 mx-auto {{ request()->routeIs('settings.departments') ? 'bg-slate-200/90 dark:bg-slate-800/90 text-green-700 dark:text-green-300 border-l-[5px] border-green-600 shadow-sm font-bold' : 'text-slate-655 dark:text-slate-400 hover:bg-slate-200/60 dark:hover:bg-slate-800/60' }} rounded-xl transition-all duration-200" href="{{ route('settings.departments') }}">
+                        <span class="material-symbols-outlined text-2xl">corporate_fare</span>
+                        <span class="absolute left-16 bg-slate-900 dark:bg-slate-800 text-white text-xs font-bold px-2 py-1 rounded shadow-lg opacity-0 translate-x-[-10px] group-hover/nav:opacity-100 group-hover/nav:translate-x-0 transition-all pointer-events-none whitespace-nowrap z-50">
+                            Departments
+                        </span>
+                    </a>
+                    <a class="relative group/nav flex items-center justify-center w-12 h-12 mx-auto {{ request()->routeIs('settings.users') ? 'bg-slate-200/90 dark:bg-slate-800/90 text-green-700 dark:text-green-300 border-l-[5px] border-green-600 shadow-sm font-bold' : 'text-slate-655 dark:text-slate-400 hover:bg-slate-200/60 dark:hover:bg-slate-800/60' }} rounded-xl transition-all duration-200" href="{{ route('settings.users') }}">
+                        <span class="material-symbols-outlined text-2xl">person</span>
+                        <span class="absolute left-16 bg-slate-900 dark:bg-slate-800 text-white text-xs font-bold px-2 py-1 rounded shadow-lg opacity-0 translate-x-[-10px] group-hover/nav:opacity-100 group-hover/nav:translate-x-0 transition-all pointer-events-none whitespace-nowrap z-50">
+                            Users / PIC
+                        </span>
+                    </a>
+                </div>
+            </div>
+
         </div>
     </aside>
 
