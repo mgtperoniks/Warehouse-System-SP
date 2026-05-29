@@ -10,7 +10,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
-#[Fillable(['name', 'email', 'password', 'role', 'department_id'])]
+#[Fillable(['name', 'email', 'password', 'role', 'department_id', 'is_active'])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable
 {
@@ -20,6 +20,21 @@ class User extends Authenticatable
     public function department(): \Illuminate\Database\Eloquent\Relations\BelongsTo
     {
         return $this->belongsTo(Department::class);
+    }
+
+    public function transactions(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(StockTransaction::class, 'user_id');
+    }
+
+    public function operatorTransactions(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(StockTransaction::class, 'operator_id');
+    }
+
+    public function receipts(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(StockInReceipt::class, 'user_id');
     }
 
     public function warehouseAccess()

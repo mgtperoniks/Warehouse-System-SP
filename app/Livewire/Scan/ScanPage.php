@@ -362,9 +362,9 @@ class ScanPage extends Component
     public function render()
     {
         return view('livewire.scan.scan-page', [
-            'departments' => \App\Models\Department::orderBy('name')->get(),
+            'departments' => \App\Models\Department::where('is_active', true)->orderBy('name')->get(),
             'availablePics' => $this->deptId 
-                ? \App\Models\User::where('department_id', $this->deptId)->orderBy('name')->get() 
+                ? \App\Models\User::where('department_id', $this->deptId)->where('is_active', true)->orderBy('name')->get() 
                 : []
         ]);
     }

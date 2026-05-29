@@ -12,12 +12,14 @@ class DepartmentPage extends Component
 
     public $name;
     public $code;
+    public $is_active = 1;
     public $editingId = null;
     public $search = '';
 
     protected $rules = [
         'name' => 'required|string|max:255',
         'code' => 'required|string|max:50|unique:departments,code',
+        'is_active' => 'required|boolean',
     ];
 
     public function updatedSearch()
@@ -38,17 +40,19 @@ class DepartmentPage extends Component
             Department::find($this->editingId)->update([
                 'name' => $this->name,
                 'code' => $this->code,
+                'is_active' => $this->is_active,
             ]);
             session()->flash('message', 'Department updated successfully.');
         } else {
             Department::create([
                 'name' => $this->name,
                 'code' => $this->code,
+                'is_active' => $this->is_active,
             ]);
             session()->flash('message', 'Department created successfully.');
         }
 
-        $this->reset(['name', 'code', 'editingId']);
+        $this->reset(['name', 'code', 'is_active', 'editingId']);
     }
 
     public function edit($id)
@@ -57,16 +61,22 @@ class DepartmentPage extends Component
         $this->editingId = $dept->id;
         $this->name = $dept->name;
         $this->code = $dept->code;
+        $this->is_active = $dept->is_active;
     }
 
     public function cancelEdit()
     {
-        $this->reset(['name', 'code', 'editingId']);
+        $this->reset(['name', 'code', 'is_active', 'editingId']);
     }
 
     public function delete($id)
     {
-        Department::destroy($id);
+        $dept = Department::findOrFail($id);
+        if ($dept->users()->exists() || $dept->transactions()->exists()) {
+            session()->flash('error', 'Record has historical transactions and cannot be deleted.');
+            return;
+        }
+        $dept->delete();
         session()->flash('message', 'Department deleted successfully.');
     }
 
