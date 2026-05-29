@@ -220,12 +220,12 @@
 
                         <!-- Copy Actions -->
                         <div class="flex items-center gap-1">
-                            <button @click="copyErpLines('full', {{ e(json_encode($itemsPayload)) }}); copiedFull = true; setTimeout(() => copiedFull = false, 1500); showToast = true; toastMsg = 'Copied FULL ERP rows to clipboard!'; setTimeout(() => showToast = false, 2500);" 
+                            <button @click="if (copyErpLines('full', {{ e(json_encode($itemsPayload)) }})) { copiedFull = true; setTimeout(() => copiedFull = false, 1500); showToast = true; toastMsg = '✓ Copied successfully'; setTimeout(() => showToast = false, 2500); } else { showToast = true; toastMsg = '✗ Clipboard copy failed'; setTimeout(() => showToast = false, 2500); }" 
                                     class="flex items-center gap-1 px-2.5 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all font-mono font-bold">
                                 <span class="material-symbols-outlined text-xs">content_copy</span>
                                 <span x-text="copiedFull ? 'COPIED!' : 'FULL COPY'"></span>
                             </button>
-                            <button @click="copyErpLines('compact', {{ e(json_encode($itemsPayload)) }}); copiedCompact = true; setTimeout(() => copiedCompact = false, 1500); showToast = true; toastMsg = 'Copied COMPACT ERP rows to clipboard!'; setTimeout(() => showToast = false, 2500);" 
+                            <button @click="if (copyErpLines('compact', {{ e(json_encode($itemsPayload)) }})) { copiedCompact = true; setTimeout(() => copiedCompact = false, 1500); showToast = true; toastMsg = '✓ Copied successfully'; setTimeout(() => showToast = false, 2500); } else { showToast = true; toastMsg = '✗ Clipboard copy failed'; setTimeout(() => showToast = false, 2500); }" 
                                     class="flex items-center gap-1 px-2.5 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-[9px] font-black uppercase tracking-wider transition-all font-mono font-bold">
                                 <span class="material-symbols-outlined text-xs">keyboard</span>
                                 <span x-text="copiedCompact ? 'COPIED!' : 'COMPACT COPY'"></span>
@@ -397,6 +397,31 @@
                 }
             });
             let text = lines.join('\n');
-            navigator.clipboard.writeText(text);
+            
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                try {
+                    navigator.clipboard.writeText(text);
+                    return true;
+                } catch (e) {
+                    console.error('navigator.clipboard failed', e);
+                }
+            }
+            
+            // Insecure HTTP LAN Fallback
+            let textArea = document.createElement("textarea");
+            textArea.value = text;
+            textArea.style.position = "fixed";
+            textArea.style.opacity = "0";
+            document.body.appendChild(textArea);
+            textArea.focus();
+            textArea.select();
+            let success = false;
+            try {
+                success = document.execCommand('copy');
+            } catch (err) {
+                console.error('Fallback copy failed', err);
+            }
+            document.body.removeChild(textArea);
+            return success;
         }
     </script>

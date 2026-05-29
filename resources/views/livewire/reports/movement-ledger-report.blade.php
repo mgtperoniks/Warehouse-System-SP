@@ -300,14 +300,14 @@
         <div class="text-center py-12 bg-white border border-slate-200 rounded-xl shadow-sm">
             <span class="material-symbols-outlined text-4xl text-slate-300 mb-2">find_in_page</span>
             <h3 class="text-slate-800 text-sm font-black uppercase tracking-wider mb-1">Laporan Belum Dihasilkan</h3>
-            <p class="text-xs text-slate-400 max-w-md mx-auto leading-relaxed">Silakan cari dan pilih salah satu barang serta tentukan rentang tanggal sebelum mengklik tombol **Generate Kartu Stok**.</p>
+            <p class="text-xs text-slate-400 max-w-[550px] mx-auto leading-relaxed">Silakan cari dan pilih salah satu barang serta tentukan rentang tanggal sebelum mengklik tombol **Generate Kartu Stok**.</p>
         </div>
     @else
         <!-- Welcome Screen Information Feed -->
         <div class="text-center py-16 bg-white border border-slate-200 rounded-xl shadow-sm">
             <span class="material-symbols-outlined text-5xl text-slate-300 mb-3">timeline</span>
             <h3 class="text-slate-800 text-sm font-black uppercase tracking-wider mb-1">Pencarian Kartu Stok / Ledger</h3>
-            <p class="text-xs text-slate-400 max-w-md mx-auto leading-relaxed">System Kartu Stok melacak secara mutlak histori kuantitas saldo berjalan setiap barang. Masukkan ERP Code barang pada input di atas untuk memulai audit audit trail barang.</p>
+            <p class="text-xs text-slate-400 max-w-[550px] mx-auto leading-relaxed">System Kartu Stok melacak secara mutlak histori kuantitas saldo berjalan setiap barang. Masukkan ERP Code barang pada input di atas untuk memulai audit audit trail barang.</p>
         </div>
     @endif
 

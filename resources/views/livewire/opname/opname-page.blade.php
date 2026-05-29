@@ -65,7 +65,7 @@
 
                 {{-- Camera Modal Container --}}
                 <div id="scanner-container" class="hidden fixed inset-0 z-[100] bg-black/90 backdrop-blur-md flex flex-col items-center justify-center p-md" wire:ignore>
-                    <div class="w-full max-w-md bg-white rounded-md overflow-hidden shadow-2xl relative border border-slate-200">
+                    <div class="w-full max-w-[450px] bg-white rounded-md overflow-hidden shadow-2xl relative border border-slate-200">
                         <div id="reader" style="width: 100%;"></div>
                         <div class="p-md text-center bg-slate-50 border-t border-slate-100">
                             <p class="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-3">Align Barcode within Frame</p>
