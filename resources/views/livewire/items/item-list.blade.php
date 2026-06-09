@@ -1,4 +1,36 @@
-<div>
+<div x-data="{ 
+    showToast: false, 
+    toastMsg: '',
+    copyBarcode(barcode) {
+        if (!barcode || barcode === '-') return;
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(barcode).then(() => {
+                this.toastMsg = 'Barcode copied';
+                this.showToast = true;
+                setTimeout(() => { this.showToast = false; }, 2000);
+            }).catch(err => {
+                console.error('Clipboard error', err);
+            });
+        } else {
+            let textArea = document.createElement('textarea');
+            textArea.value = barcode;
+            textArea.style.position = 'fixed';
+            textArea.style.opacity = '0';
+            document.body.appendChild(textArea);
+            textArea.focus();
+            textArea.select();
+            try {
+                document.execCommand('copy');
+                this.toastMsg = 'Barcode copied';
+                this.showToast = true;
+                setTimeout(() => { this.showToast = false; }, 2000);
+            } catch (err) {
+                console.error('Fallback copy failed', err);
+            }
+            document.body.removeChild(textArea);
+        }
+    }
+}">
     <!-- Top Configuration / Search Toolbar -->
     <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-md py-2 px-md shadow-sm mb-sm flex flex-col xl:flex-row gap-sm items-center justify-between">
         <div class="relative w-full xl:w-96 flex-1 min-w-0">
@@ -53,6 +85,12 @@
                                 @endif
                             </div>
                         </th>
+                        <th class="px-md py-1.5 text-[9px] font-black text-slate-400 uppercase tracking-widest">
+                            BARCODE
+                        </th>
+                        <th class="px-md py-1.5 text-[9px] font-black text-slate-400 uppercase tracking-widest text-center">
+                            COPY
+                        </th>
                         <th wire:click="sortBy('name')" class="px-md py-1.5 text-[9px] font-black text-slate-400 uppercase tracking-widest cursor-pointer hover:text-primary transition-colors">
                             <div class="flex items-center gap-1">
                                 ITEM NAME
@@ -88,12 +126,28 @@
                             <td class="px-md py-1.5">
                                 <span class="font-mono text-xs font-black bg-slate-100 px-2 py-0.5 rounded text-slate-700 group-hover:bg-primary/10 group-hover:text-primary transition-colors">{{ $variant->erp_code ?? '-' }}</span>
                             </td>
+                            @php
+                                $primaryBarcode = $variant->barcodes->firstWhere('is_primary', true)?->barcode ?? $variant->barcodes->first()?->barcode ?? '-';
+                            @endphp
+                            <td class="px-md py-1.5">
+                                @if($primaryBarcode !== '-')
+                                    <span class="font-mono text-xs font-bold text-slate-600">{{ $primaryBarcode }}</span>
+                                @else
+                                    <span class="text-xs font-bold text-slate-400">-</span>
+                                @endif
+                            </td>
+                            <td class="px-md py-1.5 text-center">
+                                @if($primaryBarcode !== '-')
+                                    <button type="button" @click.stop="copyBarcode('{{ $primaryBarcode }}')" class="p-1 rounded hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-primary dark:hover:text-primary transition-colors inline-flex items-center justify-center outline-none" title="Copy Barcode">
+                                        <span class="material-symbols-outlined text-sm">content_copy</span>
+                                    </button>
+                                @else
+                                    <span class="text-xs font-bold text-slate-400">-</span>
+                                @endif
+                            </td>
                             <td class="px-md py-1.5">
                                 <div class="flex flex-col">
                                     <span class="font-bold text-xs text-slate-900 leading-tight">{{ $variant->item->name }}</span>
-                                    @if($variant->barcodes->isNotEmpty())
-                                        <span class="text-[9px] text-slate-400 font-medium mt-0.5">Barcode: {{ $variant->barcodes->first()->barcode }}</span>
-                                    @endif
                                 </div>
                             </td>
                             <td class="px-md py-1.5 text-center">
@@ -133,7 +187,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="7" class="px-md py-lg text-center">
+                            <td colspan="9" class="px-md py-lg text-center">
                                 <div class="flex flex-col items-center">
                                     <span class="material-symbols-outlined text-4xl text-slate-300 mb-2">inventory_2</span>
                                     <p class="text-sm text-slate-500 font-bold">No items found matching your criteria.</p>
@@ -149,5 +203,19 @@
     <!-- Pagination -->
     <div class="px-md">
         {{ $variants->links(data: ['scrollTo' => false]) }}
+    </div>
+
+    <!-- Toast Notification Banner -->
+    <div x-show="showToast" 
+         x-transition:enter="transition ease-out duration-300"
+         x-transition:enter-start="opacity-0 translate-y-2"
+         x-transition:enter-end="opacity-100 translate-y-0"
+         x-transition:leave="transition ease-in duration-200"
+         x-transition:leave-start="opacity-100 translate-y-0"
+         x-transition:leave-end="opacity-0 translate-y-2"
+         class="fixed bottom-4 right-4 z-50 bg-slate-900 text-emerald-400 font-mono text-[11px] font-bold px-4 py-2.5 rounded-lg shadow-xl border border-emerald-500/20 flex items-center gap-2"
+         style="display: none;">
+        <span class="material-symbols-outlined text-sm">check_circle</span>
+        <span x-text="toastMsg"></span>
     </div>
 </div>

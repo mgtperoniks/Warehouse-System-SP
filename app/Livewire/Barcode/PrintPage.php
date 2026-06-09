@@ -20,7 +20,6 @@ class PrintPage extends Component
     public string $labelType   = 'ITEM_LABEL'; // ITEM_LABEL | BIN_LABEL
     public string $printerType = 'EPSON';      // TSC | EPSON
     public string $binCode     = '';
-    public string $printerIp   = '';
     public int    $copies      = 1;
 
     // ─── UI State ───────────────────────────────────────────────────────────────
@@ -41,7 +40,6 @@ class PrintPage extends Component
         
         $this->labelType   = $settings->default_label_type;
         $this->printerType = $settings->default_printer_type;
-        $this->printerIp   = $settings->default_printer_ip ?? '';
         $this->copies      = $settings->default_copies;
     }
 
@@ -217,20 +215,16 @@ class PrintPage extends Component
             $rules['binCode'] = 'required|min:1';
         }
 
-        if ($this->printerType === 'TSC') {
-            $rules['printerIp'] = 'required|ip';
-        }
-
         $this->validate($rules);
 
         $data = $this->buildPayload($variant);
         $printService = app(PrintService::class);
 
         try {
-            $result = $printService->print($data, $this->labelType, $this->printerType, $this->printerIp, $this->copies);
+            $result = $printService->print($data, $this->labelType, $this->printerType, $this->copies);
 
             if ($this->printerType === 'TSC') {
-                $this->flashMessage = "✓ Label sent to TSC Printer at {$this->printerIp}";
+                $this->flashMessage = "✓ Label sent to TSC Printer";
                 $this->flashType    = 'success';
             } else {
                 $this->dispatch('open-print-window', html: $result);
@@ -252,7 +246,6 @@ class PrintPage extends Component
             $settings = BarcodePrintSetting::getSettings();
             $settings->update([
                 'default_printer_type' => $this->printerType,
-                'default_printer_ip'   => $this->printerIp,
                 'default_label_type'   => $this->labelType,
                 'default_copies'       => $this->copies,
                 'updated_by'           => auth()->id(),

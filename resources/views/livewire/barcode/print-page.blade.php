@@ -97,19 +97,7 @@
                     </div>
                     @endif
 
-                    <!-- Conditional TSC Network IP -->
-                    @if($printerType === 'TSC')
-                    <div class="space-y-1">
-                        <label class="text-[9px] font-black text-slate-600 uppercase tracking-widest block ml-1">Printer Network IPv4 Address</label>
-                        <input wire:model.live="printerIp" 
-                               type="text" 
-                               class="w-full h-9 bg-amber-50/50 border border-amber-100 rounded-md px-3 text-xs font-mono font-black focus:outline-none focus:border-amber-300" 
-                               placeholder="192.168.1.100">
-                        @error('printerIp') 
-                            <span class="text-[10px] text-red-500 font-bold ml-1 block mt-1">⚠️ {{ $message }}</span> 
-                        @enderror
-                    </div>
-                    @endif
+
 
                     <!-- Copies Stepper -->
                     <div class="bg-slate-50 border border-slate-200 p-2 rounded-md flex justify-between items-center h-11">

@@ -8,8 +8,6 @@ use Picqer\Barcode\BarcodeGeneratorSVG;
 
 class PrintService
 {
-    private const PRINTER_PORT = 9100;
-    private const SOCKET_TIMEOUT = 3;
     private const DEFAULT_TSC_PRINTER_NAME = 'TSC TE244';
 
     public function __construct(
@@ -24,7 +22,6 @@ class PrintService
      * @param array $data Data for the label
      * @param string $templateType ITEM_LABEL | BIN_LABEL
      * @param string $printerType TSC | EPSON
-     * @param string|null $printerIp Required if printerType is TSC
      * @param int $copies Number of copies
      * @return mixed Boolean true for TSC (queued), HTML string for EPSON
      */
@@ -32,7 +29,6 @@ class PrintService
         array $data,
         string $templateType,
         string $printerType,
-        ?string $printerIp = null,
         int $copies = 1
     ): mixed {
         $printerType = strtoupper(trim($printerType));
@@ -103,41 +99,7 @@ HTML;
         );
     }
 
-    /**
-     * Send raw payload to TSC printer via TCP socket.
-     * @deprecated Use PrintJobService and the Windows Agent for industrial printing.
-     */
-    private function sendToTsc(string $ip, string $payload): bool
-    {
-        $socket = @fsockopen($ip, self::PRINTER_PORT, $errno, $errstr, self::SOCKET_TIMEOUT);
 
-        if (!$socket) {
-            throw new \Exception("Could not connect to printer at $ip:" . self::PRINTER_PORT . ". Error: $errstr ($errno)");
-        }
-
-        stream_set_timeout($socket, self::SOCKET_TIMEOUT);
-
-        try {
-            $totalBytes = strlen($payload);
-            $written = 0;
-
-            while ($written < $totalBytes) {
-                $result = fwrite($socket, substr($payload, $written));
-                
-                if ($result === false) {
-                    throw new \Exception("Failed to write to socket after $written bytes.");
-                }
-                
-                $written += $result;
-            }
-
-            fflush($socket);
-        } finally {
-            fclose($socket);
-        }
-
-        return true;
-    }
 
     private function validatePrinterType(string $type): void
     {
