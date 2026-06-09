@@ -170,7 +170,7 @@
         @forelse($receipts as $index => $receipt)
             @php
                 $itemsPayload = $receipt->items->map(fn($item) => [
-                    'code' => $item->variant->erp_code ?? '',
+                    'code' => preg_replace('/^[0-9]+\./', '', $item->variant->erp_code ?? ''),
                     'name' => $item->variant->item->name ?? '',
                     'qty' => $item->qty,
                     'unit' => $item->variant->unit ?? 'PCS',
@@ -249,10 +249,11 @@
                         <tbody class="divide-y divide-slate-150">
                             @foreach($receipt->items as $item)
                                 @php
-                                    $erpCode = $item->variant->erp_code ?? null;
+                                    $rawErpCode = $item->variant->erp_code ?? null;
+                                    $erpCode = $rawErpCode ? preg_replace('/^[0-9]+\./', '', $rawErpCode) : null;
                                     $binExists = (bool) $item->bin_id;
                                     $supplierExists = (bool) $receipt->supplier_id;
-                                    $hasWarnings = !$erpCode || !$binExists || !$supplierExists;
+                                    $hasWarnings = !$rawErpCode || !$binExists || !$supplierExists;
                                 @endphp
                                 <tr class="hover:bg-slate-50/80 transition-colors {{ $isCompactMode ? 'text-[10px] py-1' : 'text-xs py-2' }}">
                                     <td class="px-3 {{ $isCompactMode ? 'py-1' : 'py-1.5' }}">
@@ -293,7 +294,7 @@
                                             </span>
                                         @else
                                             <div class="flex flex-col gap-0.5">
-                                                @if(!$erpCode)
+                                                @if(!$rawErpCode)
                                                     <span class="inline-flex items-center gap-1 px-1.5 py-0.5 bg-red-100 text-red-800 text-[8px] font-black uppercase tracking-wider rounded font-mono w-fit">
                                                         ⚠ Missing ERP Code
                                                     </span>

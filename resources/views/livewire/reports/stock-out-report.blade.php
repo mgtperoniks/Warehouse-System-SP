@@ -183,7 +183,7 @@
                 $firstTx = $txs->first();
                 $deptId = $firstTx->department_id;
                 $itemsPayload = $txs->flatMap(fn($t) => $t->items->map(fn($item) => [
-                    'code' => $item->erp_code_snapshot ?? $item->variant->erp_code ?? '',
+                    'code' => preg_replace('/^[0-9]+\./', '', $item->erp_code_snapshot ?? $item->variant->erp_code ?? ''),
                     'name' => $item->item_name_snapshot ?? $item->variant->item->name ?? '',
                     'qty' => $item->qty,
                     'unit' => $item->unit_snapshot ?? $item->variant->unit ?? 'PCS'
@@ -266,10 +266,11 @@
                             @foreach($txs as $tx)
                                 @foreach($tx->items as $item)
                                     @php
-                                        $erpCode = $item->erp_code_snapshot ?? $item->variant->erp_code ?? null;
+                                        $rawErpCode = $item->erp_code_snapshot ?? $item->variant->erp_code ?? null;
+                                        $erpCode = $rawErpCode ? preg_replace('/^[0-9]+\./', '', $rawErpCode) : null;
                                         $deptExists = (bool) $tx->department_id;
                                         $whScopeExists = (bool) $tx->warehouse_id;
-                                        $hasWarnings = !$erpCode || !$deptExists || !$whScopeExists;
+                                        $hasWarnings = !$rawErpCode || !$deptExists || !$whScopeExists;
                                     @endphp
                                     <tr class="hover:bg-slate-50/80 transition-colors {{ $isCompactMode ? 'text-[10px] py-1' : 'text-xs py-2' }}">
                                         <td class="px-3 {{ $isCompactMode ? 'py-1' : 'py-1.5' }}">
@@ -310,7 +311,7 @@
                                                 </span>
                                             @else
                                                 <div class="flex flex-col gap-0.5">
-                                                    @if(!$erpCode)
+                                                    @if(!$rawErpCode)
                                                         <span class="inline-flex items-center gap-1 px-1.5 py-0.5 bg-red-100 text-red-800 text-[8px] font-black uppercase tracking-wider rounded font-mono w-fit">
                                                             ⚠ Missing ERP Code
                                                         </span>
