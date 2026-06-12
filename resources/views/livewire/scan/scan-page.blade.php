@@ -141,31 +141,139 @@
         <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-md py-1.5 px-md shadow-sm">
             <div class="grid grid-cols-1 md:grid-cols-3 gap-md items-center">
                 
-                <!-- Destination Dept -->
+                <!-- Destination Dept — Alpine searchable combobox -->
                 <div class="flex items-center gap-2 w-full">
                     <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest shrink-0 italic">01. Dept:</span>
-                    <div class="relative flex-1">
-                        <span class="absolute left-2.5 top-1/2 -translate-y-1/2 material-symbols-outlined text-primary text-[16px]">corporate_fare</span>
-                        <select wire:model.live="deptId" class="w-full h-9 pl-8 pr-2 bg-slate-50 border border-slate-200 dark:border-slate-850 rounded-md focus:ring-1 focus:ring-primary/20 focus:border-primary font-bold text-slate-700 dark:text-slate-200 transition-all cursor-pointer shadow-sm text-xs py-1">
-                            <option value="">Select Department...</option>
-                            @foreach($departments as $dept)
-                                <option value="{{ $dept->id }}">{{ $dept->name }} ({{ $dept->code }})</option>
-                            @endforeach
-                        </select>
+                    <div class="relative flex-1"
+                         x-data="wmsCombobox({
+                             options: @js($departments->map(fn($d) => ['id' => $d->id, 'label' => $d->name . ' (' . $d->code . ')', 'search' => strtolower($d->name . ' ' . $d->code)])->values()),
+                             initialId: {{ $deptId ? (int)$deptId : 'null' }},
+                             initialLabel: '{{ $deptId && ($selDept = $departments->firstWhere('id', $deptId)) ? addslashes($selDept->name . ' (' . $selDept->code . ')') : '' }}',
+                             placeholder: 'Search department...',
+                             wireField: 'deptId'
+                         })"
+                         @click.outside="close()">
+                        <span class="absolute left-2.5 top-1/2 -translate-y-1/2 material-symbols-outlined text-primary text-[16px] z-10 pointer-events-none">corporate_fare</span>
+
+                        <!-- Text input -->
+                        <input
+                            type="text"
+                            x-ref="input"
+                            x-model="query"
+                            @focus="open()"
+                            @input="open()"
+                            @keydown.arrow-down.prevent="focusOption(activeIndex + 1)"
+                            @keydown.arrow-up.prevent="focusOption(activeIndex - 1)"
+                            @keydown.enter.prevent="selectActive()"
+                            @keydown.escape="close()"
+                            :placeholder="selected ? selectedLabel : placeholder"
+                            :class="selected ? 'text-slate-800 dark:text-slate-100 font-black' : 'text-slate-400'"
+                            class="w-full h-9 pl-8 pr-7 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-md focus:ring-1 focus:ring-primary/20 focus:border-primary font-bold transition-all shadow-sm text-xs"
+                            autocomplete="off"
+                        />
+
+                        <!-- Clear button -->
+                        <button type="button" x-show="selected" @click.stop="clear()" tabindex="-1"
+                            class="absolute right-2 top-1/2 -translate-y-1/2 text-slate-350 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
+                            style="display:none;">
+                            <span class="material-symbols-outlined text-[14px]">close</span>
+                        </button>
+
+                        <!-- Dropdown -->
+                        <ul x-show="isOpen && filtered.length > 0"
+                            x-transition:enter="transition ease-out duration-100"
+                            x-transition:enter-start="opacity-0 scale-95"
+                            x-transition:enter-end="opacity-100 scale-100"
+                            x-transition:leave="transition ease-in duration-75"
+                            x-transition:leave-start="opacity-100 scale-100"
+                            x-transition:leave-end="opacity-0 scale-95"
+                            class="absolute left-0 right-0 top-10 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-md shadow-xl z-50 max-h-52 overflow-y-auto"
+                            style="display:none;">
+                            <template x-for="(opt, idx) in filtered" :key="opt.id">
+                                <li @click="select(opt)"
+                                    @mouseenter="activeIndex = idx"
+                                    :class="activeIndex === idx ? 'bg-primary/10 text-primary' : 'text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800'"
+                                    class="px-3 py-2 text-xs font-bold cursor-pointer transition-colors flex items-center gap-2">
+                                    <span class="material-symbols-outlined text-[13px] opacity-50">corporate_fare</span>
+                                    <span x-text="opt.label"></span>
+                                </li>
+                            </template>
+                        </ul>
+
+                        <!-- No results -->
+                        <div x-show="isOpen && query.length > 0 && filtered.length === 0"
+                             class="absolute left-0 right-0 top-10 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-md shadow-xl z-50 px-3 py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest"
+                             style="display:none;">No match found</div>
                     </div>
                 </div>
 
-                <!-- Recipient PIC -->
+                <!-- Recipient PIC — Alpine searchable combobox -->
                 <div class="flex items-center gap-2 w-full">
                     <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest shrink-0 italic">02. PIC:</span>
-                    <div class="relative flex-1">
-                        <span class="absolute left-2.5 top-1/2 -translate-y-1/2 material-symbols-outlined text-primary text-[16px]">person</span>
-                        <select wire:model.live="picId" class="w-full h-9 pl-8 pr-2 bg-slate-50 border border-slate-200 dark:border-slate-850 rounded-md focus:ring-1 focus:ring-primary/20 focus:border-primary font-bold text-slate-700 dark:text-slate-200 transition-all cursor-pointer shadow-sm text-xs py-1" {{ empty($availablePics) ? 'disabled' : '' }}>
-                            <option value="">Select PIC...</option>
-                            @foreach($availablePics as $pic)
-                                <option value="{{ $pic->id }}">{{ $pic->name }}</option>
-                            @endforeach
-                        </select>
+                    {{-- wire:key forces Alpine to re-init when department changes and Livewire re-renders the PIC list --}}
+                    <div class="relative flex-1"
+                         wire:key="pic-combobox-{{ $deptId }}"
+                         x-data="wmsCombobox({
+                             options: @js(collect($availablePics)->map(fn($p) => ['id' => $p->id, 'label' => $p->name, 'search' => strtolower($p->name)])->values()),
+                             initialId: {{ $picId ? (int)$picId : 'null' }},
+                             initialLabel: '{{ $picId && ($selPic = collect($availablePics)->firstWhere('id', $picId)) ? addslashes($selPic->name) : '' }}',
+                             placeholder: 'Search PIC...',
+                             wireField: 'picId',
+                             disabled: {{ collect($availablePics)->isEmpty() ? 'true' : 'false' }}
+                         })"
+                         @click.outside="close()">
+                        <span class="absolute left-2.5 top-1/2 -translate-y-1/2 material-symbols-outlined text-primary text-[16px] z-10 pointer-events-none">person</span>
+
+                        <!-- Text input -->
+                        <input
+                            type="text"
+                            x-ref="input"
+                            x-model="query"
+                            @focus="open()"
+                            @input="open()"
+                            @keydown.arrow-down.prevent="focusOption(activeIndex + 1)"
+                            @keydown.arrow-up.prevent="focusOption(activeIndex - 1)"
+                            @keydown.enter.prevent="selectActive()"
+                            @keydown.escape="close()"
+                            :placeholder="selected ? selectedLabel : placeholder"
+                            :class="selected ? 'text-slate-800 dark:text-slate-100 font-black' : 'text-slate-400'"
+                            :disabled="disabled"
+                            class="w-full h-9 pl-8 pr-7 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-md focus:ring-1 focus:ring-primary/20 focus:border-primary font-bold transition-all shadow-sm text-xs disabled:opacity-50 disabled:cursor-not-allowed"
+                            autocomplete="off"
+                        />
+
+                        <!-- Clear button -->
+                        <button type="button" x-show="selected && !disabled" @click.stop="clear()" tabindex="-1"
+                            class="absolute right-2 top-1/2 -translate-y-1/2 text-slate-350 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
+                            style="display:none;">
+                            <span class="material-symbols-outlined text-[14px]">close</span>
+                        </button>
+
+                        <!-- Dropdown -->
+                        <ul x-show="isOpen && filtered.length > 0"
+                            x-transition:enter="transition ease-out duration-100"
+                            x-transition:enter-start="opacity-0 scale-95"
+                            x-transition:enter-end="opacity-100 scale-100"
+                            x-transition:leave="transition ease-in duration-75"
+                            x-transition:leave-start="opacity-100 scale-100"
+                            x-transition:leave-end="opacity-0 scale-95"
+                            class="absolute left-0 right-0 top-10 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-md shadow-xl z-50 max-h-52 overflow-y-auto"
+                            style="display:none;">
+                            <template x-for="(opt, idx) in filtered" :key="opt.id">
+                                <li @click="select(opt)"
+                                    @mouseenter="activeIndex = idx"
+                                    :class="activeIndex === idx ? 'bg-primary/10 text-primary' : 'text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800'"
+                                    class="px-3 py-2 text-xs font-bold cursor-pointer transition-colors flex items-center gap-2">
+                                    <span class="material-symbols-outlined text-[13px] opacity-50">person</span>
+                                    <span x-text="opt.label"></span>
+                                </li>
+                            </template>
+                        </ul>
+
+                        <!-- No results -->
+                        <div x-show="isOpen && query.length > 0 && filtered.length === 0"
+                             class="absolute left-0 right-0 top-10 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-md shadow-xl z-50 px-3 py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest"
+                             style="display:none;">No PIC found</div>
                     </div>
                 </div>
 
@@ -892,10 +1000,105 @@
         }));
     };
 
+    // ─────────────────────────────────────────────────────────────────────────
+    // WMS Searchable Combobox — shared Alpine data factory
+    // Used by Department and PIC fields on the Scan page.
+    // Communicates back to Livewire via @this.set() preserving wire:model.live
+    // behavior without adding any new JS dependency.
+    // ─────────────────────────────────────────────────────────────────────────
+    const registerWmsCombobox = () => {
+        Alpine.data('wmsCombobox', (config) => ({
+            // ── state ──
+            options:       config.options      || [],
+            placeholder:   config.placeholder  || 'Search...',
+            wireField:     config.wireField     || '',
+            disabled:      config.disabled      || false,
+            selected:      config.initialId    !== null && config.initialId !== undefined ? config.initialId : null,
+            selectedLabel: config.initialLabel || '',
+            query:         '',
+            isOpen:        false,
+            activeIndex:   -1,
+
+            // ── computed ──
+            get filtered() {
+                const q = this.query.trim().toLowerCase();
+                if (!q) return this.options;
+                return this.options.filter(opt => opt.search.includes(q));
+            },
+
+            // ── lifecycle ──
+            init() {
+                // When query is cleared and nothing is selected, show placeholder
+                this.$watch('query', (val) => {
+                    if (val === '' && this.selected) {
+                        // User wiped text — treat as clear intent only on blur
+                        // (we restore label on close() if no new selection)
+                    }
+                });
+            },
+
+            // ── methods ──
+            open() {
+                if (this.disabled) return;
+                this.isOpen = true;
+                this.activeIndex = -1;
+            },
+
+            close() {
+                this.isOpen = false;
+                // Restore display label if user typed but didn't pick
+                this.query = '';
+            },
+
+            select(opt) {
+                this.selected      = opt.id;
+                this.selectedLabel = opt.label;
+                this.query         = '';
+                this.isOpen        = false;
+                this.activeIndex   = -1;
+                // Propagate to Livewire — equivalent of wire:model.live
+                if (this.wireField) {
+                    @this.set(this.wireField, opt.id, true); // true = defer=false → immediate
+                }
+                // Return scanner focus after a tick so Livewire processes the set
+                setTimeout(() => {
+                    const barcode = document.getElementById('barcode-input');
+                    if (barcode) barcode.focus();
+                }, 80);
+            },
+
+            clear() {
+                this.selected      = null;
+                this.selectedLabel = '';
+                this.query         = '';
+                this.isOpen        = false;
+                if (this.wireField) {
+                    @this.set(this.wireField, '', true);
+                }
+            },
+
+            focusOption(idx) {
+                const len = this.filtered.length;
+                if (len === 0) return;
+                this.activeIndex = Math.max(0, Math.min(idx, len - 1));
+            },
+
+            selectActive() {
+                if (this.activeIndex >= 0 && this.filtered[this.activeIndex]) {
+                    this.select(this.filtered[this.activeIndex]);
+                }
+            }
+        }));
+    };
+
     if (window.Alpine) {
         registerScannerEngine();
+        registerWmsCombobox();
     } else {
-        document.addEventListener('alpine:init', registerScannerEngine);
+        document.addEventListener('alpine:init', () => {
+            registerScannerEngine();
+            registerWmsCombobox();
+        });
     }
 
     // 🔌 Industrial Hard Vanilla JS Keydown Fallback Listener (Delegated at document level for maximum morph durability)

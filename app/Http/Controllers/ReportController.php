@@ -301,7 +301,8 @@ class ReportController extends Controller
             $ledgerService->getLedgerQuery($variantId, $startDate, $endDate, $movementType)
                 ->chunk(250, function($movements) use ($file, &$runningBalance) {
                     foreach ($movements as $mov) {
-                        $runningBalance += $mov->qty;
+                        // OUT is stored as a positive integer but is a stock deduction — negate at read time
+                        $runningBalance += ($mov->type === 'OUT' ? -$mov->qty : $mov->qty);
 
                         $picDept = 'N/A';
                         if ($mov->type === 'IN') {

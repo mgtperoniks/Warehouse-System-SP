@@ -232,7 +232,7 @@
             @endphp
             @forelse($movements as $mov)
                 @php
-                    $runningBalance += $mov->qty;
+                    $runningBalance += ($mov->type === 'OUT' ? -$mov->qty : $mov->qty);
                     $picDept = 'N/A';
                     if ($mov->type === 'IN') {
                         if ($mov->receipt) {
@@ -278,7 +278,7 @@
                     
                     <!-- Qty In -->
                     <td class="text-right font-black" style="color: #166534;">
-                        @if($mov->qty > 0)
+                        @if($mov->type !== 'OUT' && $mov->qty > 0)
                             +{{ number_format($mov->qty) }}
                         @else
                             -
@@ -287,8 +287,8 @@
 
                     <!-- Qty Out -->
                     <td class="text-right font-black" style="color: #9d174d;">
-                        @if($mov->qty < 0)
-                            {{ number_format(abs($mov->qty)) }}
+                        @if($mov->type === 'OUT')
+                            {{ number_format($mov->qty) }}
                         @else
                             -
                         @endif

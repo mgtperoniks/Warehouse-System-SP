@@ -244,7 +244,7 @@
                                 
                                 <!-- Quantity In -->
                                 <td class="py-2 px-4 text-right font-black text-emerald-600 text-[11px]">
-                                    @if($mov->qty > 0)
+                                    @if($mov->type !== 'OUT' && $mov->qty > 0)
                                         +{{ number_format($mov->qty) }}
                                     @else
                                         -
@@ -253,8 +253,8 @@
 
                                 <!-- Quantity Out -->
                                 <td class="py-2 px-4 text-right font-black text-rose-600 text-[11px]">
-                                    @if($mov->qty < 0)
-                                        {{ number_format(abs($mov->qty)) }}
+                                    @if($mov->type === 'OUT')
+                                        {{ number_format($mov->qty) }}
                                     @else
                                         -
                                     @endif
