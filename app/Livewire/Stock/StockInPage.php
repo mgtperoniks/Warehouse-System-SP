@@ -279,6 +279,7 @@ class StockInPage extends Component
             $targetBin = null;
             if ($mainBinCode) {
                 $activeWarehouseBins = Bin::forActiveWarehouse()
+                    ->where('item_variant_id', $this->currentItem->id)
                     ->where('code', $mainBinCode)
                     ->get();
 
@@ -361,6 +362,14 @@ class StockInPage extends Component
         $this->validate([
             'qty' => 'required|integer|min:1',
         ]);
+
+        if (!$this->bin_id) {
+            $this->dispatch('message-dispatched', 
+                message: 'Error: Cannot add to list. No location is assigned to this item in the active warehouse.', 
+                type: 'error'
+            );
+            return;
+        }
 
         $variantId = $this->currentItem->id;
         $binId = $this->bin_id ?: null;
