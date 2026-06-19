@@ -17,6 +17,7 @@ class Bin extends Model
         'current_qty',
         'min_qty',
         'lead_time_days',
+        'warehouse_id',
     ];
 
     public function location(): BelongsTo

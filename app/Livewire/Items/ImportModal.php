@@ -36,7 +36,7 @@ class ImportModal extends Component
         $path = $this->file->store('imports', 'public');
         
         // Dispatch the job
-        ImportItemsJob::dispatch($path, auth()->id());
+        ImportItemsJob::dispatch($path, auth()->id(), session('active_warehouse_id'));
         
         $this->status = 'Import has been queued. You will be notified when it completes.';
         $this->file = null;

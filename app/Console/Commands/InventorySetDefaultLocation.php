@@ -66,6 +66,7 @@ class InventorySetDefaultLocation extends Command
                         'item_variant_id' => $variant->id,
                         'code' => 'A-1',
                         'current_qty' => 0,
+                        'warehouse_id' => 1,
                     ]);
                     $updatedCount++;
                 }

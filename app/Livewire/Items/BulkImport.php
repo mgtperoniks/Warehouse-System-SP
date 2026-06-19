@@ -105,7 +105,8 @@ class BulkImport extends Component
                         'location_id' => $location->id,
                         'item_variant_id' => $variant->id,
                         'code' => $finalBinCode,
-                        'current_qty' => 0
+                        'current_qty' => 0,
+                        'warehouse_id' => session('active_warehouse_id') ?? 1,
                     ]);
 
                     if ($initialStock > 0) {

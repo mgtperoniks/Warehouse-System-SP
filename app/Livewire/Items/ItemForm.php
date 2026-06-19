@@ -429,6 +429,7 @@ class ItemForm extends Component
                         'item_variant_id' => $this->variant->id,
                         'code' => strtoupper($this->bin_code),
                         'current_qty' => 0, // Will be updated by service if initial_stock > 0
+                        'warehouse_id' => session('active_warehouse_id') ?? 1,
                     ]);
 
                     if ($this->initial_stock > 0) {
@@ -452,6 +453,7 @@ class ItemForm extends Component
                             'item_variant_id' => $this->variant->id,
                             'code' => strtoupper($this->bin_code),
                             'current_qty' => 0,
+                            'warehouse_id' => session('active_warehouse_id') ?? 1,
                         ]);
                     }
                 }

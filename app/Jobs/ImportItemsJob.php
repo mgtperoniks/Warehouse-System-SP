@@ -24,11 +24,13 @@ class ImportItemsJob implements ShouldQueue
 
     public $filePath;
     public $userId;
+    public $warehouseId;
 
-    public function __construct($filePath, $userId = null)
+    public function __construct($filePath, $userId = null, $warehouseId = null)
     {
         $this->filePath = $filePath;
         $this->userId = $userId;
+        $this->warehouseId = $warehouseId;
     }
 
     public function handle(): void
@@ -125,7 +127,8 @@ class ImportItemsJob implements ShouldQueue
                     $bin = Bin::firstOrCreate(
                         [
                             'item_variant_id' => $variant->id,
-                            'code' => strtoupper(trim($binCode))
+                            'code' => strtoupper(trim($binCode)),
+                            'warehouse_id' => $this->warehouseId ?? 1,
                         ],
                         [
                             'location_id' => $location->id,
