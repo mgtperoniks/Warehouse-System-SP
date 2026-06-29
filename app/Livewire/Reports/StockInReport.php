@@ -5,8 +5,10 @@ namespace App\Livewire\Reports;
 use Livewire\Component;
 use Livewire\WithPagination;
 use App\Models\StockInReceipt;
+use App\Models\StockInItem;
 use App\Models\User;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\DB;
 
 class StockInReport extends Component
 {
@@ -19,17 +21,13 @@ class StockInReport extends Component
     public $endDate;
     public $operatorId;
     public $receiptCode;
-    public $erpTransferStatus = 'NOT_STARTED'; // Default to show pending daily entries
+    public $erpTransferStatus = StockInItem::ERP_NOT_STARTED; // Default to show pending daily entries
 
-    // Document suggestions (indexed by receipt id)
+    // Document suggestions and user inputs (indexed by receipt id)
     public $suggestedBpbRefs = [];
 
-    // Transfer status updates
-    public $selectedReceiptIds = [];
-
-    // UI state
-    public $isCompactMode = false;
-    public $isErpTransferView = false;
+    // Transfer status updates (item-level)
+    public $selectedItemIds = [];
 
     protected $queryString = [
         'startDate' => ['except' => ''],
@@ -113,99 +111,170 @@ class StockInReport extends Component
     }
 
     /**
-     * Set transfer status for selected receipts.
+     * Set transfer status for selected items.
      */
     public function updateStatusBulk($status)
     {
-        if (empty($this->selectedReceiptIds)) {
-            session()->flash('warning', 'Please select at least one receipt first.');
+        if (empty($this->selectedItemIds)) {
+            session()->flash('warning', 'Please select at least one item first.');
             return;
         }
 
-        $updateData = ['erp_transfer_status' => $status];
-        if ($status === 'COMPLETED') {
-            $updateData['transferred_by'] = auth()->id();
-            $updateData['transferred_at'] = Carbon::now();
-        } else {
-            $updateData['transferred_by'] = null;
-            $updateData['transferred_at'] = null;
-        }
+        DB::transaction(function () use ($status) {
+            $userId = auth()->id();
+            $now = Carbon::now();
 
-        StockInReceipt::whereIn('id', $this->selectedReceiptIds)->update($updateData);
+            $updateData = ['erp_transfer_status' => $status];
+            if ($status === StockInItem::ERP_COMPLETED) {
+                $updateData['transferred_by'] = $userId;
+                $updateData['transferred_at'] = $now;
+            } else {
+                $updateData['transferred_by'] = null;
+                $updateData['transferred_at'] = null;
+            }
 
-        $this->selectedReceiptIds = [];
+            // Get unique receipt IDs before updating items
+            $affectedReceiptIds = StockInItem::whereIn('id', $this->selectedItemIds)
+                ->pluck('stock_in_receipt_id')
+                ->unique();
+
+            // Update items
+            StockInItem::whereIn('id', $this->selectedItemIds)->update($updateData);
+
+            // Sync parent receipts
+            foreach ($affectedReceiptIds as $receiptId) {
+                $this->syncParentReceipt($receiptId, $userId, $now);
+            }
+        });
+
+        $this->selectedItemIds = [];
         session()->flash('message', 'Transfer status updated successfully.');
     }
 
     /**
-     * Mark an entire receipt session batch as completed.
+     * Mark remaining items of a receipt session batch as completed.
      */
     public function completeReceiptBatch($receiptId)
     {
-        $receipt = StockInReceipt::findOrFail($receiptId);
         $customRef = $this->suggestedBpbRefs[$receiptId] ?? null;
+        $receipt = StockInReceipt::findOrFail($receiptId);
 
-        $receipt->update([
-            'erp_transfer_status' => 'COMPLETED',
-            'purchase_order_ref' => $customRef ?: $receipt->purchase_order_ref,
-            'transferred_by' => auth()->id(),
-            'transferred_at' => Carbon::now(),
-        ]);
+        DB::transaction(function () use ($receipt, $customRef) {
+            $userId = auth()->id();
+            $now = Carbon::now();
+
+            // Update remaining items that are NOT_STARTED
+            $receipt->items()->where('stock_in_items.erp_transfer_status', StockInItem::ERP_NOT_STARTED)->update([
+                'erp_transfer_status' => StockInItem::ERP_COMPLETED,
+                'transferred_by' => $userId,
+                'transferred_at' => $now,
+            ]);
+
+            // Sync parent receipt to COMPLETED
+            $receipt->update([
+                'erp_transfer_status' => StockInItem::ERP_COMPLETED,
+                'purchase_order_ref' => $customRef ?: $receipt->purchase_order_ref,
+                'transferred_by' => $userId,
+                'transferred_at' => $now,
+            ]);
+        });
 
         session()->flash('message', "Closed BPB Receipt session batch successfully under Reference: " . ($customRef ?: 'WMS Reference'));
     }
 
     /**
-     * Toggle compact screen mode.
+     * Synchronize parent receipt aggregate status.
      */
-    public function toggleCompactMode()
+    private function syncParentReceipt($receiptId, $userId, $now)
     {
-        $this->isCompactMode = !$this->isCompactMode;
-    }
+        $receipt = StockInReceipt::find($receiptId);
+        if (!$receipt) return;
 
-    /**
-     * Toggle ERP transfer view workspace.
-     */
-    public function toggleErpTransferView()
-    {
-        $this->isErpTransferView = !$this->isErpTransferView;
+        // Check if any item in this receipt is still NOT_STARTED
+        $hasPending = $receipt->items()->where('stock_in_items.erp_transfer_status', StockInItem::ERP_NOT_STARTED)->exists();
+
+        if ($hasPending) {
+            $receipt->update([
+                'erp_transfer_status' => StockInItem::ERP_NOT_STARTED,
+            ]);
+        } else {
+            $receipt->update([
+                'erp_transfer_status' => StockInItem::ERP_COMPLETED,
+                'transferred_by' => $userId,
+                'transferred_at' => $now,
+            ]);
+        }
     }
 
     public function render()
     {
         $receipts = collect();
+        $globalTotal = 0;
+        $globalRemaining = 0;
 
         if ($this->reportGenerated) {
-            $query = StockInReceipt::with(['operator', 'items.variant.item', 'items.bin', 'supplier'])
-                ->where('status', 'COMMITTED')
+            $query = StockInReceipt::where('stock_in_receipts.status', 'COMMITTED')
                 ->forActiveWarehouse();
 
             if ($this->startDate) {
-                $query->whereDate('created_at', '>=', $this->startDate);
+                $query->whereDate('stock_in_receipts.created_at', '>=', $this->startDate);
             }
             if ($this->endDate) {
-                $query->whereDate('created_at', '<=', $this->endDate);
+                $query->whereDate('stock_in_receipts.created_at', '<=', $this->endDate);
             }
             if ($this->operatorId) {
-                $query->where('operator_id', $this->operatorId);
+                $query->where('stock_in_receipts.operator_id', $this->operatorId);
             }
             if ($this->receiptCode) {
-                $query->where('receipt_code', 'like', '%' . $this->receiptCode . '%');
+                $query->where('stock_in_receipts.receipt_code', 'like', '%' . $this->receiptCode . '%');
             }
+
+            // High-performance SQL aggregation counters for Global KPI
+            $sumQuery = clone $query;
+            $stats = $sumQuery->join('stock_in_items', 'stock_in_receipts.id', '=', 'stock_in_items.stock_in_receipt_id')
+                ->selectRaw('
+                    COUNT(stock_in_items.id) as total_items,
+                    SUM(CASE WHEN stock_in_items.erp_transfer_status = ? THEN 1 ELSE 0 END) as remaining_items
+                ', [StockInItem::ERP_NOT_STARTED])
+                ->first();
+
+            $globalTotal = $stats->total_items ?? 0;
+            $globalRemaining = $stats->remaining_items ?? 0;
+
             if ($this->erpTransferStatus) {
-                $query->where('erp_transfer_status', $this->erpTransferStatus);
+                $query->whereHas('items', function ($q) {
+                    $q->where('stock_in_items.erp_transfer_status', $this->erpTransferStatus);
+                });
             }
 
-            $receipts = $query->orderBy('created_at', 'desc')->take(1000)->get();
+            // Eager load items and properties matching the active status filter
+            $receipts = $query->with([
+                'operator',
+                'supplier',
+                'items' => function ($q) {
+                    $q->with(['variant.item', 'bin']);
+                    if ($this->erpTransferStatus) {
+                        $q->where('stock_in_items.erp_transfer_status', $this->erpTransferStatus);
+                    }
+                }
+            ])
+            ->withCount([
+                'items as total_items_count',
+                'items as remaining_items_count' => function ($q) {
+                    $q->where('stock_in_items.erp_transfer_status', StockInItem::ERP_NOT_STARTED);
+                }
+            ])
+            ->orderBy('stock_in_receipts.created_at', 'desc')
+            ->take(1000)
+            ->get();
 
-            // Initialize suggestible BPB references (e.g. BPB-SP-20260518-003)
+            // Initialize suggestible BPB references
             $dateStr = Carbon::now()->format('Ymd');
             $whCode = session('active_warehouse_code', 'SPAREPART');
             $whSuffix = $whCode === 'SPAREPART' ? 'SP' : ($whCode === 'RAW_MATERIAL' ? 'RM' : ($whCode === 'CONSUMABLE' ? 'CS' : 'WH'));
 
             foreach ($receipts as $index => $receipt) {
                 if (!isset($this->suggestedBpbRefs[$receipt->id])) {
-                    // Generate sequential code BPB-SP-YYYYMMDD-003
                     $seq = str_pad($index + 1, 3, '0', STR_PAD_LEFT);
                     $this->suggestedBpbRefs[$receipt->id] = "BPB-{$whSuffix}-{$dateStr}-{$seq}";
                 }
@@ -217,6 +286,8 @@ class StockInReport extends Component
         return view('livewire.reports.stock-in-report', [
             'receipts' => $receipts,
             'operators' => $operators,
+            'globalTotal' => $globalTotal,
+            'globalRemaining' => $globalRemaining,
         ])->layout('layouts.app');
     }
 }

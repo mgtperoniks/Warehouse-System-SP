@@ -5,9 +5,11 @@ namespace App\Livewire\Reports;
 use Livewire\Component;
 use Livewire\WithPagination;
 use App\Models\StockTransaction;
+use App\Models\StockTransactionItem;
 use App\Models\Department;
 use App\Models\User;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\DB;
 
 class StockOutReport extends Component
 {
@@ -21,13 +23,13 @@ class StockOutReport extends Component
     public $departmentId;
     public $picId;
     public $code;
-    public $erpTransferStatus = 'NOT_STARTED'; // Default to show pending daily entries
+    public $erpTransferStatus = StockTransactionItem::ERP_NOT_STARTED; // Default to show pending daily entries
 
     // Document suggestions and user inputs (indexed by department id)
     public $suggestedBkbRefs = [];
 
-    // Transfer status updates
-    public $selectedTxIds = [];
+    // Transfer status updates (item-level)
+    public $selectedItemIds = [];
 
     // UI state
     public $isCompactMode = false;
@@ -117,57 +119,75 @@ class StockOutReport extends Component
     }
 
     /**
-     * Set transfer status for selected transactions.
+     * Set transfer status for selected items.
      */
     public function updateStatusBulk($status)
     {
-        if (empty($this->selectedTxIds)) {
-            session()->flash('warning', 'Please select at least one transaction first.');
+        if (empty($this->selectedItemIds)) {
+            session()->flash('warning', 'Please select at least one item first.');
             return;
         }
 
-        $updateData = ['erp_transfer_status' => $status];
-        if ($status === 'COMPLETED') {
-            $updateData['transferred_by'] = auth()->id();
-            $updateData['transferred_at'] = Carbon::now();
-        } else {
-            $updateData['transferred_by'] = null;
-            $updateData['transferred_at'] = null;
-        }
+        DB::transaction(function () use ($status) {
+            $userId = auth()->id();
+            $now = Carbon::now();
 
-        StockTransaction::whereIn('id', $this->selectedTxIds)->update($updateData);
+            $updateData = ['erp_transfer_status' => $status];
+            if ($status === StockTransactionItem::ERP_COMPLETED) {
+                $updateData['transferred_by'] = $userId;
+                $updateData['transferred_at'] = $now;
+            } else {
+                $updateData['transferred_by'] = null;
+                $updateData['transferred_at'] = null;
+            }
 
-        $this->selectedTxIds = [];
+            // Get unique transaction IDs before updating
+            $affectedTxIds = StockTransactionItem::whereIn('id', $this->selectedItemIds)
+                ->pluck('stock_transaction_id')
+                ->unique();
+
+            // Update items
+            StockTransactionItem::whereIn('id', $this->selectedItemIds)->update($updateData);
+
+            // Sync parent transactions
+            foreach ($affectedTxIds as $txId) {
+                $this->syncParentTransaction($txId, $userId, $now);
+            }
+        });
+
+        $this->selectedItemIds = [];
         session()->flash('message', 'Transfer status updated successfully.');
     }
 
     /**
-     * Mark an entire department batch as transferred.
+     * Mark remaining items of a department batch as transferred.
      */
     public function completeDepartmentBatch($deptId)
     {
         $customRef = $this->suggestedBkbRefs[$deptId] ?? null;
 
         // Find all filtered transactions in this department that are not already completed
-        $query = StockTransaction::where('department_id', $deptId)
-            ->where('type', 'OUT')
-            ->where('status', 'CONFIRMED')
+        $query = StockTransaction::where('stock_transactions.department_id', $deptId)
+            ->where('stock_transactions.type', 'OUT')
+            ->where('stock_transactions.status', 'CONFIRMED')
             ->forActiveWarehouse();
 
         if ($this->startDate) {
-            $query->whereDate('created_at', '>=', $this->startDate);
+            $query->whereDate('stock_transactions.created_at', '>=', $this->startDate);
         }
         if ($this->endDate) {
-            $query->whereDate('created_at', '<=', $this->endDate);
+            $query->whereDate('stock_transactions.created_at', '<=', $this->endDate);
         }
         if ($this->picId) {
-            $query->where('user_id', $this->picId);
+            $query->where('stock_transactions.user_id', $this->picId);
         }
         if ($this->code) {
-            $query->where('code', 'like', '%' . $this->code . '%');
+            $query->where('stock_transactions.code', 'like', '%' . $this->code . '%');
         }
         if ($this->erpTransferStatus) {
-            $query->where('erp_transfer_status', $this->erpTransferStatus);
+            $query->whereHas('items', function ($q) {
+                $q->where('stock_transaction_items.erp_transfer_status', $this->erpTransferStatus);
+            });
         }
 
         $txs = $query->get();
@@ -177,16 +197,53 @@ class StockOutReport extends Component
             return;
         }
 
-        foreach ($txs as $tx) {
-            $tx->update([
-                'erp_transfer_status' => 'COMPLETED',
-                'reference' => $customRef ?: $tx->reference,
-                'transferred_by' => auth()->id(),
-                'transferred_at' => Carbon::now(),
-            ]);
-        }
+        DB::transaction(function () use ($txs, $customRef) {
+            $userId = auth()->id();
+            $now = Carbon::now();
+
+            foreach ($txs as $tx) {
+                // Only update remaining items that are NOT_STARTED
+                $tx->items()->where('stock_transaction_items.erp_transfer_status', StockTransactionItem::ERP_NOT_STARTED)->update([
+                    'erp_transfer_status' => StockTransactionItem::ERP_COMPLETED,
+                    'transferred_by' => $userId,
+                    'transferred_at' => $now,
+                ]);
+
+                // Sync parent transaction to completed
+                $tx->update([
+                    'erp_transfer_status' => StockTransactionItem::ERP_COMPLETED,
+                    'reference' => $customRef ?: $tx->reference,
+                    'transferred_by' => $userId,
+                    'transferred_at' => $now,
+                ]);
+            }
+        });
 
         session()->flash('message', "Closed BKB Department batch successfully under Reference: " . ($customRef ?: 'WMS Reference'));
+    }
+
+    /**
+     * Synchronize parent transaction aggregate status.
+     */
+    private function syncParentTransaction($txId, $userId, $now)
+    {
+        $tx = StockTransaction::find($txId);
+        if (!$tx) return;
+
+        // Check if any item in this transaction is still NOT_STARTED
+        $hasPending = $tx->items()->where('stock_transaction_items.erp_transfer_status', StockTransactionItem::ERP_NOT_STARTED)->exists();
+
+        if ($hasPending) {
+            $tx->update([
+                'erp_transfer_status' => StockTransactionItem::ERP_NOT_STARTED,
+            ]);
+        } else {
+            $tx->update([
+                'erp_transfer_status' => StockTransactionItem::ERP_COMPLETED,
+                'transferred_by' => $userId,
+                'transferred_at' => $now,
+            ]);
+        }
     }
 
     /**
@@ -208,34 +265,68 @@ class StockOutReport extends Component
     public function render()
     {
         $groupedTransactions = collect();
+        $globalTotal = 0;
+        $globalRemaining = 0;
 
         if ($this->reportGenerated) {
             // Build base transaction query
-            $query = StockTransaction::with(['department', 'user', 'items.variant.item'])
-                ->where('type', 'OUT')
-                ->where('status', 'CONFIRMED')
+            $query = StockTransaction::where('stock_transactions.type', 'OUT')
+                ->where('stock_transactions.status', 'CONFIRMED')
                 ->forActiveWarehouse();
 
             if ($this->startDate) {
-                $query->whereDate('created_at', '>=', $this->startDate);
+                $query->whereDate('stock_transactions.created_at', '>=', $this->startDate);
             }
             if ($this->endDate) {
-                $query->whereDate('created_at', '<=', $this->endDate);
+                $query->whereDate('stock_transactions.created_at', '<=', $this->endDate);
             }
             if ($this->departmentId) {
-                $query->where('department_id', $this->departmentId);
+                $query->where('stock_transactions.department_id', $this->departmentId);
             }
             if ($this->picId) {
-                $query->where('user_id', $this->picId);
+                $query->where('stock_transactions.user_id', $this->picId);
             }
             if ($this->code) {
-                $query->where('code', 'like', '%' . $this->code . '%');
+                $query->where('stock_transactions.code', 'like', '%' . $this->code . '%');
             }
+            // High-performance SQL aggregation counters
+            $sumQuery = clone $query;
+            $stats = $sumQuery->join('stock_transaction_items', 'stock_transactions.id', '=', 'stock_transaction_items.stock_transaction_id')
+                ->selectRaw('
+                    COUNT(stock_transaction_items.id) as total_items,
+                    SUM(CASE WHEN stock_transaction_items.erp_transfer_status = ? THEN 1 ELSE 0 END) as remaining_items
+                ', [StockTransactionItem::ERP_NOT_STARTED])
+                ->first();
+
+            $globalTotal = $stats->total_items ?? 0;
+            $globalRemaining = $stats->remaining_items ?? 0;
+
             if ($this->erpTransferStatus) {
-                $query->where('erp_transfer_status', $this->erpTransferStatus);
+                $query->whereHas('items', function ($q) {
+                    $q->where('stock_transaction_items.erp_transfer_status', $this->erpTransferStatus);
+                });
             }
 
-            $transactions = $query->orderBy('created_at', 'desc')->take(1000)->get();
+            // Apply eager loading and retrieve the results for the page
+            $transactions = $query->with([
+                'department',
+                'user',
+                'items' => function ($q) {
+                    $q->with(['variant.item']);
+                    if ($this->erpTransferStatus) {
+                        $q->where('stock_transaction_items.erp_transfer_status', $this->erpTransferStatus);
+                    }
+                }
+            ])
+            ->withCount([
+                'items as total_items_count',
+                'items as remaining_items_count' => function ($q) {
+                    $q->where('stock_transaction_items.erp_transfer_status', StockTransactionItem::ERP_NOT_STARTED);
+                }
+            ])
+            ->orderBy('stock_transactions.created_at', 'desc')
+            ->take(1000)
+            ->get();
 
             // Group by Department for daily BKB entry
             $groupedTransactions = $transactions->groupBy(function($tx) {
@@ -268,6 +359,8 @@ class StockOutReport extends Component
             'groupedTransactions' => $groupedTransactions,
             'departments' => $departments,
             'users' => $users,
+            'globalTotal' => $globalTotal,
+            'globalRemaining' => $globalRemaining,
         ])->layout('layouts.app');
     }
 }

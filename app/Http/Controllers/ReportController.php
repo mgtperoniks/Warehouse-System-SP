@@ -46,22 +46,22 @@ class ReportController extends Controller
     private function applyStockInFilters($query, Request $request)
     {
         $query->forActiveWarehouse()
-            ->where('status', 'COMMITTED');
+            ->where('stock_in_receipts.status', 'COMMITTED');
 
         if ($request->filled('start_date')) {
-            $query->whereDate('created_at', '>=', $request->start_date);
+            $query->whereDate('stock_in_receipts.created_at', '>=', $request->start_date);
         }
         if ($request->filled('end_date')) {
-            $query->whereDate('created_at', '<=', $request->end_date);
+            $query->whereDate('stock_in_receipts.created_at', '<=', $request->end_date);
         }
         if ($request->filled('operator_id')) {
-            $query->where('operator_id', $request->operator_id);
+            $query->where('stock_in_receipts.operator_id', $request->operator_id);
         }
         if ($request->filled('receipt_code')) {
-            $query->where('receipt_code', 'like', '%' . $request->receipt_code . '%');
+            $query->where('stock_in_receipts.receipt_code', 'like', '%' . $request->receipt_code . '%');
         }
         if ($request->filled('erp_transfer_status')) {
-            $query->where('erp_transfer_status', $request->erp_transfer_status);
+            $query->where('stock_in_receipts.erp_transfer_status', $request->erp_transfer_status);
         }
 
         return $query;

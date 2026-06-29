@@ -1,4 +1,4 @@
-<div class="w-full flex flex-col min-h-screen {{ $isCompactMode || $isErpTransferView ? 'p-2 bg-slate-50' : 'p-6 bg-slate-50' }}" x-data="{ showToast: false, toastMsg: '' }">
+<div class="w-full flex flex-col min-h-screen p-6 bg-slate-50" x-data="{ showToast: false, toastMsg: '' }">
     
     <!-- Toast Notification Banner -->
     <div x-show="showToast" 
@@ -10,12 +10,11 @@
          x-transition:leave-end="opacity-0 translate-y-2"
          class="fixed bottom-4 right-4 z-50 bg-slate-900 text-emerald-400 font-mono text-[11px] font-bold px-4 py-2.5 rounded-lg shadow-xl border border-emerald-500/20 flex items-center gap-2"
          style="display: none;">
-        <span class="material-symbols-outlined text-sm">check_circle</span>
-        <span x-text="toastMsg"></span>
+         <span class="material-symbols-outlined text-sm">check_circle</span>
+         <span x-text="toastMsg"></span>
     </div>
 
     <!-- Page Header -->
-    @if(!$isErpTransferView)
     <div class="flex items-center justify-between mb-4">
         <div>
             <div class="flex items-center gap-2">
@@ -23,17 +22,30 @@
                 <span class="text-xs font-black uppercase tracking-widest text-green-700 bg-green-100 px-2 py-0.5 rounded font-mono">System of Operation</span>
             </div>
             <h1 class="text-xl font-black text-slate-900 uppercase tracking-tight mt-1">Stock In Reports (BPB)</h1>
-            <p class="text-xs text-slate-500 font-medium">Daily BPB transfer assistant to VB6 ERP. Group by Receipt Session batches for easy closing.</p>
+            <p class="text-xs text-slate-500 font-medium">Daily BPB transfer assistant to VB6 ERP. Validate, format, and copy records securely.</p>
         </div>
         <div class="flex items-center gap-2">
             <a href="{{ route('reports.stock-out') }}" class="flex items-center gap-1.5 px-3 py-1.5 bg-slate-200 hover:bg-slate-300/80 text-slate-700 rounded-lg text-[11px] font-black uppercase tracking-wider transition-all">
                 <span class="material-symbols-outlined text-base">output</span>
                 Stock Out Report
             </a>
-            <button wire:click="toggleCompactMode" class="flex items-center gap-1.5 px-3 py-1.5 bg-slate-200 hover:bg-slate-300/80 text-slate-700 rounded-lg text-[11px] font-black uppercase tracking-wider transition-all">
-                <span class="material-symbols-outlined text-base">{{ $isCompactMode ? 'fullscreen_exit' : 'density_medium' }}</span>
-                {{ $isCompactMode ? 'Standard Spacing' : 'Dense Spacing' }}
-            </button>
+        </div>
+    </div>
+
+    <!-- READ-ONLY KPI METRICS HEADER -->
+    @if($reportGenerated && $globalTotal > 0)
+    <div class="bg-white border border-slate-200 rounded-xl p-4 shadow-sm mb-4 flex flex-wrap items-center gap-8">
+        <div>
+            <span class="text-[9px] font-black uppercase tracking-widest text-slate-400 block font-mono">Completed Items</span>
+            <span class="text-base font-mono font-black text-slate-800">
+                {{ $globalTotal - $globalRemaining }} / {{ $globalTotal }} Items 
+                <span class="text-xs text-emerald-600 font-bold font-sans">({{ $globalTotal > 0 ? round((($globalTotal - $globalRemaining) / $globalTotal) * 100) : 0 }}%)</span>
+            </span>
+        </div>
+        <div class="h-8 w-px bg-slate-200 hidden sm:block"></div>
+        <div>
+            <span class="text-[9px] font-black uppercase tracking-widest text-slate-400 block font-mono">Remaining Items</span>
+            <span class="text-base font-mono font-black text-rose-600">{{ $globalRemaining }} Items</span>
         </div>
     </div>
     @endif
@@ -74,7 +86,6 @@
                 <select wire:model.live="erpTransferStatus" class="w-full bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs font-bold text-slate-800 focus:outline-none focus:border-green-600">
                     <option value="">ALL STATES</option>
                     <option value="NOT_STARTED">❌ NOT STARTED (PENDING)</option>
-                    <option value="IN_PROGRESS">⚡ IN PROGRESS</option>
                     <option value="COMPLETED">✅ COMPLETED (TRANSFERRED)</option>
                 </select>
             </div>
@@ -83,19 +94,15 @@
         <!-- Preset Filters Row -->
         <div class="flex items-center justify-between mt-3 pt-3 border-t border-slate-100">
             <div class="flex items-center gap-1.5">
-                <button wire:click="setDatePreset('today')" class="px-2.5 py-1 bg-slate-100 hover:bg-slate-200/80 text-slate-700 rounded-md text-[10px] font-black uppercase tracking-wider transition-all">Today</button>
-                <button wire:click="setDatePreset('yesterday')" class="px-2.5 py-1 bg-slate-100 hover:bg-slate-200/80 text-slate-700 rounded-md text-[10px] font-black uppercase tracking-wider transition-all">Yesterday</button>
-                <button wire:click="setDatePreset('this_week')" class="px-2.5 py-1 bg-slate-100 hover:bg-slate-200/80 text-slate-700 rounded-md text-[10px] font-black uppercase tracking-wider transition-all">This Week</button>
-                <button wire:click="setDatePreset('this_month')" class="px-2.5 py-1 bg-slate-100 hover:bg-slate-200/80 text-slate-700 rounded-md text-[10px] font-black uppercase tracking-wider transition-all">This Month</button>
+                <button wire:click="setDatePreset('today')" class="px-2.5 py-1 bg-slate-100 hover:bg-slate-200/80 text-slate-700 rounded-md text-[10px] font-black uppercase tracking-wider transition-all font-mono font-bold">Today</button>
+                <button wire:click="setDatePreset('yesterday')" class="px-2.5 py-1 bg-slate-100 hover:bg-slate-200/80 text-slate-700 rounded-md text-[10px] font-black uppercase tracking-wider transition-all font-mono font-bold">Yesterday</button>
+                <button wire:click="setDatePreset('this_week')" class="px-2.5 py-1 bg-slate-100 hover:bg-slate-200/80 text-slate-700 rounded-md text-[10px] font-black uppercase tracking-wider transition-all font-mono font-bold">This Week</button>
+                <button wire:click="setDatePreset('this_month')" class="px-2.5 py-1 bg-slate-100 hover:bg-slate-200/80 text-slate-700 rounded-md text-[10px] font-black uppercase tracking-wider transition-all font-mono font-bold">This Month</button>
             </div>
 
             <div class="flex items-center gap-2">
                 @if($reportGenerated)
                     <!-- EXPORT CENTER -->
-                    <button wire:click="toggleErpTransferView" class="flex items-center gap-1 px-3 py-1 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-[10px] font-black uppercase tracking-wider transition-all shadow-sm">
-                        <span class="material-symbols-outlined text-sm">screenshare</span>
-                        {{ $isErpTransferView ? 'Close ERP View' : 'ERP Transfer View Mode' }}
-                    </button>
                     <a href="{{ route('reports.stock-in.csv', request()->query()) }}" class="flex items-center gap-1 px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[10px] font-black uppercase tracking-wider transition-all shadow-sm">
                         <span class="material-symbols-outlined text-sm">download</span>
                         Export CSV Flat
@@ -147,42 +154,11 @@
             </div>
         </div>
     @else
-        <!-- MULTI-MONITOR ERP TRANSFER VIEW COMPONENT -->
-        @if($isErpTransferView)
-        <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 mb-4 text-slate-100 shadow-2xl">
-            <div class="flex items-center justify-between border-b border-slate-800 pb-3 mb-4">
-                <div class="flex items-center gap-2">
-                    <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                    <h2 class="text-xs font-black uppercase tracking-widest font-mono text-emerald-400">VB6 ERP Inbound Dual-Monitor Entry Assistant</h2>
-                </div>
-                <button wire:click="toggleErpTransferView" class="text-slate-400 hover:text-slate-200 text-[10px] font-black uppercase tracking-widest bg-slate-800 px-2.5 py-1 rounded">
-                    EXIT ERP MODE
-                </button>
-            </div>
-            <p class="text-[10px] text-slate-400 font-mono mb-4 leading-relaxed bg-slate-950 p-2.5 rounded border border-slate-850">
-                🚀 **RHYTHM ASSISTANT:** Set WMS browser on Left Monitor, VB6 ERP on Right Monitor. Monospace codes are padded for instant typing. Use the clipboard mode buttons below to copy columns formatted for BPB entry without mouse touch.
-            </p>
-        </div>
-    @endif
 
-    <!-- TRANSACTIONS CONTAINER -->
+    <!-- RECEIPTS CONTAINER -->
     <div class="space-y-6">
-        @forelse($receipts as $index => $receipt)
-            @php
-                $itemsPayload = $receipt->items->map(fn($item) => [
-                    'code' => preg_replace('/^[0-9]+\./', '', $item->variant->erp_code ?? ''),
-                    'name' => $item->variant->item->name ?? '',
-                    'qty' => $item->qty,
-                    'unit' => $item->variant->unit ?? 'PCS',
-                    'bin' => $item->bin->code ?? ''
-                ])->toArray();
-            @endphp
-
-            <div class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden" 
-                 x-data="{ 
-                    copiedFull: false, 
-                    copiedCompact: false
-                 }">
+        @forelse($receipts as $receipt)
+            <div class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
                 
                 <!-- Receipt Session Batch Header -->
                 <div class="bg-slate-100 border-b border-slate-200 px-4 py-2.5 flex flex-wrap items-center justify-between gap-3">
@@ -191,8 +167,13 @@
                             <span class="material-symbols-outlined text-base">input</span>
                         </div>
                         <div>
-                            <span class="text-[9px] font-black uppercase tracking-widest text-slate-400">Receipt Batch | Operator: {{ $receipt->operator->name ?? 'N/A' }} | PO Ref: {{ $receipt->purchase_order_ref ?: 'NONE' }}</span>
-                            <h2 class="text-xs font-black text-slate-800 uppercase tracking-tight leading-none mt-0.5 font-mono">{{ $receipt->receipt_code }} ({{ $receipt->created_at->format('Y-m-d H:i') }})</h2>
+                            <span class="text-[9px] font-black uppercase tracking-widest text-slate-400">Receipt Batch | Operator: {{ $receipt->operator->name ?? 'N/A' }}</span>
+                            <div class="flex items-center gap-2 mt-0.5">
+                                <h2 class="text-xs font-black text-slate-800 uppercase tracking-tight leading-none font-mono">{{ $receipt->receipt_code }} ({{ $receipt->created_at->format('Y-m-d H:i') }})</h2>
+                                <span class="inline-flex items-center px-1.5 py-0.5 bg-slate-200 border border-slate-300 text-slate-700 text-[8px] font-black font-mono rounded">
+                                    Remaining: {{ $receipt->remaining_items_count }} / {{ $receipt->total_items_count }} Items
+                                </span>
+                            </div>
                         </div>
                     </div>
 
@@ -202,20 +183,6 @@
                         <div class="flex items-center bg-white border border-slate-200 rounded-lg px-2 py-1 shadow-sm gap-1.5">
                             <span class="text-[9px] font-black uppercase tracking-widest text-slate-400 font-mono">BPB Suggester</span>
                             <input type="text" wire:model.defer="suggestedBpbRefs.{{ $receipt->id }}" class="bg-slate-50 border border-slate-200 rounded px-1.5 py-0.5 text-[10px] font-mono font-bold text-slate-800 w-[170px] focus:outline-none">
-                        </div>
-
-                        <!-- Copy Actions -->
-                        <div class="flex items-center gap-1">
-                            <button @click="if (copyErpLinesIn('full', {{ e(json_encode($itemsPayload)) }})) { copiedFull = true; setTimeout(() => copiedFull = false, 1500); showToast = true; toastMsg = '✓ Copied successfully'; setTimeout(() => showToast = false, 2500); } else { showToast = true; toastMsg = '✗ Clipboard copy failed'; setTimeout(() => showToast = false, 2500); }" 
-                                    class="flex items-center gap-1 px-2.5 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all font-mono font-bold">
-                                <span class="material-symbols-outlined text-xs">content_copy</span>
-                                <span x-text="copiedFull ? 'COPIED!' : 'FULL COPY'"></span>
-                            </button>
-                            <button @click="if (copyErpLinesIn('compact', {{ e(json_encode($itemsPayload)) }})) { copiedCompact = true; setTimeout(() => copiedCompact = false, 1500); showToast = true; toastMsg = '✓ Copied successfully'; setTimeout(() => showToast = false, 2500); } else { showToast = true; toastMsg = '✗ Clipboard copy failed'; setTimeout(() => showToast = false, 2500); }" 
-                                    class="flex items-center gap-1 px-2.5 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-[9px] font-black uppercase tracking-wider transition-all font-mono font-bold">
-                                <span class="material-symbols-outlined text-xs">keyboard</span>
-                                <span x-text="copiedCompact ? 'COPIED!' : 'COMPACT COPY'"></span>
-                            </button>
                         </div>
 
                         <!-- Mark as Closed -->
@@ -255,27 +222,25 @@
                                     $supplierExists = (bool) $receipt->supplier_id;
                                     $hasWarnings = !$rawErpCode || !$binExists || !$supplierExists;
                                 @endphp
-                                <tr class="hover:bg-slate-50/80 transition-colors {{ $isCompactMode ? 'text-[10px] py-1' : 'text-xs py-2' }}">
-                                    <td class="px-3 {{ $isCompactMode ? 'py-1' : 'py-1.5' }}">
-                                        <input type="checkbox" wire:model.live="selectedReceiptIds" value="{{ $receipt->id }}" class="rounded border-slate-350 text-green-600 focus:ring-green-600">
+                                <tr class="hover:bg-slate-50/80 transition-colors text-xs py-2">
+                                    <td class="px-3 py-1.5">
+                                        <input type="checkbox" wire:model.live="selectedItemIds" value="{{ $item->id }}" class="rounded border-slate-350 text-green-600 focus:ring-green-600">
                                     </td>
-                                    <td class="px-3 {{ $isCompactMode ? 'py-1' : 'py-1.5' }} font-mono font-bold text-slate-700">{{ $receipt->receipt_code }}</td>
-                                    <td class="px-3 {{ $isCompactMode ? 'py-1' : 'py-1.5' }} font-mono font-black text-slate-900 bg-slate-50/50 text-[11px] select-all">{{ $erpCode ?: 'N/A' }}</td>
-                                    <td class="px-3 {{ $isCompactMode ? 'py-1' : 'py-1.5' }} text-slate-700 font-bold select-all">{{ $item->variant->item->name ?? 'N/A' }}</td>
-                                    <td class="px-3 {{ $isCompactMode ? 'py-1' : 'py-1.5' }} font-mono font-black text-slate-950 text-right select-all">{{ $item->qty }}</td>
-                                    <td class="px-3 {{ $isCompactMode ? 'py-1' : 'py-1.5' }} font-mono text-blue-700 font-bold bg-blue-50/30 text-center select-all">{{ $item->bin->code ?? 'N/A' }}</td>
-                                    <td class="px-3 {{ $isCompactMode ? 'py-1' : 'py-1.5' }} font-inter text-slate-600 font-bold">{{ $receipt->supplier->name ?? 'N/A' }}</td>
-                                    <td class="px-3 {{ $isCompactMode ? 'py-1' : 'py-1.5' }} font-mono text-[10px] text-slate-650 font-bold">{{ $receipt->purchase_order_ref ?: 'WMS PENDING' }}</td>
-                                    <td class="px-3 {{ $isCompactMode ? 'py-1' : 'py-1.5' }}">
-                                        @if($receipt->erp_transfer_status === 'COMPLETED')
+                                    <td class="px-3 py-1.5 font-mono font-bold text-slate-700">
+                                        <div>{{ $receipt->receipt_code }}</div>
+                                        <div class="text-[8px] font-black text-slate-400 uppercase tracking-tight">Remaining: {{ $receipt->remaining_items_count }} / {{ $receipt->total_items_count }}</div>
+                                    </td>
+                                    <td class="px-3 py-1.5 font-mono font-black text-slate-900 bg-slate-50/50 text-[11px] select-all">{{ $erpCode ?: 'N/A' }}</td>
+                                    <td class="px-3 py-1.5 text-slate-700 font-bold select-all">{{ $item->variant->item->name ?? 'N/A' }}</td>
+                                    <td class="px-3 py-1.5 font-mono font-black text-slate-950 text-right select-all">{{ $item->qty }}</td>
+                                    <td class="px-3 py-1.5 font-mono text-blue-700 font-bold bg-blue-50/30 text-center select-all">{{ $item->bin->code ?? 'N/A' }}</td>
+                                    <td class="px-3 py-1.5 font-inter text-slate-600 font-bold">{{ $receipt->supplier->name ?? 'N/A' }}</td>
+                                    <td class="px-3 py-1.5 font-mono text-[10px] text-slate-650 font-bold">{{ $receipt->purchase_order_ref ?: 'WMS PENDING' }}</td>
+                                    <td class="px-3 py-1.5">
+                                        @if($item->erp_transfer_status === \App\Models\StockInItem::ERP_COMPLETED)
                                             <span class="inline-flex items-center gap-1 px-1.5 py-0.5 bg-emerald-100 text-emerald-800 text-[9px] font-black uppercase tracking-wider rounded font-mono">
                                                 <span class="w-1.5 h-1.5 bg-emerald-500 rounded-full"></span>
                                                 COMPLETED
-                                            </span>
-                                        @elseif($receipt->erp_transfer_status === 'IN_PROGRESS')
-                                            <span class="inline-flex items-center gap-1 px-1.5 py-0.5 bg-amber-100 text-amber-800 text-[9px] font-black uppercase tracking-wider rounded font-mono">
-                                                <span class="w-1.5 h-1.5 bg-amber-500 rounded-full"></span>
-                                                IN PROGRESS
                                             </span>
                                         @else
                                             <span class="inline-flex items-center gap-1 px-1.5 py-0.5 bg-slate-100 text-slate-600 text-[9px] font-black uppercase tracking-wider rounded font-mono">
@@ -286,7 +251,7 @@
                                     </td>
                                     
                                     <!-- ERP Readiness Validation Column -->
-                                    <td class="px-3 {{ $isCompactMode ? 'py-1' : 'py-1.5' }}">
+                                    <td class="px-3 py-1.5">
                                         @if(!$hasWarnings)
                                             <span class="inline-flex items-center gap-1 px-1.5 py-0.5 bg-green-100 text-green-800 text-[9px] font-black uppercase tracking-wider rounded font-mono">
                                                 <span class="material-symbols-outlined text-[10px]">check_circle</span>
@@ -336,18 +301,15 @@
     </div>
 
     <!-- BULK STATE ACTION FLOATING CONTROLS -->
-    @if(!empty($selectedReceiptIds))
+    @if(!empty($selectedItemIds))
         <div class="fixed bottom-6 left-1/2 transform -translate-x-1/2 bg-slate-900 border border-slate-800 text-white rounded-xl shadow-2xl px-5 py-3 z-40 flex items-center gap-4">
-            <span class="text-[10px] font-mono font-bold text-emerald-400">{{ count($selectedReceiptIds) }} batches selected</span>
+            <span class="text-[10px] font-mono font-bold text-emerald-400">{{ count($selectedItemIds) }} items selected</span>
             <div class="h-4 w-px bg-slate-800"></div>
             <div class="flex items-center gap-1.5">
-                <button wire:click="updateStatusBulk('NOT_STARTED')" class="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all font-mono">
+                <button wire:click="updateStatusBulk('{{ \App\Models\StockInItem::ERP_NOT_STARTED }}')" class="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all font-mono font-bold">
                     Reset Pending
                 </button>
-                <button wire:click="updateStatusBulk('IN_PROGRESS')" class="px-2.5 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-[9px] font-black uppercase tracking-wider transition-all font-mono">
-                    Mark In Progress
-                </button>
-                <button wire:click="updateStatusBulk('COMPLETED')" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[9px] font-black uppercase tracking-wider transition-all font-mono">
+                <button wire:click="updateStatusBulk('{{ \App\Models\StockInItem::ERP_COMPLETED }}')" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[9px] font-black uppercase tracking-wider transition-all font-mono font-bold">
                     Confirm Transferred
                 </button>
             </div>
@@ -355,50 +317,3 @@
     @endif
     @endif
 </div>
-
-    <!-- Client-side High-Performance Monospace ERP Clipboard Copier -->
-    <script>
-        function copyErpLinesIn(mode, items) {
-            let lines = [];
-            items.forEach(item => {
-                let c = item.code || '';
-                let q = item.qty || '0';
-                let n = item.name || '';
-                let u = item.unit || 'PCS';
-                let b = item.bin || '';
-                if (mode === 'full') {
-                    let line = c.padEnd(16, ' ') + '    ' + n.padEnd(32, ' ') + '    ' + q + ' ' + u + '    ' + b;
-                    lines.push(line);
-                } else {
-                    lines.push(c.padEnd(16, ' ') + '    ' + q);
-                }
-            });
-            let text = lines.join('\n');
-            
-            if (navigator.clipboard && navigator.clipboard.writeText) {
-                try {
-                    navigator.clipboard.writeText(text);
-                    return true;
-                } catch (e) {
-                    console.error('navigator.clipboard failed', e);
-                }
-            }
-            
-            // Insecure HTTP LAN Fallback
-            let textArea = document.createElement("textarea");
-            textArea.value = text;
-            textArea.style.position = "fixed";
-            textArea.style.opacity = "0";
-            document.body.appendChild(textArea);
-            textArea.focus();
-            textArea.select();
-            let success = false;
-            try {
-                success = document.execCommand('copy');
-            } catch (err) {
-                console.error('Fallback copy failed', err);
-            }
-            document.body.removeChild(textArea);
-            return success;
-        }
-    </script>

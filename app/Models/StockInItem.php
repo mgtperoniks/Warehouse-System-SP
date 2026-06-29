@@ -10,12 +10,22 @@ class StockInItem extends Model
 {
     use HasFactory;
 
+    public const ERP_NOT_STARTED = 'NOT_STARTED';
+    public const ERP_COMPLETED = 'COMPLETED';
+
     protected $fillable = [
         'stock_in_receipt_id',
         'item_variant_id',
         'qty',
         'bin_id',
         'supplier_id',
+        'erp_transfer_status',
+        'transferred_by',
+        'transferred_at',
+    ];
+
+    protected $casts = [
+        'transferred_at' => 'datetime',
     ];
 
     /**
@@ -48,5 +58,10 @@ class StockInItem extends Model
     public function supplier(): BelongsTo
     {
         return $this->belongsTo(Supplier::class);
+    }
+
+    public function transferredBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'transferred_by');
     }
 }
