@@ -447,11 +447,32 @@ class StockInPage extends Component
 
         try {
             DB::transaction(function () use ($inventoryService) {
-                foreach ($this->cart as $item) {
+                // 1. Pessimistic lock on the active receipt record for idempotency
+                $receipt = \App\Models\StockInReceipt::where('id', $this->activeReceipt->id)
+                    ->lockForUpdate()
+                    ->first();
+
+                if (!$receipt || $receipt->status !== 'ACTIVE') {
+                    throw new \Exception("This receipt session has already been committed or is no longer active.");
+                }
+
+                // 2. Sort cart items by bin_id ASC to prevent deadlocks (null/unassigned bins go to the end)
+                $sortedCart = array_values($this->cart);
+                usort($sortedCart, function ($a, $b) {
+                    $binA = $a['bin_id'];
+                    $binB = $b['bin_id'];
+                    if ($binA === $binB) return 0;
+                    if ($binA === null) return 1;
+                    if ($binB === null) return -1;
+                    return $binA <=> $binB;
+                });
+
+                // 3. Process stock movements in deterministic order
+                foreach ($sortedCart as $item) {
                     $bin = $item['bin_id'] ? Bin::find($item['bin_id']) : null;
                     
                     if ($bin) {
-                        // Commit active inventory stock adjustment
+                        // Commit active inventory stock adjustment via InventoryService
                         $inventoryService->moveStock(
                             $bin,
                             $item['qty'],
@@ -461,25 +482,20 @@ class StockInPage extends Component
                             $item['supplier_id']
                         );
                     } else {
-                        // If no bin, record the movement directly with bin_id null
-                        \App\Models\StockMovement::create([
-                            'item_variant_id'       => $item['item_variant_id'],
-                            'bin_id'                => null,
-                            'supplier_id'           => $item['supplier_id'],
-                            'type'                  => 'IN',
-                            'qty'                   => $item['qty'],
-                            'reference'             => $this->reference ?: 'Manual Stock IN',
-                            'created_by'            => auth()->id(),
-                            'warehouse_id'          => session('active_warehouse_id'),
-                            'operator_id'           => auth()->id(),
-                            'terminal_id'           => session('wms_terminal_id') ?: 'SPAREPART-DESK-A',
-                            'terminal_session_id'   => session()->getId(),
-                        ]);
+                        // Single Source of Truth: call the unified helper on InventoryService instead of direct write
+                        $inventoryService->moveStockWithoutBin(
+                            $item['item_variant_id'],
+                            $item['qty'],
+                            'IN',
+                            $this->reference ?: 'Manual Stock IN',
+                            auth()->id(),
+                            $item['supplier_id']
+                        );
                     }
                 }
 
-                // Commit Inbound Receipt Draft
-                $this->activeReceipt->update([
+                // 4. Commit Inbound Receipt Draft
+                $receipt->update([
                     'status' => 'COMMITTED',
                     'supplier_id' => $this->supplier_id ?: null,
                     'purchase_order_ref' => $this->reference ?: null,

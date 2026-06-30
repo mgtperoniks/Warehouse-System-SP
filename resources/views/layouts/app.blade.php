@@ -114,12 +114,6 @@
                         </span>
                     </a>
                     @endif
-                    <a class="relative group/nav flex items-center justify-center w-12 h-12 mx-auto {{ request()->routeIs('opname') ? 'bg-slate-200/90 dark:bg-slate-800/90 text-green-700 dark:text-green-300 border-l-[5px] border-green-600 shadow-sm font-bold' : 'text-slate-655 dark:text-slate-400 hover:bg-slate-200/60 dark:hover:bg-slate-800/60' }} rounded-xl transition-all duration-200" href="{{ route('opname') }}">
-                        <span class="material-symbols-outlined text-2xl">fact_check</span>
-                        <span class="absolute left-16 bg-slate-900 dark:bg-slate-800 text-white text-xs font-bold px-2 py-1 rounded shadow-lg opacity-0 translate-x-[-10px] group-hover/nav:opacity-100 group-hover/nav:translate-x-0 transition-all pointer-events-none whitespace-nowrap z-50">
-                            Opname Audit
-                        </span>
-                    </a>
                 </div>
             </div>
 
@@ -137,6 +131,25 @@
                         <span class="material-symbols-outlined text-2xl">description</span>
                         <span class="absolute left-16 bg-slate-900 dark:bg-slate-800 text-white text-xs font-bold px-2 py-1 rounded shadow-lg opacity-0 translate-x-[-10px] group-hover/nav:opacity-100 group-hover/nav:translate-x-0 transition-all pointer-events-none whitespace-nowrap z-50">
                             Reports Hub
+                        </span>
+                    </a>
+                </div>
+            </div>
+
+            <!-- Group: Governance -->
+            <div>
+                <div class="text-[8px] font-black text-slate-400 dark:text-slate-500 uppercase text-center select-none py-1 border-t border-slate-200/50 dark:border-slate-850 mt-2 mb-1">GOV</div>
+                <div class="space-y-2">
+                    <a class="relative group/nav flex items-center justify-center w-12 h-12 mx-auto {{ request()->routeIs('opname') ? 'bg-slate-200/90 dark:bg-slate-800/90 text-green-700 dark:text-green-300 border-l-[5px] border-green-600 shadow-sm font-bold' : 'text-slate-655 dark:text-slate-400 hover:bg-slate-200/60 dark:hover:bg-slate-800/60' }} rounded-xl transition-all duration-200" href="{{ route('opname') }}">
+                        <span class="material-symbols-outlined text-2xl">fact_check</span>
+                        <span class="absolute left-16 bg-slate-900 dark:bg-slate-800 text-white text-xs font-bold px-2 py-1 rounded shadow-lg opacity-0 translate-x-[-10px] group-hover/nav:opacity-100 group-hover/nav:translate-x-0 transition-all pointer-events-none whitespace-nowrap z-50">
+                            Stock Opname
+                        </span>
+                    </a>
+                    <a class="relative group/nav flex items-center justify-center w-12 h-12 mx-auto {{ request()->routeIs('inventory-adjustments') ? 'bg-slate-200/90 dark:bg-slate-800/90 text-green-700 dark:text-green-300 border-l-[5px] border-green-600 shadow-sm font-bold' : 'text-slate-655 dark:text-slate-400 hover:bg-slate-200/60 dark:hover:bg-slate-800/60' }} rounded-xl transition-all duration-200" href="{{ route('inventory-adjustments') }}">
+                        <span class="material-symbols-outlined text-2xl">rule</span>
+                        <span class="absolute left-16 bg-slate-900 dark:bg-slate-800 text-white text-xs font-bold px-2 py-1 rounded shadow-lg opacity-0 translate-x-[-10px] group-hover/nav:opacity-100 group-hover/nav:translate-x-0 transition-all pointer-events-none whitespace-nowrap z-50">
+                            Adjustments Queue
                         </span>
                     </a>
                 </div>

@@ -60,6 +60,34 @@ class InventoryService
     }
 
     /**
+     * Handle stock movement without a physical bin (e.g. inbound routing to unassigned locations)
+     */
+    public function moveStockWithoutBin(int $itemVariantId, int $qty, string $type, ?string $reference = null, ?string $userId = null, ?int $supplierId = null)
+    {
+        return DB::transaction(function () use ($itemVariantId, $qty, $type, $reference, $userId, $supplierId) {
+            $activeWarehouseId = session()->get('active_warehouse_id');
+            $terminalId = session()->get('wms_terminal_id') ?: 'SPAREPART-DESK-A';
+            $sessionToken = session()->getId();
+
+            $movement = StockMovement::create([
+                'item_variant_id'       => $itemVariantId,
+                'bin_id'                => null,
+                'supplier_id'           => $supplierId,
+                'type'                  => $type,
+                'qty'                   => $qty,
+                'reference'             => $reference,
+                'created_by'            => $userId,
+                'warehouse_id'          => $activeWarehouseId ?: 1, // Fallback default
+                'operator_id'           => $userId ?: auth()->id(),
+                'terminal_id'           => $terminalId,
+                'terminal_session_id'   => $sessionToken,
+            ]);
+
+            return $movement;
+        });
+    }
+
+    /**
      * Execute compensating reversal transaction (One-Click Reversal Workflow)
      */
     public function executeReversal(int $movementId, ?string $reason = 'Operator Compensating Reversal')

@@ -266,30 +266,29 @@ class ScanPage extends Component
             return;
         }
 
+        // Idempotency: Get atomic lock for the current operator to prevent double click/retries
+        $lockKey = 'stock-out-lock-' . auth()->id();
+        $lock = \Illuminate\Support\Facades\Cache::lock($lockKey, 10);
+
+        if (!$lock->get()) {
+            $this->showMessage('Your checkout request is already being processed. Please wait.', 'error');
+            return;
+        }
+
         try {
             $transaction = DB::transaction(function () use ($inventoryService) {
-                // Calculate Total Price for the header
-                $totalTransactionPrice = collect($this->cart)->sum(fn($item) => $item['qty'] * $item['price']);
+                // Re-read cart inside transaction for absolute safety against concurrent requests
+                $currentCart = session()->get('scan_cart', []);
+                if (empty($currentCart)) {
+                    throw new \Exception("Cart is empty or has already been processed.");
+                }
 
-                // 2. Create Stock Transaction Header
-                $trx = \App\Models\StockTransaction::create([
-                    'code'                => \App\Models\StockTransaction::generateCode(),
-                    'type'                => 'OUT',
-                    'status'              => 'CONFIRMED',
-                    'department_id'       => $this->deptId,
-                    'user_id'             => $this->picId,
-                    'reference'           => $this->reference,
-                    'total_price'         => $totalTransactionPrice,
-                    'warehouse_id'        => session('active_warehouse_id'),
-                    'operator_id'         => auth()->id(),
-                    'terminal_id'         => session('wms_terminal_id') ?: 'SPAREPART-DESK-A',
-                    'terminal_session_id' => session()->getId(),
-                ]);
-
-                foreach ($this->cart as $item) {
+                // 2. Pre-compile all bin deductions (allocations)
+                $allocations = [];
+                foreach ($currentCart as $item) {
                     $remainingQtyToFulfill = $item['qty'];
 
-                    // 3. Find Bins & Deduct Stock
+                    // Find Bins
                     $bins = \App\Models\Bin::where('item_variant_id', $item['item_variant_id'])
                                ->where('current_qty', '>', 0)
                                ->orderByDesc('current_qty')
@@ -299,23 +298,11 @@ class ScanPage extends Component
                         if ($remainingQtyToFulfill <= 0) break;
 
                         $qtyToTake = min($remainingQtyToFulfill, $bin->current_qty);
-                        
-                        // Execute movement
-                        $inventoryService->moveStock($bin, $qtyToTake, 'OUT', $trx->code, auth()->id());
-                        
-                        // 4. Create Transaction Item Record (including snapshots)
-                        \App\Models\StockTransactionItem::create([
-                            'stock_transaction_id' => $trx->id,
-                            'item_variant_id'      => $item['item_variant_id'],
-                            'bin_id'               => $bin->id,
-                            'qty'                  => $qtyToTake,
-                            'item_name_snapshot'   => $item['name'],
-                            'erp_code_snapshot'    => $item['erp_code'],
-                            'unit_snapshot'        => $item['unit'],
-                            'price_snapshot'       => $item['price'],
-                            'total_price_snapshot' => $qtyToTake * $item['price'],
-                        ]);
-
+                        $allocations[] = [
+                            'bin' => $bin,
+                            'qty' => $qtyToTake,
+                            'item' => $item
+                        ];
                         $remainingQtyToFulfill -= $qtyToTake;
                     }
 
@@ -325,12 +312,59 @@ class ScanPage extends Component
                     }
                 }
 
+                // 3. Deadlock Prevention: Sort compiled allocations by bin_id ASC
+                usort($allocations, function ($a, $b) {
+                    return $a['bin']->id <=> $b['bin']->id;
+                });
+
+                // Generate code inside lock & transaction to prevent unique code conflicts
+                $trxCode = \App\Models\StockTransaction::generateCode();
+
+                // 4. Create Stock Transaction Header
+                $trx = \App\Models\StockTransaction::create([
+                    'code'                => $trxCode,
+                    'type'                => 'OUT',
+                    'status'              => 'CONFIRMED',
+                    'department_id'       => $this->deptId,
+                    'user_id'             => $this->picId,
+                    'reference'           => $this->reference,
+                    'total_price'         => collect($currentCart)->sum(fn($item) => $item['qty'] * $item['price']),
+                    'warehouse_id'        => session('active_warehouse_id'),
+                    'operator_id'         => auth()->id(),
+                    'terminal_id'         => session('wms_terminal_id') ?: 'SPAREPART-DESK-A',
+                    'terminal_session_id' => session()->getId(),
+                ]);
+
+                // 5. Execute stock movements and create transaction items in deterministic sorted order
+                foreach ($allocations as $alloc) {
+                    $bin = $alloc['bin'];
+                    $qtyToTake = $alloc['qty'];
+                    $item = $alloc['item'];
+
+                    // Execute movement
+                    $inventoryService->moveStock($bin, $qtyToTake, 'OUT', $trx->code, auth()->id());
+                    
+                    // Create Transaction Item Record
+                    \App\Models\StockTransactionItem::create([
+                        'stock_transaction_id' => $trx->id,
+                        'item_variant_id'      => $item['item_variant_id'],
+                        'bin_id'               => $bin->id,
+                        'qty'                  => $qtyToTake,
+                        'item_name_snapshot'   => $item['name'],
+                        'erp_code_snapshot'    => $item['erp_code'],
+                        'unit_snapshot'        => $item['unit'],
+                        'price_snapshot'       => $item['price'],
+                        'total_price_snapshot' => $qtyToTake * $item['price'],
+                    ]);
+                }
+
+                // Clear the session cart inside the transaction
+                session()->forget('scan_cart');
                 return $trx;
             });
 
-            // 5. Success State
+            // 6. Success State
             $this->cart = [];
-            $this->persistCart();
             $this->barcode = '';
             $this->currentItem = null;
             $this->qty = 1;
@@ -339,6 +373,8 @@ class ScanPage extends Component
             return redirect()->route('reports.stock-out.preview', ['code' => $transaction->code]);
         } catch (\Exception $e) {
             $this->showMessage($e->getMessage(), 'error');
+        } finally {
+            $lock->release();
         }
     }
 

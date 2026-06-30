@@ -3,6 +3,14 @@
 namespace App\Livewire\Opname;
 
 use Livewire\Component;
+use Illuminate\Support\Facades\DB;
+use App\Models\Bin;
+use App\Models\ItemBarcode;
+use App\Models\StockOpname;
+use App\Models\StockOpnameItem;
+use App\Models\InventoryAdjustment;
+use App\Models\InventoryAdjustmentItem;
+use App\Models\AdjustmentReasonMaster;
 
 class OpnamePage extends Component
 {
@@ -19,6 +27,10 @@ class OpnamePage extends Component
     public $systemQty = 0;
     public $difference = 0;
 
+    // Variance Governance Fields
+    public $reasonCode = '';
+    public $notes = '';
+
     public function updatedBinScan($value)
     {
         $this->handleScan($value);
@@ -30,21 +42,21 @@ class OpnamePage extends Component
 
         $this->resetAudit();
 
-        // 1. Try to find Bin directly by code
-        $bin = \App\Models\Bin::where('code', $value)->first();
+        // 1. Try to find Bin directly by code (Scoped to Active Warehouse)
+        $bin = Bin::forActiveWarehouse()->where('code', $value)->first();
         if ($bin) {
             $this->loadBin($bin);
             return;
         }
 
-        // 2. Try to find by Item Barcode
-        $barcode = \App\Models\ItemBarcode::where('barcode', $value)->first();
+        // 2. Try to find by Item Barcode (Scoped to Active Warehouse)
+        $barcode = ItemBarcode::where('barcode', $value)->first();
         if ($barcode) {
             $variant = $barcode->variant;
-            $bins = $variant->bins;
+            $bins = $variant->bins()->forActiveWarehouse()->get();
 
             if ($bins->count() === 0) {
-                $this->addError('binScan', 'Item found but has no assigned bins.');
+                $this->addError('binScan', 'Item found but has no assigned bins in active warehouse.');
             } elseif ($bins->count() === 1) {
                 $this->loadBin($bins->first());
             } else {
@@ -55,12 +67,12 @@ class OpnamePage extends Component
             return;
         }
 
-        $this->addError('binScan', 'No bin or item found with this code.');
+        $this->addError('binScan', 'No bin or item found with this code in active warehouse.');
     }
 
     public function selectBin($binId)
     {
-        $bin = \App\Models\Bin::find($binId);
+        $bin = Bin::forActiveWarehouse()->find($binId);
         if ($bin) {
             $this->loadBin($bin);
         }
@@ -86,11 +98,18 @@ class OpnamePage extends Component
         $this->actualQty = 0;
         $this->systemQty = 0;
         $this->difference = 0;
+        $this->reasonCode = '';
+        $this->notes = '';
     }
 
     public function updatedActualQty($value)
     {
         $this->difference = (int)$value - $this->systemQty;
+        // Reset reason/notes if variance goes back to 0
+        if ($this->difference === 0) {
+            $this->reasonCode = '';
+            $this->notes = '';
+        }
     }
 
     public function incrementQty()
@@ -111,53 +130,147 @@ class OpnamePage extends Component
     {
         if (!$this->selectedBin) return;
 
-        \Illuminate\Support\Facades\DB::transaction(function () {
-            // 1. Get or Create Daily Opname Session
-            $opnameCode = 'OPN-' . date('Ymd');
-            $opname = \App\Models\StockOpname::firstOrCreate(
-                ['code' => $opnameCode],
-                [
-                    'scope_type' => 'LOCATION', // Default scope
-                    'scope_id' => $this->selectedBin->location_id,
-                    'status' => 'DRAFT',
-                    'created_by' => (string)auth()->id()
-                ]
-            );
+        $warehouseId = session()->get('active_warehouse_id');
+        $operatorId = auth()->id();
+        $today = date('Y-m-d');
 
-            // 2. Create Opname Item Record
-            \App\Models\StockOpnameItem::create([
-                'stock_opname_id' => $opname->id,
-                'bin_id' => $this->selectedBin->id,
-                'system_qty' => $this->systemQty,
-                'actual_qty' => $this->actualQty,
-                'difference' => $this->difference,
-            ]);
+        if (!$warehouseId) {
+            session()->flash('error', 'No active warehouse selected.');
+            return;
+        }
 
-            // 3. Handle Adjustment if needed
-            if ($this->difference !== 0) {
-                $inventoryService = app(\App\Services\Inventory\InventoryService::class);
-                $inventoryService->moveStock(
-                    $this->selectedBin,
-                    $this->difference,
-                    'ADJUSTMENT',
-                    'Stock Opname Correction: ' . $opname->code,
-                    (string)auth()->id()
-                );
+        // Case A: Discrepancy detected (Variance !== 0) -> Governance Approval Route
+        if ($this->difference !== 0) {
+            // Validate inputs
+            $rules = [
+                'reasonCode' => 'required|string|exists:adjustment_reason_masters,code',
+                'notes' => $this->reasonCode === 'LAINNYA' ? 'required|string|min:3' : 'nullable|string',
+            ];
+            
+            $this->validate($rules);
+
+            $header = null;
+            try {
+                // Atomic grouping find-or-create header
+                $header = DB::transaction(function () use ($warehouseId, $operatorId, $today) {
+                    $existing = InventoryAdjustment::where('warehouse_id', $warehouseId)
+                        ->where('operator_id', $operatorId)
+                        ->where('date', $today)
+                        ->where('status', 'WAITING_APPROVAL')
+                        ->lockForUpdate()
+                        ->first();
+
+                    if ($existing) {
+                        return $existing;
+                    }
+
+                    $adjustmentNo = InventoryAdjustment::generateCode($warehouseId, $operatorId, $today);
+                    return InventoryAdjustment::create([
+                        'adjustment_no' => $adjustmentNo,
+                        'warehouse_id' => $warehouseId,
+                        'operator_id' => $operatorId,
+                        'date' => $today,
+                        'status' => 'WAITING_APPROVAL',
+                    ]);
+                });
+            } catch (\Illuminate\Database\QueryException $e) {
+                // Handle concurrent execution unique violations safely
+                if ($e->getCode() === '23000') {
+                    $header = InventoryAdjustment::where('warehouse_id', $warehouseId)
+                        ->where('operator_id', $operatorId)
+                        ->where('date', $today)
+                        ->where('status', 'WAITING_APPROVAL')
+                        ->first();
+                } else {
+                    throw $e;
+                }
             }
 
-            // 4. Update Variant Last Opname
-            $this->selectedBin->itemVariant->update([
-                'last_opname_at' => now()
-            ]);
-        });
+            if (!$header) {
+                session()->flash('error', 'Failed to resolve inventory adjustment header.');
+                return;
+            }
 
-        session()->flash('message', 'Opname record saved successfully.');
+            // Create Detail record with immutable snapshots inside transaction
+            DB::transaction(function () use ($header) {
+                $warehouseName = $header->warehouse->name;
+                $operatorName = $header->operator->name;
+
+                $variant = $this->selectedBin->itemVariant;
+                $itemName = $variant->item->name;
+                $erpCode = $variant->item->erp_code;
+                $unit = $variant->item->unit ?? 'PCS';
+                $binCode = $this->selectedBin->code;
+
+                InventoryAdjustmentItem::create([
+                    'inventory_adjustment_id' => $header->id,
+                    'bin_id' => $this->selectedBin->id,
+                    'item_variant_id' => $variant->id,
+                    'system_qty' => $this->systemQty,
+                    'physical_qty' => $this->actualQty,
+                    'variance' => $this->difference,
+                    'reason_code' => $this->reasonCode,
+                    'notes' => $this->notes,
+                    'status' => 'WAITING',
+                    
+                    // Immutable snapshots
+                    'item_name_snapshot' => $itemName,
+                    'erp_code_snapshot' => $erpCode,
+                    'bin_code_snapshot' => $binCode,
+                    'unit_snapshot' => $unit,
+                    'warehouse_name_snapshot' => $warehouseName,
+                    'operator_name_snapshot' => $operatorName,
+                ]);
+
+                // Synchronize parent status
+                InventoryAdjustment::synchronizeStatus($header->id);
+            });
+
+            session()->flash('message', 'Variance recorded in approval queue successfully.');
+
+        } else {
+            // Case B: No Discrepancy (systemQty == actualQty) -> Direct operational log
+            DB::transaction(function () {
+                // 1. Get or Create Daily Opname Session
+                $opnameCode = 'OPN-' . date('Ymd');
+                $opname = StockOpname::firstOrCreate(
+                    ['code' => $opnameCode],
+                    [
+                        'scope_type' => 'LOCATION',
+                        'scope_id' => $this->selectedBin->location_id,
+                        'status' => 'DRAFT',
+                        'created_by' => (string)auth()->id()
+                    ]
+                );
+
+                // 2. Create Opname Item Record
+                StockOpnameItem::create([
+                    'stock_opname_id' => $opname->id,
+                    'bin_id' => $this->selectedBin->id,
+                    'system_qty' => $this->systemQty,
+                    'actual_qty' => $this->actualQty,
+                    'difference' => $this->difference,
+                ]);
+
+                // 3. Update Variant Last Opname (Only for matching count since it's verified)
+                $this->selectedBin->itemVariant->update([
+                    'last_opname_at' => now()
+                ]);
+            });
+
+            session()->flash('message', 'Opname record saved successfully.');
+        }
+
         $this->resetAudit();
         $this->dispatch('focus-scanner');
     }
 
     public function render()
     {
-        return view('livewire.opname.opname-page')->layout('layouts.app');
+        $reasons = AdjustmentReasonMaster::where('is_active', true)->orderBy('id')->get();
+
+        return view('livewire.opname.opname-page', [
+            'reasons' => $reasons
+        ])->layout('layouts.app');
     }
 }

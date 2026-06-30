@@ -194,7 +194,6 @@
                         </button>
                     </div>
                 </div>
-
                 {{-- Extreme Distance-Visible Variance Alert Strip --}}
                 <div class="border-t border-b border-slate-100">
                     @if($difference !== 0)
@@ -219,6 +218,33 @@
                         </div>
                     @endif
                 </div>
+
+                {{-- Reason & Notes Dropdown Panel for Variances --}}
+                @if($difference !== 0)
+                <div class="p-md border-b border-slate-100 bg-slate-50/50 space-y-md animate-in slide-in-from-top-4 duration-200">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-md">
+                        <div>
+                            <label for="reasonCode" class="block text-[9px] font-black text-slate-400 mb-1 uppercase tracking-widest">Reason Code <span class="text-red-500">*</span></label>
+                            <select wire:model.live="reasonCode" id="reasonCode" class="w-full h-10 bg-white border border-slate-200 dark:border-slate-800 rounded-md px-3 text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-slate-400">
+                                <option value="">-- SELECT REASON --</option>
+                                @foreach($reasons as $reason)
+                                    <option value="{{ $reason->code }}">{{ $reason->name }}</option>
+                                @endforeach
+                            </select>
+                            @error('reasonCode')
+                                <span class="text-red-600 text-[10px] font-black uppercase mt-1 block">⚠️ {{ $message }}</span>
+                            @enderror
+                        </div>
+                        <div>
+                            <label for="notes" class="block text-[9px] font-black text-slate-400 mb-1 uppercase tracking-widest">Notes @if($reasonCode === 'LAINNYA') <span class="text-red-500">*</span> @endif</label>
+                            <textarea wire:model.live="notes" id="notes" rows="2" class="w-full bg-white border border-slate-200 dark:border-slate-800 rounded-md p-2 text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-slate-400" placeholder="Enter notes or additional description..."></textarea>
+                            @error('notes')
+                                <span class="text-red-600 text-[10px] font-black uppercase mt-1 block">⚠️ {{ $message }}</span>
+                            @enderror
+                        </div>
+                    </div>
+                </div>
+                @endif
                 
                 {{-- Sticky Action Bottom Dock (44px target buttons) --}}
                 <div class="p-md bg-slate-50 flex gap-sm border-t border-slate-200">
@@ -228,7 +254,8 @@
                         Cancel
                     </button>
                     <button wire:click="saveItem" 
-                            class="flex-[2] h-11 bg-slate-900 hover:bg-slate-850 text-white font-black text-xs uppercase tracking-widest rounded-md shadow-md active:scale-95 transition-all flex items-center justify-center gap-2 group">
+                            @if($difference !== 0 && (empty($reasonCode) || ($reasonCode === 'LAINNYA' && empty(trim($notes))))) disabled @endif
+                            class="flex-[2] h-11 bg-slate-900 hover:bg-slate-850 disabled:bg-slate-350 disabled:cursor-not-allowed disabled:text-slate-500 text-white font-black text-xs uppercase tracking-widest rounded-md shadow-md active:scale-95 transition-all flex items-center justify-center gap-2 group">
                         <span>COMMIT PHYSICAL AUDIT</span>
                         <span class="material-symbols-outlined text-md font-black transition-transform group-hover:translate-x-1.5">arrow_forward</span>
                     </button>
