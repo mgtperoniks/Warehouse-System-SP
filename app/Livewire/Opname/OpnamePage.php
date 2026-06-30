@@ -156,7 +156,8 @@ class OpnamePage extends Component
                     $existing = InventoryAdjustment::where('warehouse_id', $warehouseId)
                         ->where('operator_id', $operatorId)
                         ->where('date', $today)
-                        ->where('status', 'WAITING_APPROVAL')
+                        ->whereDoesntHave('basoDocument')
+                        ->latest()
                         ->lockForUpdate()
                         ->first();
 
@@ -179,7 +180,8 @@ class OpnamePage extends Component
                     $header = InventoryAdjustment::where('warehouse_id', $warehouseId)
                         ->where('operator_id', $operatorId)
                         ->where('date', $today)
-                        ->where('status', 'WAITING_APPROVAL')
+                        ->whereDoesntHave('basoDocument')
+                        ->latest()
                         ->first();
                 } else {
                     throw $e;
@@ -226,7 +228,7 @@ class OpnamePage extends Component
                 InventoryAdjustment::synchronizeStatus($header->id);
             });
 
-            session()->flash('message', 'Variance recorded in approval queue successfully.');
+            session()->flash('message', 'Inventory adjustment berhasil dikirim ke Manager PPIC.');
 
         } else {
             // Case B: No Discrepancy (systemQty == actualQty) -> Direct operational log

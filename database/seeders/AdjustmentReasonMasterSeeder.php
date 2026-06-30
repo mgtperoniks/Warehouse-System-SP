@@ -12,22 +12,45 @@ class AdjustmentReasonMasterSeeder extends Seeder
      */
     public function run(): void
     {
+        // Truncate to replace the existing data entirely
+        AdjustmentReasonMaster::truncate();
+
         $reasons = [
-            ['code' => 'SALAH_HITUNG', 'name' => 'Salah Hitung'],
-            ['code' => 'BARANG_DITEMUKAN', 'name' => 'Barang Ditemukan'],
-            ['code' => 'BARANG_HILANG', 'name' => 'Barang Hilang'],
-            ['code' => 'PINDAH_RAK', 'name' => 'Pindah Rak'],
-            ['code' => 'SALAH_SCAN', 'name' => 'Salah Scan'],
-            ['code' => 'KERUSAKAN', 'name' => 'Kerusakan'],
-            ['code' => 'KESALAHAN_SISTEM', 'name' => 'Kesalahan Sistem'],
+            // Group 1 — Human Error
+            ['code' => 'COUNTING_ERROR', 'name' => 'Salah Hitung'],
+            ['code' => 'WRONG_SCAN', 'name' => 'Salah Scan Barcode'],
+            ['code' => 'WRONG_BIN', 'name' => 'Salah Rak / Salah Penempatan'],
+            ['code' => 'WRONG_PICK', 'name' => 'Salah Ambil Barang'],
+
+            // Group 2 — Found Items
+            ['code' => 'FOUND_ITEM', 'name' => 'Barang Ditemukan'],
+            ['code' => 'RETURN_FOUND', 'name' => 'Barang Retur Ditemukan'],
+            ['code' => 'LEFTOVER_FOUND', 'name' => 'Sisa Produksi Ditemukan'],
+
+            // Group 3 — Missing / Damaged
+            ['code' => 'MISSING_ITEM', 'name' => 'Barang Tidak Ditemukan'],
+            ['code' => 'DAMAGED_ITEM', 'name' => 'Barang Rusak'],
+            ['code' => 'EXPIRED_ITEM', 'name' => 'Barang Kadaluarsa / Tidak Layak Pakai'],
+
+            // Group 4 — Movement Errors
+            ['code' => 'MOVED_WITHOUT_SCAN', 'name' => 'Dipindahkan Tanpa Scan'],
+            ['code' => 'TRANSFER_ERROR', 'name' => 'Salah Transfer Gudang'],
+
+            // Group 5 — System
+            ['code' => 'ERP_ERROR', 'name' => 'Kesalahan ERP'],
+            ['code' => 'SYSTEM_ERROR', 'name' => 'Kesalahan Sistem WMS'],
+
+            // Group 6 — Other (Preserving stable reason code 'LAINNYA')
             ['code' => 'LAINNYA', 'name' => 'Lainnya'],
         ];
 
         foreach ($reasons as $reason) {
-            AdjustmentReasonMaster::updateOrCreate(
-                ['code' => $reason['code']],
-                ['name' => $reason['name'], 'is_active' => true]
-            );
+            AdjustmentReasonMaster::create([
+                'code' => $reason['code'],
+                'name' => $reason['name'],
+                'is_active' => true,
+            ]);
         }
     }
 }
+

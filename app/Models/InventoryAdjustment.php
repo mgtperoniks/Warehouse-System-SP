@@ -7,6 +7,8 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
+use Illuminate\Database\Eloquent\Relations\HasOne;
+
 class InventoryAdjustment extends Model
 {
     use HasFactory;
@@ -32,6 +34,11 @@ class InventoryAdjustment extends Model
     public function items(): HasMany
     {
         return $this->hasMany(InventoryAdjustmentItem::class);
+    }
+
+    public function basoDocument(): HasOne
+    {
+        return $this->hasOne(BasoDocument::class);
     }
 
     /**
@@ -62,21 +69,32 @@ class InventoryAdjustment extends Model
         $whCode = $warehouse ? strtoupper($warehouse->code) : 'WH';
         
         $dateStr = date('Ymd', strtotime($date));
-        $prefix = "IA-{$whCode}-{$dateStr}-";
+        $baseCode = "IA-{$whCode}-{$dateStr}";
 
-        // Query the highest sequential code matching the prefix
-        $lastAdjustment = self::where('adjustment_no', 'like', $prefix . '%')
-            ->orderBy('adjustment_no', 'desc')
-            ->first();
-
-        $sequence = 1;
-        if ($lastAdjustment) {
-            $parts = explode('-', $lastAdjustment->adjustment_no);
-            $lastSeq = (int) end($parts);
-            $sequence = $lastSeq + 1;
+        // If baseCode does not exist, use it directly
+        if (!self::where('adjustment_no', $baseCode)->exists()) {
+            return $baseCode;
         }
 
-        return $prefix . str_pad($sequence, 3, '0', STR_PAD_LEFT);
+        // If it exists, find the next sequential suffix (e.g. -2, -3)
+        $prefix = $baseCode . '-';
+        $existingCodes = self::where('adjustment_no', 'like', $prefix . '%')
+            ->pluck('adjustment_no')
+            ->toArray();
+
+        $maxSequence = 1;
+        foreach ($existingCodes as $code) {
+            $suffixStr = substr($code, strlen($prefix));
+            if (is_numeric($suffixStr)) {
+                $seq = (int) $suffixStr;
+                if ($seq > $maxSequence) {
+                    $maxSequence = $seq;
+                }
+            }
+        }
+
+        $sequence = $maxSequence + 1;
+        return $prefix . $sequence;
     }
 
     /**

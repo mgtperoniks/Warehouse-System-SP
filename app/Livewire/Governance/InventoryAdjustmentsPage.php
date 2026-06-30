@@ -26,8 +26,45 @@ class InventoryAdjustmentsPage extends Component
     // Date presets
     public function mount()
     {
-        $this->startDate = Carbon::today()->startOfMonth()->format('Y-m-d');
+        $this->startDate = Carbon::today()->format('Y-m-d');
         $this->endDate = Carbon::today()->format('Y-m-d');
+        
+        if (auth()->user()->role !== 'manager') {
+            $this->operatorId = (string)auth()->id();
+        } else {
+            $this->operatorId = '';
+        }
+    }
+
+    /**
+     * Format Carbon timestamp into short natural age layout.
+     */
+    public function formatAge($createdAt)
+    {
+        $dt = Carbon::parse($createdAt);
+        $now = Carbon::now();
+        $diffSeconds = (int) $dt->diffInSeconds($now);
+        
+        if ($diffSeconds < 60) {
+            return $diffSeconds . ' sec';
+        }
+        
+        $diffMinutes = (int) $dt->diffInMinutes($now);
+        if ($diffMinutes < 60) {
+            return $diffMinutes . ' min';
+        }
+        
+        $diffHours = (int) $dt->diffInHours($now);
+        if ($diffHours < 24) {
+            return $diffHours . ' hr';
+        }
+        
+        if ($dt->isYesterday()) {
+            return 'Yesterday';
+        }
+        
+        $diffDays = (int) $dt->diffInDays($now);
+        return $diffDays . ' days';
     }
 
     public function toggleExpand($headerId)
@@ -114,7 +151,7 @@ class InventoryAdjustmentsPage extends Component
                 \App\Models\InventoryAdjustment::synchronizeStatus($header->id);
             });
 
-            session()->flash('message', 'Item approved and stock adjusted successfully.');
+            session()->flash('message', 'Inventory adjustment berhasil disetujui. Stok fisik telah diperbarui.');
         } catch (\Exception $e) {
             session()->flash('error', 'Approval failed: ' . $e->getMessage());
         }
@@ -160,7 +197,7 @@ class InventoryAdjustmentsPage extends Component
                 \App\Models\InventoryAdjustment::synchronizeStatus($item->inventory_adjustment_id);
             });
 
-            session()->flash('message', 'Adjustment item rejected successfully.');
+            session()->flash('message', 'Inventory adjustment berhasil ditolak.');
         } catch (\Exception $e) {
             session()->flash('error', 'Rejection failed: ' . $e->getMessage());
         }
@@ -185,6 +222,108 @@ class InventoryAdjustmentsPage extends Component
                 $this->startDate = Carbon::today()->startOfMonth()->format('Y-m-d');
                 $this->endDate = Carbon::today()->endOfMonth()->format('Y-m-d');
                 break;
+        }
+    }
+
+    /**
+     * Generate BASO PDF for a completed Inventory Adjustment.
+     */
+    public function generateBaso($headerId)
+    {
+        if (auth()->user()->role !== 'manager') {
+            session()->flash('error', 'Unauthorized. Only Manager PPIC can generate BASO.');
+            return;
+        }
+
+        try {
+            $adjustment = InventoryAdjustment::findOrFail($headerId);
+
+            if ($adjustment->status !== 'COMPLETED') {
+                session()->flash('error', 'Cannot generate BASO. The Inventory Adjustment session is not yet completed.');
+                return;
+            }
+
+            $baso = \Illuminate\Support\Facades\DB::transaction(function () use ($adjustment) {
+                $existing = \App\Models\BasoDocument::where('inventory_adjustment_id', $adjustment->id)->first();
+                if ($existing) {
+                    return $existing;
+                }
+
+                $basoNumber = \App\Models\BasoDocument::generateNumber($adjustment->warehouse_id, $adjustment->date);
+
+                // Prepare storage directory
+                $dir = 'baso';
+                if (!\Illuminate\Support\Facades\Storage::disk('public')->exists($dir)) {
+                    \Illuminate\Support\Facades\Storage::disk('public')->makeDirectory($dir);
+                }
+
+                $filename = "{$basoNumber}.pdf";
+                $relativePdfPath = "baso/{$filename}";
+
+                return \App\Models\BasoDocument::create([
+                    'inventory_adjustment_id' => $adjustment->id,
+                    'baso_number' => $basoNumber,
+                    'generated_by' => auth()->id(),
+                    'generated_at' => now(),
+                    'pdf_path' => $relativePdfPath,
+                ]);
+            });
+
+            // Compile the PDF using DomPDF
+            if (!\Illuminate\Support\Facades\Storage::disk('public')->exists($baso->pdf_path)) {
+                $items = $adjustment->items()->with(['bin', 'itemVariant.item'])->get();
+                $totalItems = $items->count();
+                $approvedCount = $items->where('status', 'APPROVED')->count();
+                $rejectedCount = $items->where('status', 'REJECTED')->count();
+                
+                $posVariance = $items->where('variance', '>', 0)->sum('variance');
+                $negVariance = $items->where('variance', '<', 0)->sum('variance');
+                $netVariance = $items->sum('variance');
+
+                $warehouseName = $adjustment->warehouse->name ?? 'N/A';
+                $operatorName = $adjustment->operator->name ?? 'N/A';
+                $managerName = $baso->generator->name ?? 'N/A';
+                $businessDate = $adjustment->date;
+
+                $reasonsMap = [
+                    'COUNTING_ERROR' => 'Salah Hitung',
+                    'WRONG_SCAN' => 'Salah Scan Barcode',
+                    'WRONG_BIN' => 'Salah Rak / Salah Penempatan',
+                    'WRONG_PICK' => 'Salah Ambil Barang',
+                    'FOUND_ITEM' => 'Barang Ditemukan',
+                    'RETURN_FOUND' => 'Barang Retur Ditemukan',
+                    'LEFTOVER_FOUND' => 'Sisa Produksi Ditemukan',
+                    'MISSING_ITEM' => 'Barang Tidak Ditemukan',
+                    'DAMAGED_ITEM' => 'Barang Rusak',
+                    'EXPIRED_ITEM' => 'Barang Kadaluarsa / Tidak Layak Pakai',
+                    'MOVED_WITHOUT_SCAN' => 'Dipindahkan Tanpa Scan',
+                    'SYSTEM_GLITCH' => 'Glitch Sistem / Selisih Sinkronisasi',
+                    'LAINNYA' => 'Lainnya (Butuh Catatan)',
+                ];
+
+                $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('reports.baso-pdf', [
+                    'baso' => $baso,
+                    'adjustment' => $adjustment,
+                    'items' => $items,
+                    'totalItems' => $totalItems,
+                    'approvedCount' => $approvedCount,
+                    'rejectedCount' => $rejectedCount,
+                    'posVariance' => $posVariance,
+                    'negVariance' => $negVariance,
+                    'netVariance' => $netVariance,
+                    'warehouseName' => $warehouseName,
+                    'operatorName' => $operatorName,
+                    'managerName' => $managerName,
+                    'businessDate' => $businessDate,
+                    'reasonsMap' => $reasonsMap,
+                ])->setPaper('a4', 'portrait');
+
+                \Illuminate\Support\Facades\Storage::disk('public')->put($baso->pdf_path, $pdf->output());
+            }
+
+            session()->flash('message', 'BASO PDF berhasil dibuat.');
+        } catch (\Exception $e) {
+            session()->flash('error', 'Failed to generate BASO: ' . $e->getMessage());
         }
     }
 
@@ -229,7 +368,7 @@ class InventoryAdjustmentsPage extends Component
             $headersQuery->where('date', '<=', $this->endDate);
         }
 
-        // 5. Status Filtering (Filter headers that have items matching the selected status)
+        // 5. Status Filtering
         if ($this->statusFilter && $this->statusFilter !== 'ALL') {
             $headersQuery->whereHas('items', function ($q) {
                 $q->where('status', $this->statusFilter);
@@ -241,7 +380,12 @@ class InventoryAdjustmentsPage extends Component
             ->orderBy('created_at', 'desc')
             ->get();
 
-        // 6. Base Query for KPI Counters (Matches same isolation and scope rules)
+        // Map BASO documents for the headers in this request
+        $basoMap = \App\Models\BasoDocument::whereIn('inventory_adjustment_id', $headers->pluck('id'))
+            ->get()
+            ->keyBy('inventory_adjustment_id');
+
+        // 6. Base Query for KPI Counters
         $kpiItemQuery = InventoryAdjustmentItem::whereHas('header', function ($q) use ($activeWarehouseId) {
             $q->where('warehouse_id', $activeWarehouseId);
             if (auth()->user()->role !== 'manager') {
@@ -253,13 +397,15 @@ class InventoryAdjustmentsPage extends Component
             'waiting' => (clone $kpiItemQuery)->where('status', 'WAITING')->count(),
             'approved_today' => (clone $kpiItemQuery)->where('status', 'APPROVED')->whereDate('approved_at', Carbon::today())->count(),
             'rejected_today' => (clone $kpiItemQuery)->where('status', 'REJECTED')->whereDate('rejected_at', Carbon::today())->count(),
-            'avg_time' => '--' // Placeholder for future phase
+            'avg_time' => '--'
         ];
 
         return view('livewire.governance.inventory-adjustments-page', [
             'headers' => $headers,
             'operators' => $operators,
-            'kpis' => $kpis
+            'kpis' => $kpis,
+            'basoMap' => $basoMap,
         ])->layout('layouts.app');
     }
 }
+

@@ -254,10 +254,21 @@
                         Cancel
                     </button>
                     <button wire:click="saveItem" 
+                            wire:loading.attr="disabled"
+                            wire:target="saveItem"
                             @if($difference !== 0 && (empty($reasonCode) || ($reasonCode === 'LAINNYA' && empty(trim($notes))))) disabled @endif
                             class="flex-[2] h-11 bg-slate-900 hover:bg-slate-850 disabled:bg-slate-350 disabled:cursor-not-allowed disabled:text-slate-500 text-white font-black text-xs uppercase tracking-widest rounded-md shadow-md active:scale-95 transition-all flex items-center justify-center gap-2 group">
-                        <span>COMMIT PHYSICAL AUDIT</span>
-                        <span class="material-symbols-outlined text-md font-black transition-transform group-hover:translate-x-1.5">arrow_forward</span>
+                        <span wire:loading.remove wire:target="saveItem" class="flex items-center gap-2">
+                            <span>COMMIT PHYSICAL AUDIT</span>
+                            <span class="material-symbols-outlined text-md font-black transition-transform group-hover:translate-x-1.5">arrow_forward</span>
+                        </span>
+                        <span wire:loading wire:target="saveItem" class="flex items-center gap-1.5">
+                            <svg class="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            <span>Processing...</span>
+                        </span>
                     </button>
                 </div>
 
