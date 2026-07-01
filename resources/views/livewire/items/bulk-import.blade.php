@@ -71,7 +71,7 @@
             Mode: Write-Only / Batch 100 / ERP Unique Constraint Active
         </p>
         <p class="text-[8px] font-black text-primary uppercase tracking-widest">
-            Column Index: Name(0), ERP(1), SKU(2), Unit(3), Brand(4), Supplier(5), Bin(6), Stock(7), Price(8), Desc(9), Barcode(10)
+            Column Index: Name(0), ERP(1), SKU(2), Unit(3), Brand(4), Supplier(5), Bin(6), Stock(7), Price(8), Desc(9), Barcode(10), Procurement(11), Class(12), Lead Time(13)
         </p>
     </div>
 
@@ -86,10 +86,11 @@
             const container = document.querySelector('#hot-container');
             
             hot = new Handsontable(container, {
-                data: Array.from({ length: 30 }, () => ['', '', '', 'PCS', '', '', '', '', '', '', '']),
+                data: Array.from({ length: 30 }, () => ['', '', '', 'PCS', '', '', '', '', '', '', '', 'LOCAL', 'CONSUMABLE', '30']),
                 colHeaders: [
                     'NAME', 'ERP', 'SKU', 'UNIT', 'BRAND', 
-                    'SUPPLIER', 'BIN', 'STOCK', 'PRICE', 'DESC', 'BARCODE'
+                    'SUPPLIER', 'BIN', 'STOCK', 'PRICE', 'DESC', 'BARCODE',
+                    'PROCUREMENT', 'CLASS', 'LEAD TIME (DAYS)'
                 ],
                 columns: [
                     { width: 220 }, // Name
@@ -103,6 +104,9 @@
                     { width: 80, type: 'numeric' }, // Price
                     { width: 180 }, // Desc
                     { width: 120 }, // Barcode
+                    { width: 100, type: 'dropdown', source: ['LOCAL', 'IMPORT'] }, // Procurement
+                    { width: 110, type: 'dropdown', source: ['CONSUMABLE', 'SPAREPART'] }, // Class
+                    { width: 120, type: 'numeric' }, // Lead Time
                 ],
                 rowHeaders: true,
                 height: 'calc(100vh - 220px)',
@@ -134,7 +138,7 @@
         window.addEventListener('importCompleted', event => {
             const results = event.detail[0];
             if (results.rejected === 0) {
-                hot.loadData(Array.from({ length: 30 }, () => ['', '', '', 'PCS', '', '', '', '', '', '', '']));
+                hot.loadData(Array.from({ length: 30 }, () => ['', '', '', 'PCS', '', '', '', '', '', '', '', 'LOCAL', 'CONSUMABLE', '30']));
             }
         });
     </script>

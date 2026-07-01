@@ -13,7 +13,7 @@ class ItemController extends Controller
         return view('items.index');
     }
 
-    public function show(ItemVariant $variant)
+    public function show(ItemVariant $variant, \App\Services\Inventory\InventoryPlanningService $planningService)
     {
         // Eager load everything needed for the rich detail page
         $variant->load(['item', 'suppliers', 'images', 'barcodes', 'bins']);
@@ -24,7 +24,14 @@ class ItemController extends Controller
             ->limit(10)
             ->get();
 
-        return view('items.show', compact('variant', 'movements'));
+        $currentStock = $variant->bins->sum('current_qty');
+        $weeklyAvg = $planningService->calculateWeeklyAverage($variant->id);
+        $monthlyAvg = $planningService->calculateMonthlyAverage($variant->id);
+        $sixMonthAvg = $planningService->calculateSixMonthAverage($variant->id);
+        $daysLeft = $planningService->calculateDaysLeft($currentStock, $weeklyAvg);
+        $healthStatus = $planningService->calculateHealthStatus($daysLeft, $variant->lead_time_days ?? 30);
+
+        return view('items.show', compact('variant', 'movements', 'weeklyAvg', 'monthlyAvg', 'sixMonthAvg', 'daysLeft', 'healthStatus'));
     }
 
     public function create()

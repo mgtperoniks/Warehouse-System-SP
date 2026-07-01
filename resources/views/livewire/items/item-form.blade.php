@@ -224,6 +224,63 @@
                 </div>
             </div>
 
+            <!-- Inventory Planning Card -->
+            <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-md p-md shadow-sm">
+                <h3 class="text-sm font-black text-on-surface mb-md flex items-center gap-2 uppercase tracking-wide">
+                    <span class="material-symbols-outlined text-purple-500 text-xl">assignment</span>
+                    Inventory Planning
+                </h3>
+                
+                <div class="space-y-sm">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-sm">
+                        <!-- Procurement Type -->
+                        <div>
+                            <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Procurement</label>
+                            <div class="flex items-center gap-6 mt-2">
+                                <label class="inline-flex items-center gap-2 cursor-pointer">
+                                    <input type="radio" wire:model="procurement_type" value="LOCAL" class="w-4 h-4 text-primary border-slate-350 focus:ring-primary/20">
+                                    <span class="text-xs font-bold text-slate-700 dark:text-slate-300">Local</span>
+                                </label>
+                                <label class="inline-flex items-center gap-2 cursor-pointer">
+                                    <input type="radio" wire:model="procurement_type" value="IMPORT" class="w-4 h-4 text-primary border-slate-350 focus:ring-primary/20">
+                                    <span class="text-xs font-bold text-slate-700 dark:text-slate-300">Import</span>
+                                </label>
+                            </div>
+                            @error('procurement_type') <span class="text-error text-xs font-bold mt-1 block">{{ $message }}</span> @enderror
+                        </div>
+
+                        <!-- Inventory Class -->
+                        <div>
+                            <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Inventory Class</label>
+                            <div class="flex items-center gap-6 mt-2">
+                                <label class="inline-flex items-center gap-2 cursor-pointer">
+                                    <input type="radio" wire:model="inventory_class" value="CONSUMABLE" class="w-4 h-4 text-primary border-slate-350 focus:ring-primary/20">
+                                    <span class="text-xs font-bold text-slate-700 dark:text-slate-300">Consumable</span>
+                                </label>
+                                <label class="inline-flex items-center gap-2 cursor-pointer">
+                                    <input type="radio" wire:model="inventory_class" value="SPAREPART" class="w-4 h-4 text-primary border-slate-350 focus:ring-primary/20">
+                                    <span class="text-xs font-bold text-slate-700 dark:text-slate-300">Sparepart</span>
+                                </label>
+                            </div>
+                            @error('inventory_class') <span class="text-error text-xs font-bold mt-1 block">{{ $message }}</span> @enderror
+                        </div>
+                    </div>
+
+                    <!-- Lead Time Days -->
+                    <div class="pt-2">
+                        <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Lead Time</label>
+                        <div class="flex items-center gap-2">
+                            <div class="relative w-32">
+                                <input wire:model="lead_time_days" type="number" class="w-full h-11 pr-12 bg-slate-50 border border-slate-200 dark:border-slate-800 rounded-md px-4 py-2.5 focus:ring-2 focus:ring-primary/20 focus:border-primary font-bold text-on-surface transition-all text-sm" placeholder="30">
+                                <span class="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400 pointer-events-none">Days</span>
+                            </div>
+                        </div>
+                        @error('lead_time_days') <span class="text-error text-xs font-bold mt-1 block">{{ $message }}</span> @enderror
+                        <p class="text-[9px] text-slate-400 mt-1.5 font-bold italic">Estimated procurement lead time from Purchase Order until material arrives at warehouse.</p>
+                    </div>
+                </div>
+            </div>
+
             <!-- Barcodes Card -->
             <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-md p-md shadow-sm">
                 <h3 class="text-sm font-black text-on-surface mb-md flex items-center gap-2 uppercase tracking-wide">

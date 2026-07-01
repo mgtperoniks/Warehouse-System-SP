@@ -150,6 +150,80 @@
                 </p>
             </div>
 
+            <!-- Inventory Planning Metadata Card -->
+            <div class="bg-surface-container-lowest border border-slate-200 rounded-lg shadow-sm p-4">
+                <h3 class="text-xs font-black uppercase tracking-widest mb-3 flex items-center gap-2 text-slate-550 border-b border-slate-100 pb-2">
+                    <span class="material-symbols-outlined text-purple-500 text-md">assignment</span>
+                    Inventory Planning
+                </h3>
+                <div class="grid grid-cols-2 gap-3 text-[11px] font-mono text-slate-655 font-bold">
+                    <div class="bg-slate-50 border border-slate-200/60 p-2.5 rounded-lg flex flex-col gap-1">
+                        <span class="text-slate-400 font-bold uppercase tracking-wider text-[9px]">Procurement</span>
+                        <span class="font-black text-slate-800 uppercase flex items-center gap-1">
+                            @if(($variant->procurement_type ?? 'LOCAL') === 'LOCAL')
+                                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Local
+                            @else
+                                <span class="w-1.5 h-1.5 rounded-full bg-indigo-500"></span> Import
+                            @endif
+                        </span>
+                    </div>
+                    <div class="bg-slate-50 border border-slate-200/60 p-2.5 rounded-lg flex flex-col gap-1">
+                        <span class="text-slate-400 font-bold uppercase tracking-wider text-[9px]">Inventory Class</span>
+                        <span class="font-black text-slate-800 uppercase flex items-center gap-1">
+                            @if(($variant->inventory_class ?? 'CONSUMABLE') === 'CONSUMABLE')
+                                <span class="w-1.5 h-1.5 rounded-full bg-blue-500"></span> Consumable
+                            @else
+                                <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span> Sparepart
+                            @endif
+                        </span>
+                    </div>
+                    <div class="bg-slate-50 border border-slate-200/60 p-2.5 rounded-lg flex flex-col gap-1">
+                        <span class="text-slate-400 font-bold uppercase tracking-wider text-[9px]">Lead Time</span>
+                        <span class="font-black text-slate-850 text-xs">{{ $variant->lead_time_days ?? 30 }} Days</span>
+                    </div>
+                    <div class="bg-slate-50 border border-slate-200/60 p-2.5 rounded-lg flex flex-col gap-1">
+                        <span class="text-slate-400 font-bold uppercase tracking-wider text-[9px]">Days Left</span>
+                        <span class="font-black text-slate-850 text-xs">
+                            @if($daysLeft === null)
+                                <span class="text-slate-400 uppercase font-bold tracking-wider text-[9px]">No Usage</span>
+                            @else
+                                {{ number_format($daysLeft, 1) }} Days
+                            @endif
+                        </span>
+                    </div>
+                    <div class="bg-slate-50 border border-slate-200/60 p-2.5 rounded-lg flex flex-col gap-1">
+                        <span class="text-slate-400 font-bold uppercase tracking-wider text-[9px]">Avg Weekly (90d)</span>
+                        <span class="font-black text-slate-850 text-xs">{{ number_format($weeklyAvg, 2) }}</span>
+                    </div>
+                    <div class="bg-slate-50 border border-slate-200/60 p-2.5 rounded-lg flex flex-col gap-1">
+                        <span class="text-slate-400 font-bold uppercase tracking-wider text-[9px]">Avg Monthly (180d)</span>
+                        <span class="font-black text-slate-850 text-xs">{{ number_format($monthlyAvg, 2) }}</span>
+                    </div>
+                    <div class="bg-slate-50 border border-slate-200/60 p-2.5 rounded-lg flex flex-col gap-1">
+                        <span class="text-slate-400 font-bold uppercase tracking-wider text-[9px]">Avg 6 Month</span>
+                        <span class="font-black text-slate-850 text-xs">{{ number_format($sixMonthAvg, 2) }}</span>
+                    </div>
+                    <div class="bg-slate-50 border border-slate-200/60 p-2.5 rounded-lg flex flex-col gap-1">
+                        <span class="text-slate-400 font-bold uppercase tracking-wider text-[9px]">Health Status</span>
+                        <span class="font-black text-xs uppercase flex items-center gap-1">
+                            @if($healthStatus === 'Healthy')
+                                <span class="text-emerald-600 flex items-center gap-1 text-[10px]">
+                                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Healthy
+                                </span>
+                            @elseif($healthStatus === 'Warning')
+                                <span class="text-amber-600 flex items-center gap-1 text-[10px]">
+                                    <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span> Warning
+                                </span>
+                            @else
+                                <span class="text-rose-600 flex items-center gap-1 text-[10px] animate-pulse">
+                                    <span class="w-1.5 h-1.5 rounded-full bg-rose-500"></span> Critical
+                                </span>
+                            @endif
+                        </span>
+                    </div>
+                </div>
+            </div>
+
             <!-- Registered Barcodes (Scanner-First) -->
             <div class="bg-surface-container-lowest border border-slate-200 rounded-lg shadow-sm p-4">
                 <h3 class="text-xs font-black uppercase tracking-widest mb-3 flex items-center gap-2 text-slate-550 border-b border-slate-100 pb-2">

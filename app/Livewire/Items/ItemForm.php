@@ -26,6 +26,11 @@ class ItemForm extends Component
     public $unit = 'PCS';
     public $description = '';
 
+    // Planning Info
+    public $procurement_type = 'LOCAL';
+    public $inventory_class = 'CONSUMABLE';
+    public $lead_time_days = 30;
+
     // Barcodes
     public $barcodes = [];
     public $newBarcode = '';
@@ -63,6 +68,9 @@ class ItemForm extends Component
             'photos.*' => 'image|max:25600', // 25MB Max
             'bin_code' => 'nullable|string|max:50',
             'initial_stock' => 'nullable|integer|min:0',
+            'procurement_type' => 'required|in:LOCAL,IMPORT',
+            'inventory_class' => 'required|in:CONSUMABLE,SPAREPART',
+            'lead_time_days' => 'required|integer|min:1|max:365',
         ];
     }
 
@@ -163,6 +171,10 @@ class ItemForm extends Component
             $this->brand = $variant->brand;
             $this->unit = $variant->unit;
             $this->description = $variant->description;
+            
+            $this->procurement_type = $variant->procurement_type ?? 'LOCAL';
+            $this->inventory_class = $variant->inventory_class ?? 'CONSUMABLE';
+            $this->lead_time_days = $variant->lead_time_days ?? 30;
 
             // Load Barcodes
             foreach ($variant->barcodes as $i => $bc) {
@@ -310,6 +322,9 @@ class ItemForm extends Component
                     'brand' => $this->brand,
                     'unit' => $this->unit,
                     'description' => $this->description,
+                    'procurement_type' => $this->procurement_type,
+                    'inventory_class' => $this->inventory_class,
+                    'lead_time_days' => $this->lead_time_days,
                 ]);
             } else {
                 $this->variant->item->update(['name' => $this->name]);
@@ -319,6 +334,9 @@ class ItemForm extends Component
                     'brand' => $this->brand,
                     'unit' => $this->unit,
                     'description' => $this->description,
+                    'procurement_type' => $this->procurement_type,
+                    'inventory_class' => $this->inventory_class,
+                    'lead_time_days' => $this->lead_time_days,
                 ]);
             }
 

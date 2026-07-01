@@ -119,10 +119,10 @@ class BasoLiteTest extends TestCase
 
         // 1. WAITING_APPROVAL adjustment should not show "Generate BASO" or allow it
         $headerWaiting = InventoryAdjustment::create([
-            'adjustment_no' => 'IA-SP-20260630-901-' . uniqid(),
+            'adjustment_no' => 'IA-SP-' . date('Ymd') . '-901-' . uniqid(),
             'warehouse_id' => $this->warehouse->id,
             'operator_id' => $this->adminUser->id,
-            'date' => '2026-06-30',
+            'date' => date('Y-m-d'),
             'status' => 'WAITING_APPROVAL',
         ]);
         $this->createAdjustmentItem($headerWaiting->id, 'WAITING');
@@ -138,10 +138,10 @@ class BasoLiteTest extends TestCase
 
         // 2. COMPLETED status adjustment should display "Generate BASO"
         $headerCompleted = InventoryAdjustment::create([
-            'adjustment_no' => 'IA-SP-20260630-902-' . uniqid(),
+            'adjustment_no' => 'IA-SP-' . date('Ymd') . '-902-' . uniqid(),
             'warehouse_id' => $this->warehouse->id,
             'operator_id' => $this->adminUser->id,
-            'date' => '2026-06-30',
+            'date' => date('Y-m-d'),
             'status' => 'COMPLETED',
         ]);
         $this->createAdjustmentItem($headerCompleted->id, 'APPROVED');
@@ -156,10 +156,10 @@ class BasoLiteTest extends TestCase
         $this->actingAs($this->manager);
 
         $header = InventoryAdjustment::create([
-            'adjustment_no' => 'IA-SP-20260630-903-' . uniqid(),
+            'adjustment_no' => 'IA-SP-' . date('Ymd') . '-903-' . uniqid(),
             'warehouse_id' => $this->warehouse->id,
             'operator_id' => $this->adminUser->id,
-            'date' => '2026-06-30',
+            'date' => date('Y-m-d'),
             'status' => 'COMPLETED',
         ]);
         $this->createAdjustmentItem($header->id, 'APPROVED');
@@ -183,10 +183,10 @@ class BasoLiteTest extends TestCase
         $this->actingAs($this->manager);
 
         $header = InventoryAdjustment::create([
-            'adjustment_no' => 'IA-SP-20260630-904-' . uniqid(),
+            'adjustment_no' => 'IA-SP-' . date('Ymd') . '-904-' . uniqid(),
             'warehouse_id' => $this->warehouse->id,
             'operator_id' => $this->adminUser->id,
-            'date' => '2026-06-30',
+            'date' => date('Y-m-d'),
             'status' => 'COMPLETED',
         ]);
         $this->createAdjustmentItem($header->id, 'APPROVED');
@@ -216,10 +216,10 @@ class BasoLiteTest extends TestCase
         $this->actingAs($this->manager);
 
         $header = InventoryAdjustment::create([
-            'adjustment_no' => 'IA-SP-20260630-905-' . uniqid(),
+            'adjustment_no' => 'IA-SP-' . date('Ymd') . '-905-' . uniqid(),
             'warehouse_id' => $this->warehouse->id,
             'operator_id' => $this->adminUser->id,
-            'date' => '2026-06-30',
+            'date' => date('Y-m-d'),
             'status' => 'COMPLETED',
         ]);
         $this->createAdjustmentItem($header->id, 'APPROVED');
@@ -236,10 +236,10 @@ class BasoLiteTest extends TestCase
         Storage::fake('public');
 
         $header = InventoryAdjustment::create([
-            'adjustment_no' => 'IA-SP-20260630-906-' . uniqid(),
+            'adjustment_no' => 'IA-SP-' . date('Ymd') . '-906-' . uniqid(),
             'warehouse_id' => $this->warehouse->id,
             'operator_id' => $this->adminUser->id,
-            'date' => '2026-06-30',
+            'date' => date('Y-m-d'),
             'status' => 'COMPLETED',
         ]);
         $this->createAdjustmentItem($header->id, 'APPROVED');

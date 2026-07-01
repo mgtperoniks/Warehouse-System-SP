@@ -87,6 +87,12 @@
                             Items Catalog
                         </span>
                     </a>
+                    <a class="relative group/nav flex items-center justify-center w-12 h-12 mx-auto {{ request()->routeIs('items.planning') ? 'bg-slate-200/90 dark:bg-slate-800/90 text-green-700 dark:text-green-300 border-l-[5px] border-green-600 shadow-sm font-bold' : 'text-slate-655 dark:text-slate-400 hover:bg-slate-200/60 dark:hover:bg-slate-800/60' }} rounded-xl transition-all duration-200" href="{{ route('items.planning') }}">
+                        <span class="material-symbols-outlined text-2xl">assignment</span>
+                        <span class="absolute left-16 bg-slate-900 dark:bg-slate-800 text-white text-xs font-bold px-2 py-1 rounded shadow-lg opacity-0 translate-x-[-10px] group-hover/nav:opacity-100 group-hover/nav:translate-x-0 transition-all pointer-events-none whitespace-nowrap z-50">
+                            Inventory Planning
+                        </span>
+                    </a>
                     <a class="relative group/nav flex items-center justify-center w-12 h-12 mx-auto {{ request()->routeIs('barcode.printing') ? 'bg-slate-200/90 dark:bg-slate-800/90 text-green-700 dark:text-green-300 border-l-[5px] border-green-600 shadow-sm font-bold' : 'text-slate-655 dark:text-slate-400 hover:bg-slate-200/60 dark:hover:bg-slate-800/60' }} rounded-xl transition-all duration-200" href="{{ route('barcode.printing') }}">
                         <span class="material-symbols-outlined text-2xl">print</span>
                         <span class="absolute left-16 bg-slate-900 dark:bg-slate-800 text-white text-xs font-bold px-2 py-1 rounded shadow-lg opacity-0 translate-x-[-10px] group-hover/nav:opacity-100 group-hover/nav:translate-x-0 transition-all pointer-events-none whitespace-nowrap z-50">

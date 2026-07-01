@@ -70,7 +70,7 @@ class BasoController extends Controller
             Storage::disk('public')->put($baso->pdf_path, $pdf->output());
         }
 
-        return response()->file(storage_path("app/public/{$baso->pdf_path}"), [
+        return response()->file(Storage::disk('public')->path($baso->pdf_path), [
             'Content-Type' => 'application/pdf',
             'Content-Disposition' => 'inline; filename="' . basename($baso->pdf_path) . '"'
         ]);

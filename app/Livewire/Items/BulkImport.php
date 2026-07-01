@@ -33,6 +33,18 @@ class BulkImport extends Component
             $sku = trim($row[2] ?? '');
             $unit = trim($row[3] ?? 'PCS');
 
+            $procurementTypeRaw = strtoupper(trim($row[11] ?? ''));
+            $procurementType = in_array($procurementTypeRaw, ['LOCAL', 'IMPORT']) ? $procurementTypeRaw : 'LOCAL';
+
+            $inventoryClassRaw = strtoupper(trim($row[12] ?? ''));
+            $inventoryClass = in_array($inventoryClassRaw, ['CONSUMABLE', 'SPAREPART']) ? $inventoryClassRaw : 'CONSUMABLE';
+
+            $leadTimeRaw = $row[13] ?? '';
+            $leadTimeDays = is_numeric($leadTimeRaw) ? (int)$leadTimeRaw : 30;
+            if ($leadTimeDays < 1 || $leadTimeDays > 365) {
+                $leadTimeDays = 30;
+            }
+
             if (empty($name) || empty($erpCode)) {
                 continue; // Skip empty rows
             }
@@ -64,6 +76,9 @@ class BulkImport extends Component
                     'brand' => trim($row[4] ?? ''),
                     'price' => (float) filter_var($row[8] ?? 0, FILTER_SANITIZE_NUMBER_FLOAT, FILTER_FLAG_ALLOW_FRACTION),
                     'description' => trim($row[9] ?? ''),
+                    'procurement_type' => $procurementType,
+                    'inventory_class' => $inventoryClass,
+                    'lead_time_days' => $leadTimeDays,
                 ]);
 
                 // 4. Handle Supplier

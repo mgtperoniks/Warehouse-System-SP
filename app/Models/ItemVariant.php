@@ -21,6 +21,15 @@ class ItemVariant extends Model
         'price',
         'description',
         'last_opname_at',
+        'procurement_type',
+        'inventory_class',
+        'lead_time_days',
+    ];
+
+    protected $attributes = [
+        'procurement_type' => 'LOCAL',
+        'inventory_class' => 'CONSUMABLE',
+        'lead_time_days' => 30,
     ];
 
     public function item(): BelongsTo
