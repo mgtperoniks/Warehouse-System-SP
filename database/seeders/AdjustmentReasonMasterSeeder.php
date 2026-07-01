@@ -12,8 +12,7 @@ class AdjustmentReasonMasterSeeder extends Seeder
      */
     public function run(): void
     {
-        // Truncate to replace the existing data entirely
-        AdjustmentReasonMaster::truncate();
+        // Removed truncate() to avoid mutating existing operational tables in production/staging.
 
         $reasons = [
             // Group 1 — Human Error
@@ -45,11 +44,13 @@ class AdjustmentReasonMasterSeeder extends Seeder
         ];
 
         foreach ($reasons as $reason) {
-            AdjustmentReasonMaster::create([
-                'code' => $reason['code'],
-                'name' => $reason['name'],
-                'is_active' => true,
-            ]);
+            AdjustmentReasonMaster::updateOrCreate(
+                ['code' => $reason['code']],
+                [
+                    'name' => $reason['name'],
+                    'is_active' => true,
+                ]
+            );
         }
     }
 }
