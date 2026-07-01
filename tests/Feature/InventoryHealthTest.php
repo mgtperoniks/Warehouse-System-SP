@@ -98,40 +98,40 @@ class InventoryHealthTest extends TestCase
         ]);
 
         // Let's assert the calculations
-        // 90 days sub is 2026-04-02. Weeks: 2026-14 to 2026-27 (14 weeks).
-        // Total OUT in last 90 days = 14 + 21 + 70 = 105.
-        // Weekly average = 105 / 14 = 7.5.
+        // 28-day window covers 35 units OUT. Weekly avg = 35 / 4.0 = 8.75.
         $weeklyAverage = $this->service->calculateWeeklyAverage($this->variant->id);
-        $this->assertEquals(7.5, $weeklyAverage);
+        $this->assertEquals(8.75, $weeklyAverage);
 
-        // 180 days sub is 2026-01-02. Months: Jan, Feb, Mar, Apr, May, Jun, Jul (7 months).
-        // Total OUT in last 180 days = 14 + 21 + 70 + 120 = 225.
-        // Monthly average = 225 / 7 = 32.14...
+        // 90-day window covers 105 units OUT. Monthly avg = 105 / 3.0 = 35.0.
         $monthlyAverage = $this->service->calculateMonthlyAverage($this->variant->id);
-        $this->assertEqualsWithDelta(32.14, $monthlyAverage, 0.01);
+        $this->assertEquals(35.0, $monthlyAverage);
 
-        // 6 Month average = 225 / 6 = 37.5.
+        // 180-day window covers 225 units OUT. Six Month average = 225 / 6.0 = 37.5.
         $sixMonthAverage = $this->service->calculateSixMonthAverage($this->variant->id);
         $this->assertEquals(37.5, $sixMonthAverage);
 
-        // Days Left = Stock / Weekly Average * 7.
-        // Let's test with stock = 30. Days Left = 30 / 7.5 * 7 = 28.
+        // Days Left = Stock / (Weekly Average / 7.0).
+        // Let's test with stock = 30. Days Left = 30 / (8.75 / 7) = 24.0.
         $daysLeft = $this->service->calculateDaysLeft(30, $weeklyAverage);
-        $this->assertEquals(28.0, $daysLeft);
+        $this->assertEquals(24.0, $daysLeft);
 
         // Statuses:
         // Lead Time = 10.
-        // Days Left = 28.
-        // 28 > 10 * 2 (20) -> Healthy.
-        $this->assertEquals('Healthy', $this->service->calculateHealthStatus($daysLeft, 10));
+        // Days Left = 24.
+        // 24 <= 10 + 14 -> REORDER NOW.
+        $this->assertEquals('REORDER NOW', $this->service->calculateHealthStatus($daysLeft, 10));
 
-        // Days Left = 15.
-        // 10 < 15 <= 20 -> Warning.
-        $this->assertEquals('Warning', $this->service->calculateHealthStatus(15.0, 10));
+        // Days Left = 35, Lead Time = 20.
+        // 35 <= 20 * 2 -> WATCHLIST.
+        $this->assertEquals('WATCHLIST', $this->service->calculateHealthStatus(35.0, 20));
+
+        // Days Left = 45, Lead Time = 20.
+        // 45 > 40 -> HEALTHY.
+        $this->assertEquals('HEALTHY', $this->service->calculateHealthStatus(45.0, 20));
 
         // Days Left = 9.
-        // 9 <= 10 -> Critical.
-        $this->assertEquals('Critical', $this->service->calculateHealthStatus(9.0, 10));
+        // 9 <= 10 -> CRITICAL.
+        $this->assertEquals('CRITICAL', $this->service->calculateHealthStatus(9.0, 10));
 
         Carbon::setTestNow();
     }
@@ -147,7 +147,7 @@ class InventoryHealthTest extends TestCase
         $this->assertNull($daysLeft);
 
         $status = $this->service->calculateHealthStatus($daysLeft, 10);
-        $this->assertEquals('Healthy', $status);
+        $this->assertEquals('NO CONSUMPTION', $status);
 
         Carbon::setTestNow();
     }

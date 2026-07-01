@@ -30,8 +30,10 @@ class ItemController extends Controller
         $sixMonthAvg = $planningService->calculateSixMonthAverage($variant->id);
         $daysLeft = $planningService->calculateDaysLeft($currentStock, $weeklyAvg);
         $healthStatus = $planningService->calculateHealthStatus($daysLeft, $variant->lead_time_days ?? 30);
+        $trend = $planningService->calculateTrend($weeklyAvg, $monthlyAvg);
+        $projectedEmptyDate = $planningService->calculateProjectedEmptyDate($daysLeft);
 
-        return view('items.show', compact('variant', 'movements', 'weeklyAvg', 'monthlyAvg', 'sixMonthAvg', 'daysLeft', 'healthStatus'));
+        return view('items.show', compact('variant', 'movements', 'weeklyAvg', 'monthlyAvg', 'sixMonthAvg', 'daysLeft', 'healthStatus', 'trend', 'projectedEmptyDate'));
     }
 
     public function create()

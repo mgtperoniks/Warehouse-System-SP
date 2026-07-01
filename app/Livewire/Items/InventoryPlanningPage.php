@@ -74,48 +74,42 @@ class InventoryPlanningPage extends Component
 
     public function render(\App\Services\Inventory\InventoryPlanningService $planningService)
     {
-        $startDate = now()->subDays(90)->startOfDay();
-
-        // Calculate weeks to keep DB logic identical to Service
-        $weeklyQuantities = [];
-        $current = clone $startDate;
-        while ($current <= now()) {
-            $weeklyQuantities[$current->format('o-W')] = 0;
-            $current->addWeek();
-        }
-        $weeklyQuantities[now()->format('o-W')] = 0;
-        $numWeeks = (float)count($weeklyQuantities);
+        $date28 = now()->subDays(28)->startOfDay();
+        $date90 = now()->subDays(90)->startOfDay();
+        $date180 = now()->subDays(180)->startOfDay();
 
         $query = ItemVariant::query()
             ->select(
                 'item_variants.*',
                 DB::raw('COALESCE(stock_data.total_stock, 0) as total_stock'),
-                DB::raw("COALESCE(weekly_avg_data.total_out_90, 0) / {$numWeeks} as weekly_avg"),
-                DB::raw("CASE WHEN COALESCE(weekly_avg_data.total_out_90, 0) = 0 THEN NULL ELSE (COALESCE(stock_data.total_stock, 0) / (weekly_avg_data.total_out_90 / {$numWeeks})) * 7 END as days_left")
+                DB::raw('COALESCE(movement_data.total_out_28, 0) as total_out_28'),
+                DB::raw('COALESCE(movement_data.total_out_90, 0) as total_out_90'),
+                DB::raw('COALESCE(movement_data.total_out_180, 0) as total_out_180')
             )
             ->join('items', 'items.id', '=', 'item_variants.item_id')
-            ->with(['item']);
+            ->with(['item', 'barcodes']);
 
         // Subquery for Aggregated Stock
         $stockSubquery = DB::table('bins')
-            ->select('item_variant_id', 
-                DB::raw('SUM(current_qty) as total_stock')
-            )
+            ->select('item_variant_id', DB::raw('SUM(current_qty) as total_stock'))
             ->groupBy('item_variant_id');
 
         $query->leftJoinSub($stockSubquery, 'stock_data', function ($join) {
             $join->on('item_variants.id', '=', 'stock_data.item_variant_id');
         });
 
-        // Subquery for OUT movements in the last 90 days
-        $weeklyAvgSubquery = DB::table('stock_movements')
-            ->select('item_variant_id', DB::raw('SUM(qty) as total_out_90'))
+        // Subquery for aggregated OUT movements in the last 180 days (covers 28, 90, and 180 day windows)
+        $movementSubquery = DB::table('stock_movements')
+            ->select('item_variant_id')
+            ->selectRaw('SUM(CASE WHEN created_at >= ? THEN qty ELSE 0 END) as total_out_28', [$date28])
+            ->selectRaw('SUM(CASE WHEN created_at >= ? THEN qty ELSE 0 END) as total_out_90', [$date90])
+            ->selectRaw('SUM(CASE WHEN created_at >= ? THEN qty ELSE 0 END) as total_out_180', [$date180])
             ->where('type', 'OUT')
-            ->where('created_at', '>=', $startDate)
+            ->where('created_at', '>=', $date180)
             ->groupBy('item_variant_id');
 
-        $query->leftJoinSub($weeklyAvgSubquery, 'weekly_avg_data', function ($join) {
-            $join->on('item_variants.id', '=', 'weekly_avg_data.item_variant_id');
+        $query->leftJoinSub($movementSubquery, 'movement_data', function ($join) {
+            $join->on('item_variants.id', '=', 'movement_data.item_variant_id');
         });
 
         if (!empty($this->search)) {
@@ -142,28 +136,16 @@ class InventoryPlanningPage extends Component
         if ($this->sortField === 'stock') {
             $query->orderBy('total_stock', $dir);
         } elseif ($this->sortField === 'weekly_avg') {
-            $query->orderBy('weekly_avg', $dir);
+            $query->orderBy('total_out_28', $dir);
         } elseif ($this->sortField === 'days_left') {
-            // "No Usage" always appears last
-            $query->orderByRaw('CASE WHEN COALESCE(weekly_avg_data.total_out_90, 0) = 0 THEN 1 ELSE 0 END ASC');
-            $query->orderBy('days_left', $dir);
+            // "No Consumption" always appears last
+            $query->orderByRaw('CASE WHEN COALESCE(movement_data.total_out_28, 0) = 0 THEN 1 ELSE 0 END ASC');
+            $query->orderByRaw('(COALESCE(stock_data.total_stock, 0) / NULLIF(movement_data.total_out_28, 0)) ' . $dir);
         } elseif ($this->sortField === 'status') {
-            // Status custom priority: Critical (1), Warning (2), Healthy (3)
-            $daysLeftExpr = "CASE WHEN COALESCE(weekly_avg_data.total_out_90, 0) = 0 THEN NULL ELSE (COALESCE(stock_data.total_stock, 0) / (weekly_avg_data.total_out_90 / {$numWeeks})) * 7 END";
-            if ($dir === 'asc') {
-                $statusPrioritySql = "CASE
-                    WHEN {$daysLeftExpr} <= item_variants.lead_time_days THEN 1
-                    WHEN {$daysLeftExpr} <= (item_variants.lead_time_days * 2) THEN 2
-                    ELSE 3
-                END";
-            } else {
-                $statusPrioritySql = "CASE
-                    WHEN {$daysLeftExpr} IS NULL OR {$daysLeftExpr} > (item_variants.lead_time_days * 2) THEN 1
-                    WHEN {$daysLeftExpr} > item_variants.lead_time_days AND {$daysLeftExpr} <= (item_variants.lead_time_days * 2) THEN 2
-                    ELSE 3
-                END";
-            }
-            $query->orderByRaw("{$statusPrioritySql} ASC");
+            // Sort by status priority: Critical first, then Reorder Now, Watchlist, Healthy, and No Consumption last
+            $query->orderByRaw('CASE WHEN COALESCE(movement_data.total_out_28, 0) = 0 THEN 1 ELSE 0 END ASC');
+            // Ratio of Days Left to Lead Time determines urgency (smaller is more urgent)
+            $query->orderByRaw('(COALESCE(stock_data.total_stock, 0) / NULLIF(movement_data.total_out_28 * item_variants.lead_time_days, 0)) ' . $dir);
         } elseif ($this->sortField === 'procurement_type') {
             $query->orderBy('item_variants.procurement_type', $dir);
         } elseif ($this->sortField === 'inventory_class') {
@@ -181,9 +163,12 @@ class InventoryPlanningPage extends Component
 
         foreach ($variants as $variant) {
             $variant->total_stock = (int)($variant->total_stock ?? 0);
-            $variant->weekly_avg = $planningService->calculateWeeklyAverage($variant->id);
+            $variant->weekly_avg = $planningService->calculateWeeklyAverage($variant->id, (float)($variant->total_out_28 ?? 0));
+            $variant->monthly_avg = $planningService->calculateMonthlyAverage($variant->id, (float)($variant->total_out_90 ?? 0));
+            $variant->six_month_avg = $planningService->calculateSixMonthAverage($variant->id, (float)($variant->total_out_180 ?? 0));
             $variant->days_left = $planningService->calculateDaysLeft($variant->total_stock, $variant->weekly_avg);
             $variant->health_status = $planningService->calculateHealthStatus($variant->days_left, $variant->lead_time_days);
+            $variant->trend = $planningService->calculateTrend($variant->weekly_avg, $variant->monthly_avg);
         }
 
         return view('livewire.items.inventory-planning-page', [

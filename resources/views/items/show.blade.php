@@ -185,41 +185,65 @@
                         <span class="text-slate-400 font-bold uppercase tracking-wider text-[9px]">Days Left</span>
                         <span class="font-black text-slate-850 text-xs">
                             @if($daysLeft === null)
-                                <span class="text-slate-400 uppercase font-bold tracking-wider text-[9px]">No Usage</span>
+                                <span class="text-slate-400 font-bold text-[11px]">—</span>
                             @else
                                 {{ number_format($daysLeft, 1) }} Days
                             @endif
                         </span>
                     </div>
                     <div class="bg-slate-50 border border-slate-200/60 p-2.5 rounded-lg flex flex-col gap-1">
-                        <span class="text-slate-400 font-bold uppercase tracking-wider text-[9px]">Avg Weekly (90d)</span>
+                        <span class="text-slate-400 font-bold uppercase tracking-wider text-[9px]">Weekly Average (28d)</span>
                         <span class="font-black text-slate-850 text-xs">{{ number_format($weeklyAvg, 2) }}</span>
                     </div>
                     <div class="bg-slate-50 border border-slate-200/60 p-2.5 rounded-lg flex flex-col gap-1">
-                        <span class="text-slate-400 font-bold uppercase tracking-wider text-[9px]">Avg Monthly (180d)</span>
+                        <span class="text-slate-400 font-bold uppercase tracking-wider text-[9px]">Monthly Average (90d)</span>
                         <span class="font-black text-slate-850 text-xs">{{ number_format($monthlyAvg, 2) }}</span>
                     </div>
                     <div class="bg-slate-50 border border-slate-200/60 p-2.5 rounded-lg flex flex-col gap-1">
-                        <span class="text-slate-400 font-bold uppercase tracking-wider text-[9px]">Avg 6 Month</span>
+                        <span class="text-slate-400 font-bold uppercase tracking-wider text-[9px]">Six Month Average (180d)</span>
                         <span class="font-black text-slate-850 text-xs">{{ number_format($sixMonthAvg, 2) }}</span>
                     </div>
                     <div class="bg-slate-50 border border-slate-200/60 p-2.5 rounded-lg flex flex-col gap-1">
-                        <span class="text-slate-400 font-bold uppercase tracking-wider text-[9px]">Health Status</span>
+                        <span class="text-slate-400 font-bold uppercase tracking-wider text-[9px]">Trend</span>
                         <span class="font-black text-xs uppercase flex items-center gap-1">
-                            @if($healthStatus === 'Healthy')
-                                <span class="text-emerald-600 flex items-center gap-1 text-[10px]">
-                                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Healthy
+                            @if($trend === 'Increasing')
+                                <span class="text-emerald-600 flex items-center gap-1 text-[10px]">Increasing ↑</span>
+                            @elseif($trend === 'Decreasing')
+                                <span class="text-rose-600 flex items-center gap-1 text-[10px]">Decreasing ↓</span>
+                            @else
+                                <span class="text-slate-500 flex items-center gap-1 text-[10px]">Stable →</span>
+                            @endif
+                        </span>
+                    </div>
+                    <div class="bg-slate-50 border border-slate-200/60 p-2.5 rounded-lg flex flex-col gap-1">
+                        <span class="text-slate-400 font-bold uppercase tracking-wider text-[9px]">Planning Status</span>
+                        <span class="font-black text-xs uppercase flex items-center gap-1">
+                            @if($healthStatus === 'CRITICAL')
+                                <span class="text-rose-650 flex items-center gap-1 text-[10px] animate-pulse">
+                                    <span class="w-1.5 h-1.5 rounded-full bg-rose-500"></span> CRITICAL
                                 </span>
-                            @elseif($healthStatus === 'Warning')
+                            @elseif($healthStatus === 'REORDER NOW')
                                 <span class="text-amber-600 flex items-center gap-1 text-[10px]">
-                                    <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span> Warning
+                                    <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span> REORDER NOW
+                                </span>
+                            @elseif($healthStatus === 'WATCHLIST')
+                                <span class="text-yellow-700 flex items-center gap-1 text-[10px]">
+                                    <span class="w-1.5 h-1.5 rounded-full bg-yellow-500"></span> WATCHLIST
+                                </span>
+                            @elseif($healthStatus === 'HEALTHY')
+                                <span class="text-emerald-650 flex items-center gap-1 text-[10px]">
+                                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> HEALTHY
                                 </span>
                             @else
-                                <span class="text-rose-600 flex items-center gap-1 text-[10px] animate-pulse">
-                                    <span class="w-1.5 h-1.5 rounded-full bg-rose-500"></span> Critical
+                                <span class="text-slate-500 flex items-center gap-1 text-[10px]">
+                                    <span class="w-1.5 h-1.5 rounded-full bg-slate-400"></span> NO CONSUMPTION
                                 </span>
                             @endif
                         </span>
+                    </div>
+                    <div class="bg-slate-50 border border-slate-200/60 p-2.5 rounded-lg flex flex-col gap-1">
+                        <span class="text-slate-400 font-bold uppercase tracking-wider text-[9px]">Projected Empty Date</span>
+                        <span class="font-black text-slate-850 text-xs">{{ $projectedEmptyDate ?? '—' }}</span>
                     </div>
                 </div>
             </div>

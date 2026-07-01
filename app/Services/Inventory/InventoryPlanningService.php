@@ -8,99 +8,61 @@ use Carbon\Carbon;
 class InventoryPlanningService
 {
     /**
-     * Calculate weekly average consumption from OUT movements in the last 90 days.
-     * Grouped by week.
+     * Calculate weekly average consumption from OUT movements in the last 28 days.
+     * Divided by 4.
      */
-    public function calculateWeeklyAverage(int $variantId): float
+    public function calculateWeeklyAverage(int $variantId, ?float $totalOut28 = null): float
     {
-        $startDate = Carbon::now()->subDays(90)->startOfDay();
-        
-        $movements = DB::table('stock_movements')
-            ->where('item_variant_id', $variantId)
-            ->where('type', 'OUT')
-            ->where('created_at', '>=', $startDate)
-            ->get();
-
-        // Group into calendar weeks (format: 'o-W')
-        $weeklyQuantities = [];
-        $current = clone $startDate;
-        while ($current <= Carbon::now()) {
-            $weekKey = $current->format('o-W');
-            $weeklyQuantities[$weekKey] = 0;
-            $current->addWeek();
-        }
-        // Ensure the current week key is initialized
-        $weeklyQuantities[Carbon::now()->format('o-W')] = 0;
-
-        foreach ($movements as $m) {
-            $weekKey = Carbon::parse($m->created_at)->format('o-W');
-            if (isset($weeklyQuantities[$weekKey])) {
-                $weeklyQuantities[$weekKey] += (float)$m->qty;
-            } else {
-                $weeklyQuantities[$weekKey] = (float)$m->qty;
-            }
+        if ($totalOut28 === null) {
+            $startDate = Carbon::now()->subDays(28)->startOfDay();
+            $totalOut28 = (float) DB::table('stock_movements')
+                ->where('item_variant_id', $variantId)
+                ->where('type', 'OUT')
+                ->where('created_at', '>=', $startDate)
+                ->sum('qty');
         }
 
-        $totalWeeks = count($weeklyQuantities);
-        return $totalWeeks > 0 ? array_sum($weeklyQuantities) / $totalWeeks : 0.0;
+        return $totalOut28 / 4.0;
     }
 
     /**
-     * Calculate monthly average consumption from OUT movements in the last 180 days.
-     * Grouped by month.
+     * Calculate monthly average consumption from OUT movements in the last 90 days.
+     * Divided by 3.
      */
-    public function calculateMonthlyAverage(int $variantId): float
+    public function calculateMonthlyAverage(int $variantId, ?float $totalOut90 = null): float
     {
-        $startDate = Carbon::now()->subDays(180)->startOfDay();
-
-        $movements = DB::table('stock_movements')
-            ->where('item_variant_id', $variantId)
-            ->where('type', 'OUT')
-            ->where('created_at', '>=', $startDate)
-            ->get();
-
-        // Group into calendar months (format: 'Y-m')
-        $monthlyQuantities = [];
-        $current = clone $startDate;
-        while ($current <= Carbon::now()) {
-            $monthKey = $current->format('Y-m');
-            $monthlyQuantities[$monthKey] = 0;
-            $current->addMonth();
-        }
-        // Ensure current month key is initialized
-        $monthlyQuantities[Carbon::now()->format('Y-m')] = 0;
-
-        foreach ($movements as $m) {
-            $monthKey = Carbon::parse($m->created_at)->format('Y-m');
-            if (isset($monthlyQuantities[$monthKey])) {
-                $monthlyQuantities[$monthKey] += (float)$m->qty;
-            } else {
-                $monthlyQuantities[$monthKey] = (float)$m->qty;
-            }
+        if ($totalOut90 === null) {
+            $startDate = Carbon::now()->subDays(90)->startOfDay();
+            $totalOut90 = (float) DB::table('stock_movements')
+                ->where('item_variant_id', $variantId)
+                ->where('type', 'OUT')
+                ->where('created_at', '>=', $startDate)
+                ->sum('qty');
         }
 
-        $totalMonths = count($monthlyQuantities);
-        return $totalMonths > 0 ? array_sum($monthlyQuantities) / $totalMonths : 0.0;
+        return $totalOut90 / 3.0;
     }
 
     /**
-     * Calculate average consumption over the last six months (total OUT / 6).
+     * Calculate six month average consumption from OUT movements in the last 180 days.
+     * Divided by 6.
      */
-    public function calculateSixMonthAverage(int $variantId): float
+    public function calculateSixMonthAverage(int $variantId, ?float $totalOut180 = null): float
     {
-        $startDate = Carbon::now()->subDays(180)->startOfDay();
+        if ($totalOut180 === null) {
+            $startDate = Carbon::now()->subDays(180)->startOfDay();
+            $totalOut180 = (float) DB::table('stock_movements')
+                ->where('item_variant_id', $variantId)
+                ->where('type', 'OUT')
+                ->where('created_at', '>=', $startDate)
+                ->sum('qty');
+        }
 
-        $totalOut = DB::table('stock_movements')
-            ->where('item_variant_id', $variantId)
-            ->where('type', 'OUT')
-            ->where('created_at', '>=', $startDate)
-            ->sum('qty');
-
-        return (float)($totalOut / 6.0);
+        return $totalOut180 / 6.0;
     }
 
     /**
-     * Calculate Days Left = Current Stock / Average Weekly * 7
+     * Calculate Days Left = Current Stock / (Average Weekly / 7.0)
      */
     public function calculateDaysLeft(int $currentStock, float $averageWeekly): ?float
     {
@@ -108,26 +70,80 @@ class InventoryPlanningService
             return null;
         }
 
-        return ($currentStock / $averageWeekly) * 7.0;
+        return $currentStock / ($averageWeekly / 7.0);
     }
 
     /**
-     * Determine health status: Healthy, Warning, Critical
+     * Determine numeric planning priority:
+     * CRITICAL = 1
+     * REORDER NOW = 2
+     * WATCHLIST = 3
+     * HEALTHY = 4
+     * NO CONSUMPTION = 5
      */
-    public function calculateHealthStatus(?float $daysLeft, int $leadTimeDays): string
+    public function calculatePlanningPriority(?float $daysLeft, int $leadTimeDays): int
     {
         if ($daysLeft === null) {
-            return 'Healthy';
+            return 5;
         }
 
         if ($daysLeft <= $leadTimeDays) {
-            return 'Critical';
+            return 1;
+        }
+
+        if ($daysLeft <= $leadTimeDays + 14) {
+            return 2;
         }
 
         if ($daysLeft <= $leadTimeDays * 2) {
-            return 'Warning';
+            return 3;
         }
 
-        return 'Healthy';
+        return 4;
+    }
+
+    /**
+     * Determine planning status label
+     */
+    public function calculateHealthStatus(?float $daysLeft, int $leadTimeDays): string
+    {
+        $priority = $this->calculatePlanningPriority($daysLeft, $leadTimeDays);
+
+        return match ($priority) {
+            1 => 'CRITICAL',
+            2 => 'REORDER NOW',
+            3 => 'WATCHLIST',
+            4 => 'HEALTHY',
+            5 => 'NO CONSUMPTION',
+        };
+    }
+
+    /**
+     * Determine consumption trend compared against monthly average
+     */
+    public function calculateTrend(float $weeklyAvg, float $monthlyAvg): string
+    {
+        if ($weeklyAvg >= $monthlyAvg * 1.20) {
+            return 'Increasing';
+        }
+
+        if ($weeklyAvg <= $monthlyAvg * 0.80) {
+            return 'Decreasing';
+        }
+
+        return 'Stable';
+    }
+
+    /**
+     * Calculate Projected Empty Date = Today + Days Left
+     */
+    public function calculateProjectedEmptyDate(?float $daysLeft): ?string
+    {
+        if ($daysLeft === null) {
+            return null;
+        }
+
+        return Carbon::now()->addDays((int) round($daysLeft))->format('d M Y');
     }
 }
+
