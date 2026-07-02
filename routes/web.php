@@ -59,3 +59,22 @@ Route::middleware('auth')->group(function () {
     Route::get('/barcode/test-print', [\App\Http\Controllers\BarcodeTestController::class, 'index'])->name('barcode.test-print');
 });
 
+Route::get('/diagnostic', function () {
+    return response()->json([
+        'app_url' => config('app.url'),
+        'request_url' => request()->url(),
+        'request_full_url' => request()->fullUrl(),
+        'host' => request()->getHost(),
+        'http_host' => request()->getHttpHost(),
+        'port' => request()->getPort(),
+        'scheme' => request()->getScheme(),
+        'server_port' => request()->server('SERVER_PORT'),
+        'remote_addr' => request()->server('REMOTE_ADDR'),
+        'headers' => request()->headers->all(),
+        'has_valid_signature' => request()->hasValidSignature(),
+        'generated_upload_url' => \Livewire\Facades\GenerateSignedUploadUrlFacade::forLocal(),
+    ]);
+});
+
+
+
