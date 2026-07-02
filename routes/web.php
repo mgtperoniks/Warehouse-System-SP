@@ -76,5 +76,10 @@ Route::get('/diagnostic', function () {
     ]);
 });
 
+Route::post(Livewire\Mechanisms\HandleRequests\EndpointResolver::uploadPath(), [App\Http\Controllers\LivewireDebugController::class, 'handle'])
+    ->middleware('web');
+
+
+
 
 
