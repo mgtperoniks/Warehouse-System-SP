@@ -79,18 +79,25 @@ Route::get('/diagnostic', function () {
 Route::get('/view-logs', function () {
     $logPath = storage_path('logs/laravel.log');
     if (!file_exists($logPath)) {
-        return response('Log file does not exist.', 404);
+        return response()->json(['message' => 'Log file does not exist.']);
     }
-    $content = file_get_contents($logPath);
-    $lines = explode("\n", $content);
-    $matches = array_filter($lines, function ($line) {
-        return str_contains($line, 'LIVEWIRE_UPLOAD_DEBUG');
-    });
-    return response()->json(array_values(array_slice($matches, -5)));
+    $matches = [];
+    $handle = fopen($logPath, 'r');
+    if ($handle) {
+        while (($line = fgets($handle)) !== false) {
+            if (str_contains($line, 'LIVEWIRE_UPLOAD_DEBUG')) {
+                $matches[] = $line;
+            }
+        }
+        fclose($handle);
+    }
+    return response()->json(array_values(array_slice($matches, -10)));
 });
 
 Route::post(Livewire\Mechanisms\HandleRequests\EndpointResolver::uploadPath(), [App\Http\Controllers\LivewireDebugController::class, 'handle'])
-    ->middleware('web');
+    ->middleware('web')
+    ->name('livewire.upload-file');
+
 
 
 
