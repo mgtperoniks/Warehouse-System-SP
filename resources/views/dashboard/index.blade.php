@@ -19,7 +19,7 @@
                     Operational Overview
                 </h2>
                 <p class="text-slate-500 font-medium mt-1 text-sm">
-                    Live status · <span class="font-bold text-blue-600 dark:text-blue-400">Warehouse Sparepart</span>
+                    Live status · <span class="font-bold text-blue-600 dark:text-blue-400">{{ session('active_warehouse_name', 'Warehouse Sparepart') }}</span>
                     · <span id="live-clock" class="font-mono text-xs bg-slate-100 px-2 py-0.5 rounded-lg"></span>
                 </p>
             </div>

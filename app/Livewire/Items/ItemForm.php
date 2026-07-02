@@ -164,6 +164,11 @@ class ItemForm extends Component
         $this->mode = $mode;
         
         if ($mode === 'edit' && $variant) {
+            $domainService = app(\App\Services\Inventory\WarehouseDomainService::class);
+            $family = $domainService->extractFamily($variant->erp_code);
+            if (!$domainService->belongsToActiveWarehouse($family)) {
+                abort(404);
+            }
             $this->variant = $variant;
             $this->name = $variant->item->name;
             $this->erp_code = $variant->erp_code;
@@ -260,12 +265,10 @@ class ItemForm extends Component
 
     public function removeExistingPhoto($imageId)
     {
-        $image = ItemImage::find($imageId);
-        if ($image) {
-            Storage::disk('public')->delete($image->path);
-            $image->delete();
-            $this->existingPhotos = $this->variant->images()->get()->toArray();
-        }
+        $image = $this->variant->images()->findOrFail($imageId);
+        Storage::disk('public')->delete($image->path);
+        $image->delete();
+        $this->existingPhotos = $this->variant->images()->get()->toArray();
     }
 
     public function removeUploadedPhoto($index)
@@ -295,6 +298,22 @@ class ItemForm extends Component
     public function save()
     {
         $this->validate();
+
+        // Validate ERP family belongs to active warehouse domain
+        $domainService = app(\App\Services\Inventory\WarehouseDomainService::class);
+        $family = $domainService->extractFamily($this->erp_code);
+        if (!$domainService->belongsToActiveWarehouse($family)) {
+            $activeWarehouseName = session('active_warehouse_name', 'Active Warehouse');
+            $this->addError('erp_code', "ERP Family '{$family}' is not permitted for {$activeWarehouseName}.");
+            return;
+        }
+
+        if ($this->mode === 'edit' && $this->variant) {
+            $origFamily = $domainService->extractFamily($this->variant->erp_code);
+            if (!$domainService->belongsToActiveWarehouse($origFamily)) {
+                abort(404);
+            }
+        }
 
         // Hard duplicate protection validation prior to database commit
         foreach ($this->barcodes as $bc) {
@@ -492,8 +511,8 @@ class ItemForm extends Component
      */
     public function applyExistingCrop($imageId)
     {
-        $image = ItemImage::find($imageId);
-        if (!$image || !$this->croppedExistingPhoto) {
+        $image = $this->variant->images()->findOrFail($imageId);
+        if (!$this->croppedExistingPhoto) {
             return;
         }
 

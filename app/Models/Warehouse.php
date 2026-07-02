@@ -24,4 +24,14 @@ class Warehouse extends Model
     {
         return $this->hasMany(UserWarehouseAccess::class);
     }
+
+    public function families()
+    {
+        return $this->hasMany(WarehouseFamilyAssignment::class);
+    }
+
+    public function allowedFamilyCodes(): array
+    {
+        return $this->families()->pluck('family_code')->toArray();
+    }
 }

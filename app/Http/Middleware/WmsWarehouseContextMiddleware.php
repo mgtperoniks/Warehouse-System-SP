@@ -10,12 +10,24 @@ class WmsWarehouseContextMiddleware
 {
     public function handle(Request $request, Closure $next): Response
     {
-        if (auth()->check() && !session()->has('active_warehouse_id')) {
-            $defaultWarehouse = auth()->user()->warehouses()->first();
-            if ($defaultWarehouse) {
-                session()->put('active_warehouse_id', $defaultWarehouse->id);
-                session()->put('active_warehouse_code', $defaultWarehouse->code);
-                session()->put('active_warehouse_name', $defaultWarehouse->name);
+        if (auth()->check()) {
+            $user = auth()->user();
+            $activeWarehouseId = session('active_warehouse_id');
+
+            $isValid = false;
+            if ($activeWarehouseId) {
+                $isValid = $user->warehouses()->where('warehouses.id', $activeWarehouseId)->exists();
+            }
+
+            if (!$isValid) {
+                $firstWarehouse = $user->warehouses()->first();
+                if (!$firstWarehouse) {
+                    abort(403, 'User has no mapped warehouses.');
+                }
+
+                session()->put('active_warehouse_id', $firstWarehouse->id);
+                session()->put('active_warehouse_code', $firstWarehouse->code);
+                session()->put('active_warehouse_name', $firstWarehouse->name);
             }
         }
 

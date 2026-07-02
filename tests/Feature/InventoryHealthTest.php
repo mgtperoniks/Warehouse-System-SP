@@ -165,6 +165,18 @@ class InventoryHealthTest extends TestCase
             ['name' => 'Warehouse Health', 'status' => 'ACTIVE']
         );
 
+        session([
+            'active_warehouse_id' => $warehouse->id,
+            'active_warehouse_name' => $warehouse->name,
+        ]);
+
+        foreach (['ERP-HEALTH-123', 'ERP-A', 'ERP-B', 'ERP-C', 'ERP-D'] as $family) {
+            \App\Models\WarehouseFamilyAssignment::firstOrCreate([
+                'warehouse_id' => $warehouse->id,
+                'family_code' => $family
+            ]);
+        }
+
         // Variant A: stock = 10, lead time = 5, weekly average = 2 (Days left = 10/2*7 = 35 days -> Status: Healthy)
         $itemA = Item::create(['name' => 'Item A']);
         $varA = ItemVariant::create([

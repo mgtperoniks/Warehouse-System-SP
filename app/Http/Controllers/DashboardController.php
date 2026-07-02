@@ -25,18 +25,20 @@ class DashboardController extends Controller
 
         // ─── KPI Cards ────────────────────────────────────────────────────
         $totalItems      = ItemVariant::count();
-        $todayTx         = StockTransaction::whereDate('created_at', today())->count();
-        $lowStockCount   = Bin::where('min_qty', '>', 0)
+        $todayTx         = StockTransaction::forActiveWarehouse()->whereDate('created_at', today())->count();
+        $lowStockCount   = Bin::forActiveWarehouse()
+                              ->where('min_qty', '>', 0)
                               ->whereColumn('current_qty', '<=', 'min_qty')
                               ->where('current_qty', '>', 0)
                               ->count();
-        $outOfStockCount = Bin::where('current_qty', '<=', 0)->count();
+        $outOfStockCount = Bin::forActiveWarehouse()->where('current_qty', '<=', 0)->count();
 
         // ─── Trend Charts (7d & 30d) ──────────────────────────────────────
         $maxDays = 30;
         $startDate = Carbon::today()->subDays($maxDays - 1);
 
-        $movements = StockMovement::where('created_at', '>=', $startDate)
+        $movements = StockMovement::forActiveWarehouse()
+            ->where('created_at', '>=', $startDate)
             ->select(
                 DB::raw('DATE(created_at) as date'),
                 DB::raw('SUM(CASE WHEN type = "IN" THEN qty ELSE 0 END) as total_in'),
@@ -75,18 +77,21 @@ class DashboardController extends Controller
         }
 
         // ─── Recent Transactions ──────────────────────────────────────────
-        $recentTransactions = StockTransaction::with(['department', 'user'])
+        $recentTransactions = StockTransaction::forActiveWarehouse()
+                                ->with(['department', 'user'])
                                 ->latest()
                                 ->limit(10)
                                 ->get();
 
         // ─── Critical Stock Alerts ────────────────────────────────────────
-        $criticalAlerts = Bin::with(['itemVariant.item'])
+        $criticalAlerts = Bin::forActiveWarehouse()
+                            ->with(['itemVariant.item'])
                             ->where('current_qty', '<=', 0)
                             ->limit(5)
                             ->get();
 
-        $lowStockAlerts = Bin::with(['itemVariant.item'])
+        $lowStockAlerts = Bin::forActiveWarehouse()
+                            ->with(['itemVariant.item'])
                             ->where('min_qty', '>', 0)
                             ->whereColumn('current_qty', '<=', 'min_qty')
                             ->where('current_qty', '>', 0)
@@ -95,7 +100,8 @@ class DashboardController extends Controller
                             ->get();
 
         // ─── Category Distribution Chart (Donut) ─────────────────────────
-        $categoryData = Bin::select(
+        $categoryData = Bin::forActiveWarehouse()
+                        ->select(
                             DB::raw('SUM(current_qty) as total_qty'),
                             'item_variants.brand'
                         )
@@ -109,8 +115,8 @@ class DashboardController extends Controller
         $donutData   = $categoryData->pluck('total_qty')->values()->toArray();
 
         // ─── Today's Stock Movement Summary ──────────────────────────────
-        $todayStockIn  = StockMovement::whereDate('created_at', today())->where('type', 'IN')->sum('qty');
-        $todayStockOut = StockMovement::whereDate('created_at', today())->where('type', 'OUT')->sum('qty');
+        $todayStockIn  = StockMovement::forActiveWarehouse()->whereDate('created_at', today())->where('type', 'IN')->sum('qty');
+        $todayStockOut = StockMovement::forActiveWarehouse()->whereDate('created_at', today())->where('type', 'OUT')->sum('qty');
 
         return view('dashboard.index', compact(
             'totalItems',

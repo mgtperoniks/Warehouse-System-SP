@@ -52,6 +52,15 @@ class InventoryAdjustmentApprovalTest extends TestCase
         );
         session(['active_warehouse_id' => $this->warehouse->id]);
 
+        \App\Models\WarehouseFamilyAssignment::firstOrCreate([
+            'warehouse_id' => $this->warehouse->id,
+            'family_code' => 'ERP'
+        ]);
+        \App\Models\WarehouseFamilyAssignment::firstOrCreate([
+            'warehouse_id' => $this->warehouse->id,
+            'family_code' => 'ERP001'
+        ]);
+
         // 3. Create Item & Variant using firstOrCreate
         $item = Item::firstOrCreate(
             ['name' => 'Test Item']

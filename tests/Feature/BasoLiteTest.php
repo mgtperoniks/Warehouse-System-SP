@@ -51,7 +51,18 @@ class BasoLiteTest extends TestCase
             ['code' => 'SPAREPART'],
             ['name' => 'Sparepart Warehouse', 'status' => 'ACTIVE']
         );
+        $this->manager->warehouses()->attach($this->warehouse->id);
+        $this->adminUser->warehouses()->attach($this->warehouse->id);
         session(['active_warehouse_id' => $this->warehouse->id]);
+
+        \App\Models\WarehouseFamilyAssignment::firstOrCreate([
+            'warehouse_id' => $this->warehouse->id,
+            'family_code' => 'ERP'
+        ]);
+        \App\Models\WarehouseFamilyAssignment::firstOrCreate([
+            'warehouse_id' => $this->warehouse->id,
+            'family_code' => 'ERP001'
+        ]);
 
         // 3. Create Item & Variant
         $item = Item::firstOrCreate(

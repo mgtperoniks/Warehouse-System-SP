@@ -10,19 +10,38 @@ class WarehouseSwitchController extends Controller
 {
     public function switchWarehouse(Request $request, $id)
     {
-        $warehouse = Warehouse::findOrFail($id);
-
-        // Enforce user warehouse access permissions boundary
-        $hasAccess = auth()->user()->warehouses()->where('warehouses.id', $id)->exists();
-        if (!$hasAccess) {
-            abort(403, 'Unauthorized warehouse access domain.');
+        $user = auth()->user();
+        if (!$user) {
+            abort(403, 'Unauthenticated.');
         }
+
+        $mappedWarehouses = $user->warehouses;
+        $count = $mappedWarehouses->count();
+
+        if ($count === 0) {
+            abort(403, 'User has no mapped warehouses.');
+        }
+
+        if ($count === 1) {
+            $onlyWarehouse = $mappedWarehouses->first();
+            if ($id != $onlyWarehouse->id) {
+                abort(403, 'Unauthorized warehouse switch.');
+            }
+            return redirect()->back()->with('success', "Switched active warehouse to {$onlyWarehouse->name}.");
+        }
+
+        $hasAccess = $user->warehouses()->whereKey($id)->exists();
+        if (!$hasAccess) {
+            abort(403, 'Unauthorized warehouse switch.');
+        }
+
+        $warehouse = Warehouse::findOrFail($id);
 
         // 1. Clear Active Stock Out Session Carts
         session()->forget('scan_cart');
 
         // 2. Abandon Active Inbound Draft Receipts to avoid contamination
-        \App\Models\StockInReceipt::where('user_id', auth()->id())
+        \App\Models\StockInReceipt::where('user_id', $user->id)
             ->where('status', 'ACTIVE')
             ->update(['status' => 'ABANDONED']);
 

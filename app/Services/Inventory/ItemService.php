@@ -13,7 +13,7 @@ class ItemService
      */
     public function getPaginatedItems(array $filters = [], int $perPage = 25): LengthAwarePaginator
     {
-        $query = ItemVariant::query()
+        $query = ItemVariant::forActiveWarehouse()
             ->select(
                 'item_variants.*',
                 'stock_data.total_stock',
@@ -110,7 +110,8 @@ class ItemService
      */
     public function getBrands(): array
     {
-        return ItemVariant::select('brand')
+        return ItemVariant::forActiveWarehouse()
+            ->select('brand')
             ->distinct()
             ->whereNotNull('brand')
             ->orderBy('brand')

@@ -32,6 +32,11 @@ class ItemVariant extends Model
         'lead_time_days' => 30,
     ];
 
+    protected static function booted()
+    {
+        static::addGlobalScope(new \App\Models\Scopes\ActiveWarehouseDomainScope);
+    }
+
     public function item(): BelongsTo
     {
         return $this->belongsTo(Item::class);
@@ -67,5 +72,10 @@ class ItemVariant extends Model
     public function movements(): HasMany
     {
         return $this->hasMany(StockMovement::class, 'item_variant_id');
+    }
+
+    public function scopeForActiveWarehouse($query)
+    {
+        return app(\App\Services\Inventory\WarehouseDomainService::class)->applyDomainFilter($query);
     }
 }

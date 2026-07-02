@@ -78,7 +78,7 @@ class InventoryPlanningPage extends Component
         $date90 = now()->subDays(90)->startOfDay();
         $date180 = now()->subDays(180)->startOfDay();
 
-        $query = ItemVariant::query()
+        $query = ItemVariant::forActiveWarehouse()
             ->select(
                 'item_variants.*',
                 DB::raw('COALESCE(stock_data.total_stock, 0) as total_stock'),

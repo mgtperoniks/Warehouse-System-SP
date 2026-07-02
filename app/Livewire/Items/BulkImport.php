@@ -49,6 +49,20 @@ class BulkImport extends Component
                 continue; // Skip empty rows
             }
 
+            // Verify ERP family belongs to active warehouse domain
+            $domainService = app(\App\Services\Inventory\WarehouseDomainService::class);
+            $family = $domainService->extractFamily($erpCode);
+            if (!$domainService->belongsToActiveWarehouse($family)) {
+                $rejectedCount++;
+                $activeWarehouseName = session('active_warehouse_name', 'Active Warehouse');
+                $rejectedDetails[] = [
+                    'row' => $index + 1,
+                    'erp_code' => $erpCode,
+                    'reason' => "ERP Family {$family} is not permitted for {$activeWarehouseName}."
+                ];
+                continue;
+            }
+
             DB::beginTransaction();
             try {
                 // 1. Check for ERP Code Duplication

@@ -47,7 +47,7 @@ class ItemPlanningFieldsTest extends TestCase
         Livewire::test(ItemForm::class, ['mode' => 'create'])
             ->set('name', 'Planning New Item')
             ->set('sku', 'SKU-PLAN-123')
-            ->set('erp_code', 'ERP-PLAN-123')
+            ->set('erp_code', '5.PLAN-123')
             ->set('unit', 'PCS')
             ->set('procurement_type', 'IMPORT')
             ->set('inventory_class', 'SPAREPART')
@@ -57,7 +57,7 @@ class ItemPlanningFieldsTest extends TestCase
 
         $this->assertDatabaseHas('item_variants', [
             'sku' => 'SKU-PLAN-123',
-            'erp_code' => 'ERP-PLAN-123',
+            'erp_code' => '5.PLAN-123',
             'procurement_type' => 'IMPORT',
             'inventory_class' => 'SPAREPART',
             'lead_time_days' => 45,
@@ -69,7 +69,7 @@ class ItemPlanningFieldsTest extends TestCase
         $variant = ItemVariant::create([
             'item_id' => $this->item->id,
             'sku' => 'SKU-EDIT-789',
-            'erp_code' => 'ERP-EDIT-789',
+            'erp_code' => '5.EDIT-789',
             'unit' => 'PCS',
             'procurement_type' => 'LOCAL',
             'inventory_class' => 'CONSUMABLE',
@@ -115,7 +115,7 @@ class ItemPlanningFieldsTest extends TestCase
         $variant = ItemVariant::create([
             'item_id' => $this->item->id,
             'sku' => 'SKU-INLINE-456',
-            'erp_code' => 'ERP-INLINE-456',
+            'erp_code' => '5.INLINE-456',
             'unit' => 'PCS',
             'procurement_type' => 'LOCAL',
             'inventory_class' => 'CONSUMABLE',
@@ -125,8 +125,8 @@ class ItemPlanningFieldsTest extends TestCase
         $this->actingAs($this->adminUser);
 
         Livewire::test(InventoryPlanningPage::class)
-            ->set('search', 'ERP-INLINE-456')
-            ->assertSee('ERP-INLINE-456')
+            ->set('search', '5.INLINE-456')
+            ->assertSee('5.INLINE-456')
             ->call('updatePlanning', $variant->id, 'procurement_type', 'IMPORT')
             ->call('updatePlanning', $variant->id, 'inventory_class', 'SPAREPART')
             ->call('updatePlanning', $variant->id, 'lead_time_days', 60)
@@ -146,7 +146,7 @@ class ItemPlanningFieldsTest extends TestCase
         $data = [
             [
                 'Import Item 1',
-                'ERP-IMP-001',
+                '5.IMP-001',
                 'SKU-IMP-001',
                 'PCS',
                 'Brand A',
@@ -166,7 +166,7 @@ class ItemPlanningFieldsTest extends TestCase
             ->call('saveItems', $data)
             ->assertHasNoErrors();
 
-        $variant = ItemVariant::where('erp_code', 'ERP-IMP-001')->firstOrFail();
+        $variant = ItemVariant::where('erp_code', '5.IMP-001')->firstOrFail();
         $this->assertEquals('IMPORT', $variant->procurement_type);
         $this->assertEquals('SPAREPART', $variant->inventory_class);
         $this->assertEquals(45, $variant->lead_time_days);

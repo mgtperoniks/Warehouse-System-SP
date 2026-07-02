@@ -328,6 +328,15 @@ class StockInPage extends Component
             'itemName' => 'required|min:3',
         ]);
 
+        // Validate ERP family belongs to active warehouse domain
+        $domainService = app(\App\Services\Inventory\WarehouseDomainService::class);
+        $family = $domainService->extractFamily($this->erpCode);
+        if (!$domainService->belongsToActiveWarehouse($family)) {
+            $activeWarehouseName = session('active_warehouse_name', 'Active Warehouse');
+            $this->addError('erpCode', "ERP Family '{$family}' is not permitted for {$activeWarehouseName}.");
+            return;
+        }
+
         DB::transaction(function () {
             $item = Item::create(['name' => $this->itemName]);
             

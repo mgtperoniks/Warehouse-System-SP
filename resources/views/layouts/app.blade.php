@@ -191,6 +191,7 @@
                 <div class="flex items-center gap-4 flex-1">
                     @if(auth()->check())
                     @php
+                        $userWarehousesCount = auth()->user()->warehouses->count();
                         $whCode = session('active_warehouse_code', 'SPAREPART');
                         $colorClass = match($whCode) {
                             'SPAREPART' => 'teal',
@@ -201,11 +202,16 @@
                         };
                     @endphp
                     <div x-data="{ open: false }" class="relative">
-                        <button @click="open = !open" class="flex items-center gap-2 px-3 py-1 bg-white border border-slate-200 rounded-md shadow-sm text-xs font-black uppercase tracking-wider transition-all duration-200 border-l-4 border-l-{{ $colorClass }}-500 hover:bg-slate-50 active:scale-95">
+                        <button 
+                            @if($userWarehousesCount <= 1) disabled @else @click="open = !open" @endif 
+                            class="flex items-center gap-2 px-3 py-1 bg-white border border-slate-200 rounded-md shadow-sm text-xs font-black uppercase tracking-wider transition-all duration-200 border-l-4 border-l-{{ $colorClass }}-500 hover:bg-slate-50 active:scale-95 @if($userWarehousesCount <= 1) opacity-75 cursor-not-allowed @endif">
                             <span class="material-symbols-outlined text-sm text-{{ $colorClass }}-600" style="font-variation-settings: 'FILL' 1;">warehouse</span>
                             <span class="text-slate-800 dark:text-slate-200">{{ session('active_warehouse_name', 'Spareparts Warehouse') }}</span>
+                            @if($userWarehousesCount > 1)
                             <span class="material-symbols-outlined text-xs text-slate-400">arrow_drop_down</span>
+                            @endif
                         </button>
+                        @if($userWarehousesCount > 1)
                         <div x-show="open" @click.away="open = false" x-transition:enter="transition ease-out duration-100" x-transition:enter-start="transform opacity-0 scale-95" x-transition:enter-end="transform opacity-100 scale-100" class="absolute left-0 mt-1 w-64 bg-white border border-slate-200 rounded-md shadow-lg z-50 overflow-hidden" style="display: none;">
                             <div class="bg-slate-50 px-3 py-1.5 border-b border-slate-100">
                                 <span class="text-[9px] font-black uppercase tracking-widest text-slate-400">Switch Warehouse Context</span>
@@ -237,6 +243,7 @@
                                 </form>
                             @endforeach
                         </div>
+                        @endif
                     </div>
                     @endif
                 </div>

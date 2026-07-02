@@ -15,8 +15,34 @@ class BasoController extends Controller
      */
     public function view($id)
     {
-        $baso = BasoDocument::findOrFail($id);
+        $user = auth()->user();
+        if (!$user) {
+            abort(403, 'Unauthorized.');
+        }
+
+        $baso = BasoDocument::find($id);
+
+        if (!$baso) {
+            if ($user->warehouses()->count() === 0) {
+                abort(403, 'Unauthorized.');
+            }
+            abort(404, 'BASO Document not found.');
+        }
+
         $adjustment = $baso->inventoryAdjustment;
+        if (!$adjustment) {
+            if ($user->warehouses()->count() === 0) {
+                abort(403, 'Unauthorized.');
+            }
+            abort(404, 'BASO Document not found.');
+        }
+
+        $warehouseId = $adjustment->warehouse_id;
+        $isMapped = $user->warehouses()->where('warehouses.id', $warehouseId)->exists();
+
+        if (!$isMapped) {
+            abort(403, 'Unauthorized.');
+        }
 
         if (!Storage::disk('public')->exists($baso->pdf_path)) {
             // Regenerate PDF
