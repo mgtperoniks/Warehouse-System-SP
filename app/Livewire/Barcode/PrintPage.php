@@ -18,6 +18,7 @@ class PrintPage extends Component
 
     // ─── Configuration ──────────────────────────────────────────────────────────
     public string $labelType   = 'ITEM_LABEL'; // ITEM_LABEL | BIN_LABEL
+    public string $binLabelVariant = 'BIN_LABEL_80X50'; // BIN_LABEL_80X50 | BIN_LABEL_A5 | BIN_LABEL_A4
     public string $printerType = 'EPSON';      // TSC | EPSON
     public string $binCode     = '';
     public int    $copies      = 1;
@@ -32,6 +33,20 @@ class PrintPage extends Component
     public function mount(): void
     {
         $this->loadDefaultSettings();
+    }
+
+    public function updatedBinLabelVariant($value): void
+    {
+        if (in_array($value, ['BIN_LABEL_A5', 'BIN_LABEL_A4'])) {
+            $this->printerType = 'EPSON';
+        }
+    }
+
+    public function updatedLabelType($value): void
+    {
+        if ($value === 'BIN_LABEL' && in_array($this->binLabelVariant, ['BIN_LABEL_A5', 'BIN_LABEL_A4'])) {
+            $this->printerType = 'EPSON';
+        }
     }
 
     private function loadDefaultSettings(): void
@@ -83,10 +98,24 @@ class PrintPage extends Component
         $printService = app(PrintService::class);
 
         try {
-            return $printService->renderPreview($data, $this->labelType);
+            $labelVariant = $this->labelType === 'BIN_LABEL' ? $this->binLabelVariant : 'ITEM_LABEL';
+            return $printService->renderPreview($data, $labelVariant);
         } catch (\Throwable $e) {
             return '<div class="text-red-500 p-4">Preview Error: ' . $e->getMessage() . '</div>';
         }
+    }
+
+    public function getPreviewMetrics(): array
+    {
+        $variant = $this->labelType === 'BIN_LABEL' ? $this->binLabelVariant : 'ITEM_LABEL';
+        
+        return match ($variant) {
+            'ITEM_LABEL' => ['width' => 50, 'height' => 30, 'scale' => 2.2],
+            'BIN_LABEL_80X50', 'BIN_LABEL' => ['width' => 80, 'height' => 50, 'scale' => 1.4],
+            'BIN_LABEL_A5' => ['width' => 194, 'height' => 281, 'scale' => 0.35],
+            'BIN_LABEL_A4' => ['width' => 281, 'height' => 194, 'scale' => 0.35],
+            default => ['width' => 80, 'height' => 50, 'scale' => 1.4],
+        };
     }
 
     // ─── Helper: Build Data Payload ─────────────────────────────────────────────
@@ -205,6 +234,13 @@ class PrintPage extends Component
             return;
         }
 
+        $labelVariant = $this->labelType === 'BIN_LABEL' ? $this->binLabelVariant : 'ITEM_LABEL';
+
+        if (in_array($labelVariant, ['BIN_LABEL_A5', 'BIN_LABEL_A4']) && $this->printerType === 'TSC') {
+            $this->validationErrors = ['Large-format Bin Labels are supported only on Epson printers.'];
+            return;
+        }
+
         $rules = [
             'labelType'   => 'required|in:ITEM_LABEL,BIN_LABEL',
             'printerType' => 'required|in:TSC,EPSON',
@@ -221,7 +257,7 @@ class PrintPage extends Component
         $printService = app(PrintService::class);
 
         try {
-            $result = $printService->print($data, $this->labelType, $this->printerType, $this->copies);
+            $result = $printService->print($data, $labelVariant, $this->printerType, $this->copies);
 
             if ($this->printerType === 'TSC') {
                 $this->flashMessage = "✓ Label sent to TSC Printer";

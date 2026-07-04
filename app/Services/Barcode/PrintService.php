@@ -20,14 +20,14 @@ class PrintService
      * Print the label based on printer type.
      * 
      * @param array $data Data for the label
-     * @param string $templateType ITEM_LABEL | BIN_LABEL
+     * @param string $labelVariant Label variant (ITEM_LABEL | BIN_LABEL_80X50 | BIN_LABEL_A5 | BIN_LABEL_A4)
      * @param string $printerType TSC | EPSON
      * @param int $copies Number of copies
      * @return mixed Boolean true for TSC (queued), HTML string for EPSON
      */
     public function print(
         array $data,
-        string $templateType,
+        string $labelVariant,
         string $printerType,
         int $copies = 1
     ): mixed {
@@ -40,7 +40,7 @@ class PrintService
         }
 
         if ($printerType === 'TSC') {
-            $payload = $this->tsplRenderer->render($data, $templateType);
+            $payload = $this->tsplRenderer->render($data, $labelVariant);
             
             // Inject copies into TSPL (Replace default PRINT 1,1)
             $payload = str_replace("PRINT 1,1", "PRINT $copies,1", $payload);
@@ -49,13 +49,39 @@ class PrintService
                 throw new \Exception("Rendered payload is empty. Aborting print.");
             }
 
-            $this->printJobService->createTscJob($payload, self::DEFAULT_TSC_PRINTER_NAME, $templateType, $copies);
+            $this->printJobService->createTscJob($payload, self::DEFAULT_TSC_PRINTER_NAME, $labelVariant, $copies);
             return "TSC Print job queued for " . self::DEFAULT_TSC_PRINTER_NAME;
         }
 
         if ($printerType === 'EPSON') {
-            $singleLabel = $this->htmlRenderer->render($data, $templateType);
+            $singleLabel = $this->htmlRenderer->render($data, $labelVariant);
             
+            if (in_array($labelVariant, ['BIN_LABEL_A5', 'BIN_LABEL_A4'])) {
+                $output = '';
+                $pageSizeStyle = $labelVariant === 'BIN_LABEL_A5' ? 'A4 portrait' : 'A4 landscape';
+                $containerWidth = $labelVariant === 'BIN_LABEL_A5' ? '194mm' : '281mm';
+                $containerHeight = $labelVariant === 'BIN_LABEL_A5' ? '281mm' : '194mm';
+
+                for ($i = 0; $i < $copies; $i++) {
+                    $output .= '<div class="page-break" style="width: ' . $containerWidth . '; height: ' . $containerHeight . '; box-sizing: border-box; overflow: hidden;">' . $singleLabel . '</div>';
+                }
+
+                return <<<HTML
+<div style="background: white; margin: 0; padding: 0;">
+    <style>
+        @media print {
+            @page { size: $pageSizeStyle; margin: 8mm; }
+            body { margin: 0; padding: 0; background: white; }
+            .page-break { page-break-after: always; break-after: page; page-break-inside: avoid; }
+            .page-break:last-child { page-break-after: avoid; break-after: avoid; }
+        }
+        body { margin: 0; padding: 0; }
+    </style>
+    $output
+</div>
+HTML;
+            }
+
             // Duplicate HTML for Epson (A4 stickers)
             $output = '';
             for ($i = 0; $i < $copies; $i++) {
@@ -79,13 +105,13 @@ HTML;
     /**
      * Render a single label for preview purposes.
      */
-    public function renderPreview(array $data, string $templateType): string
+    public function renderPreview(array $data, string $labelVariant): string
     {
         if (!isset($data['barcode_svg']) && isset($data['barcode'])) {
             $data['barcode_svg'] = $this->generateBarcodeSvg($data['barcode']);
         }
 
-        return $this->htmlRenderer->render($data, $templateType);
+        return $this->htmlRenderer->render($data, $labelVariant);
     }
 
     /**

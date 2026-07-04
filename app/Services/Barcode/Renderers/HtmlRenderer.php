@@ -4,12 +4,14 @@ namespace App\Services\Barcode\Renderers;
 
 class HtmlRenderer implements LabelRendererInterface
 {
-    public function render(array $data, string $templateType): string
+    public function render(array $data, string $labelVariant): string
     {
-        return match ($templateType) {
+        return match ($labelVariant) {
             'ITEM_LABEL' => $this->renderItemLabel($data),
-            'BIN_LABEL' => $this->renderBinLabel($data),
-            default => throw new \InvalidArgumentException("Unsupported template type: {$templateType}"),
+            'BIN_LABEL', 'BIN_LABEL_80X50' => $this->renderBinLabel($data),
+            'BIN_LABEL_A5' => $this->renderBinLabelA5($data),
+            'BIN_LABEL_A4' => $this->renderBinLabelA4($data),
+            default => throw new \InvalidArgumentException("Unsupported label variant: {$labelVariant}"),
         };
     }
 
@@ -82,6 +84,70 @@ HTML;
     <!-- Footer Zone (20% = 10mm) -->
     <div style="height: 20%; padding: 0 4mm 2mm 4mm; box-sizing: border-box; display: flex; align-items: center; justify-content: center;">
         <div style="font-size: 14pt; font-family: monospace; text-align: center; letter-spacing: 4px; font-weight: bold; line-height: 1;">$barcode</div>
+    </div>
+</div>
+HTML;
+    }
+
+    private function renderBinLabelA5(array $data): string
+    {
+        $this->validateData($data, ['item_name', 'erp_code', 'barcode', 'bin_code', 'barcode_svg']);
+
+        $name = htmlspecialchars(strtoupper($data['item_name']));
+        $erp = htmlspecialchars($data['erp_code']);
+        $barcode = htmlspecialchars($data['barcode']);
+        $binCode = htmlspecialchars(strtoupper($data['bin_code']));
+        $barcodeImg = $data['barcode_svg'];
+
+        return <<<HTML
+<div style="width: 194mm; height: 140mm; padding: 0; box-sizing: border-box; font-family: Arial, Helvetica, 'Segoe UI', sans-serif; display: flex; flex-direction: column; background: white; overflow: hidden; color: black; border: 2mm solid #000;">
+    <!-- Upper Section: Rack / Bin Code (28% height) -->
+    <div style="height: 28%; border-bottom: 2mm solid #000; display: flex; align-items: center; justify-content: center; box-sizing: border-box; overflow: hidden; padding: 0 2mm;">
+        <div style="font-size: 64pt; font-weight: 900; line-height: 1; text-align: center; width: 100%; white-space: nowrap; letter-spacing: -1px;">$binCode</div>
+    </div>
+
+    <!-- Middle Section: Barcode (42% height) -->
+    <div style="height: 42%; border-bottom: 2mm solid #000; display: flex; flex-direction: column; align-items: center; justify-content: center; box-sizing: border-box; padding: 1mm 0;">
+        <img src="$barcodeImg" style="width: 92%; height: 30mm; display: block; object-fit: fill;">
+        <div style="font-size: 16pt; font-family: monospace; font-weight: bold; letter-spacing: 4px; margin-top: 1mm; line-height: 1; text-align: center;">$barcode</div>
+    </div>
+
+    <!-- Lower Section: Item Name & ERP Code (30% height) -->
+    <div style="height: 30%; display: flex; flex-direction: column; justify-content: center; align-items: center; box-sizing: border-box; padding: 1mm 2mm; overflow: hidden;">
+        <div style="font-size: 22pt; font-weight: bold; text-align: center; line-height: 1.15; width: 100%; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; text-transform: uppercase;">$name</div>
+        <div style="font-size: 15pt; font-family: monospace; font-weight: 550; color: #000; text-align: center; margin-top: 1mm; line-height: 1;">ERP: $erp</div>
+    </div>
+</div>
+HTML;
+    }
+
+    private function renderBinLabelA4(array $data): string
+    {
+        $this->validateData($data, ['item_name', 'erp_code', 'barcode', 'bin_code', 'barcode_svg']);
+
+        $name = htmlspecialchars(strtoupper($data['item_name']));
+        $erp = htmlspecialchars($data['erp_code']);
+        $barcode = htmlspecialchars($data['barcode']);
+        $binCode = htmlspecialchars(strtoupper($data['bin_code']));
+        $barcodeImg = $data['barcode_svg'];
+
+        return <<<HTML
+<div style="width: 281mm; height: 194mm; padding: 0; box-sizing: border-box; font-family: Arial, Helvetica, 'Segoe UI', sans-serif; display: flex; flex-direction: column; background: white; overflow: hidden; color: black; border: 4px solid #000;">
+    <!-- Upper Section: Rack / Bin Code (28% height) -->
+    <div style="height: 28%; border-bottom: 4mm solid #000; display: flex; align-items: center; justify-content: center; box-sizing: border-box; overflow: hidden; padding: 0 4mm;">
+        <div style="font-size: 115pt; font-weight: 900; line-height: 1; text-align: center; width: 100%; white-space: nowrap; letter-spacing: -2px;">$binCode</div>
+    </div>
+
+    <!-- Middle Section: Barcode (42% height) -->
+    <div style="height: 42%; border-bottom: 4mm solid #000; display: flex; flex-direction: column; align-items: center; justify-content: center; box-sizing: border-box; padding: 2mm 0;">
+        <img src="$barcodeImg" style="width: 90%; height: 44mm; display: block; object-fit: fill;">
+        <div style="font-size: 24pt; font-family: monospace; font-weight: bold; letter-spacing: 8px; margin-top: 2mm; line-height: 1; text-align: center;">$barcode</div>
+    </div>
+
+    <!-- Lower Section: Item Name & ERP Code (30% height) -->
+    <div style="height: 30%; display: flex; flex-direction: column; justify-content: center; align-items: center; box-sizing: border-box; padding: 2mm 4mm; overflow: hidden;">
+        <div style="font-size: 30pt; font-weight: bold; text-align: center; line-height: 1.15; width: 100%; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; text-transform: uppercase;">$name</div>
+        <div style="font-size: 18pt; font-family: monospace; font-weight: 550; color: #000; text-align: center; margin-top: 1.5mm; line-height: 1;">ERP: $erp</div>
     </div>
 </div>
 HTML;

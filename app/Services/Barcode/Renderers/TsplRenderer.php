@@ -7,12 +7,13 @@ class TsplRenderer implements LabelRendererInterface
     private const FONT_TITLE = '2';
     private const FONT_NORMAL = '1';
 
-    public function render(array $data, string $templateType): string
+    public function render(array $data, string $labelVariant): string
     {
-        return match ($templateType) {
+        return match ($labelVariant) {
             'ITEM_LABEL' => $this->renderItemLabel($data),
-            'BIN_LABEL' => $this->renderBinLabel($data),
-            default => throw new \InvalidArgumentException("Unsupported template type: {$templateType}"),
+            'BIN_LABEL', 'BIN_LABEL_80X50' => $this->renderBinLabel($data),
+            'BIN_LABEL_A5', 'BIN_LABEL_A4' => throw new \InvalidArgumentException("Large-format labels are supported only on Epson printers."),
+            default => throw new \InvalidArgumentException("Unsupported label variant: {$labelVariant}"),
         };
     }
 

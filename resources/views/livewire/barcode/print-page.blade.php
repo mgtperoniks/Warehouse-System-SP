@@ -73,13 +73,33 @@
                         </select>
                     </div>
 
+                    <!-- Layout Size Select for Bin Label -->
+                    @if($labelType === 'BIN_LABEL')
+                    <div class="space-y-1">
+                        <label class="text-[9px] font-black text-slate-400 uppercase tracking-widest block ml-1">Layout Size</label>
+                        <select wire:model.live="binLabelVariant" 
+                                class="w-full h-9 bg-slate-50 border border-slate-200 dark:border-slate-850 rounded-md px-2.5 text-xs font-bold focus:outline-none focus:border-slate-400">
+                            <option value="BIN_LABEL_80X50">80 × 50 mm</option>
+                            <option value="BIN_LABEL_A5">A5 Landscape</option>
+                            <option value="BIN_LABEL_A4">A4 Landscape</option>
+                        </select>
+                        @if($binLabelVariant === 'BIN_LABEL_A5')
+                        <span class="text-[9px] text-blue-600 font-bold block mt-1 leading-normal">
+                            ℹ️ Printed on A4 Portrait paper using the upper half. After printing, the remaining half can be reused by manually reinserting the same sheet.
+                        </span>
+                        @endif
+                    </div>
+                    @endif
+
                     <!-- Printer Hub Target -->
                     <div class="space-y-1">
                         <label class="text-[9px] font-black text-slate-400 uppercase tracking-widest block ml-1">Printer Target</label>
                         <select wire:model.live="printerType" 
                                 class="w-full h-9 bg-slate-50 border border-slate-200 dark:border-slate-850 rounded-md px-2.5 text-xs font-bold focus:outline-none focus:border-slate-400">
                             <option value="EPSON">Epson L120 (A4 / Browser Print)</option>
-                            <option value="TSC">TSC TE200 (Direct Thermal / TSPL)</option>
+                            <option value="TSC" {{ in_array($binLabelVariant, ['BIN_LABEL_A5', 'BIN_LABEL_A4']) && $labelType === 'BIN_LABEL' ? 'disabled' : '' }}>
+                                TSC TE200 (Direct Thermal / TSPL)
+                            </option>
                         </select>
                     </div>
 
@@ -153,9 +173,14 @@
                 </div>
 
                 <!-- realistic preview box (compact rendering) -->
-                <div class="bg-slate-50 border border-slate-200 p-sm rounded-md overflow-hidden flex justify-center items-center w-full min-h-[220px]">
-                    <div class="shadow-sm bg-white border border-slate-300 origin-center transform scale-[0.85] transition-transform">
-                        {!! $this->previewHtml !!}
+                @php
+                    $metrics = $this->getPreviewMetrics();
+                @endphp
+                <div class="bg-slate-50 border border-slate-200 p-sm rounded-md overflow-hidden flex justify-center items-center w-full min-h-[300px]">
+                    <div style="width: calc({{ $metrics['width'] }}mm * {{ $metrics['scale'] }}); height: calc({{ $metrics['height'] }}mm * {{ $metrics['scale'] }}); overflow: hidden; position: relative;" class="shadow-sm bg-white border border-slate-350">
+                        <div style="transform: scale({{ $metrics['scale'] }}); transform-origin: top left; position: absolute; top: 0; left: 0; width: {{ $metrics['width'] }}mm; height: {{ $metrics['height'] }}mm;">
+                            {!! $this->previewHtml !!}
+                        </div>
                     </div>
                 </div>
 
