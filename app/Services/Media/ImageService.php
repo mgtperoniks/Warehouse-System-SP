@@ -13,9 +13,16 @@ class ImageService
      * @param bool $forceSquare Whether to center-crop to 1:1
      * @return bool
      */
-    public function compressAndResize(string $path, int $maxWidth = 1200, int $quality = 75, bool $forceSquare = false): bool
+    public function compressAndResize(string $path, int $maxWidth = 1600, int $quality = 70, bool $forceSquare = false): bool
     {
+        $startTime = microtime(true);
+
         if (!file_exists($path)) {
+            return false;
+        }
+
+        $originalSize = filesize($path);
+        if ($originalSize === false || $originalSize === 0) {
             return false;
         }
 
@@ -27,17 +34,18 @@ class ImageService
         $mime = $info['mime'];
         $width = $info[0];
         $height = $info[1];
+        $dimensionsBefore = "{$width}x{$height}";
 
         // 1. Create source image based on type
         switch ($mime) {
             case 'image/jpeg':
-                $source = imagecreatefromjpeg($path);
+                $source = @imagecreatefromjpeg($path);
                 break;
             case 'image/png':
-                $source = imagecreatefrompng($path);
+                $source = @imagecreatefrompng($path);
                 break;
             case 'image/webp':
-                $source = imagecreatefromwebp($path);
+                $source = @imagecreatefromwebp($path);
                 break;
             default:
                 return false;
@@ -53,13 +61,25 @@ class ImageService
             if (!empty($exif['Orientation'])) {
                 switch ($exif['Orientation']) {
                     case 8:
-                        $source = imagerotate($source, 90, 0);
+                        $rotated = @imagerotate($source, 90, 0);
+                        if ($rotated) {
+                            imagedestroy($source);
+                            $source = $rotated;
+                        }
                         break;
                     case 3:
-                        $source = imagerotate($source, 180, 0);
+                        $rotated = @imagerotate($source, 180, 0);
+                        if ($rotated) {
+                            imagedestroy($source);
+                            $source = $rotated;
+                        }
                         break;
                     case 6:
-                        $source = imagerotate($source, -90, 0);
+                        $rotated = @imagerotate($source, -90, 0);
+                        if ($rotated) {
+                            imagedestroy($source);
+                            $source = $rotated;
+                        }
                         break;
                 }
                 // Refresh dimensions after rotation
@@ -101,7 +121,11 @@ class ImageService
         }
 
         // 5. Resample
-        $destination = imagecreatetruecolor($newWidth, $newHeight);
+        $destination = @imagecreatetruecolor($newWidth, $newHeight);
+        if (!$destination) {
+            imagedestroy($source);
+            return false;
+        }
         
         // Handle transparency for PNG/WebP (converting to white background for JPEG result)
         if ($mime !== 'image/jpeg') {
@@ -109,18 +133,39 @@ class ImageService
             imagefill($destination, 0, 0, $white);
         }
 
-        imagecopyresampled(
+        if (!@imagecopyresampled(
             $destination, $source, 
             0, 0, $srcX, $srcY, 
             $newWidth, $newHeight, $srcWidth, $srcHeight
-        );
+        )) {
+            imagedestroy($source);
+            imagedestroy($destination);
+            return false;
+        }
 
         // 6. Save as optimized JPEG (overwrites original)
-        $result = imagejpeg($destination, $path, $quality);
+        $result = @imagejpeg($destination, $path, $quality);
 
         // Cleanup
         imagedestroy($source);
         imagedestroy($destination);
+
+        if ($result) {
+            clearstatcache(true, $path);
+            $optimizedSize = filesize($path);
+            $processingTimeMs = round((microtime(true) - $startTime) * 1000, 2);
+            $ratio = $originalSize > 0 ? round((1 - ($optimizedSize / $originalSize)) * 100, 2) : 0;
+            
+            \Illuminate\Support\Facades\Log::info('Image optimized successfully', [
+                'path' => $path,
+                'original_size_bytes' => $originalSize,
+                'optimized_size_bytes' => $optimizedSize,
+                'compression_ratio_percent' => $ratio,
+                'dimensions_before' => $dimensionsBefore,
+                'dimensions_after' => "{$newWidth}x{$newHeight}",
+                'processing_time_ms' => $processingTimeMs,
+            ]);
+        }
 
         return $result;
     }

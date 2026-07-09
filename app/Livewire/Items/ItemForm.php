@@ -434,16 +434,41 @@ class ItemForm extends Component
             if (!empty($this->photos)) {
                 foreach ($this->photos as $i => $photo) {
                     $path = $photo->store('item-images', 'public');
+                    $fullPath = \Illuminate\Support\Facades\Storage::disk('public')->path($path);
                     
-                    // Compress, Resize and Force Square (Center Crop)
-                    $fullPath = storage_path('app/public/' . $path);
-                    $imageService->compressAndResize($fullPath, 1200, 75, true);
+                    try {
+                        $success = $imageService->compressAndResize($fullPath, 1600, 70, true);
+                        if (!$success) {
+                            throw new \Exception("GD image processing failed.");
+                        }
+                    } catch (\Throwable $e) {
+                        // Delete the copied original file if it exists
+                        if (file_exists($fullPath)) {
+                            @unlink($fullPath);
+                        }
+                        
+                        \Illuminate\Support\Facades\Log::error("Image optimization failed for file {$photo->getClientOriginalName()}: " . $e->getMessage(), [
+                            'exception' => $e,
+                            'file' => $photo->getClientOriginalName()
+                        ]);
+                        
+                        throw \Illuminate\Validation\ValidationException::withMessages([
+                            'photos' => ["Failed to optimize and process the image '{$photo->getClientOriginalName()}'. Please try another image."]
+                        ]);
+                    }
 
                     ItemImage::create([
                         'item_variant_id' => $this->variant->id,
                         'path' => $path,
                         'is_primary' => ($this->primaryPhotoIndex === $i),
                     ]);
+
+                    // Delete the temporary file from livewire-tmp
+                    try {
+                        $photo->delete();
+                    } catch (\Throwable $de) {
+                        \Illuminate\Support\Facades\Log::warning("Failed to delete temporary upload file: " . $de->getMessage());
+                    }
                 }
             }
 
@@ -518,24 +543,57 @@ class ItemForm extends Component
 
         // Overwrite the existing file at its physical path
         $path = $image->path;
-        $fullPath = storage_path('app/public/' . $path);
+        $fullPath = \Illuminate\Support\Facades\Storage::disk('public')->path($path);
 
         if (Storage::disk('public')->exists($path)) {
-            // Save the new blob over the old file
-            Storage::disk('public')->put($path, $this->croppedExistingPhoto->get());
-            
-            // Re-optimize and Ensure Square (Center Crop)
-            $imageService = app(\App\Services\Media\ImageService::class);
-            $imageService->compressAndResize($fullPath, 1200, 75, true);
-            
-            // Touch the model to update the updated_at timestamp used for Cache Busting
-            $image->touch();
-            
-            // Refresh existing photos list from database to get the new timestamp
-            $this->existingPhotos = $this->variant->images()->get()->toArray();
-            
-            $this->reset(['croppedExistingPhoto', 'editingExistingId']);
-            $this->dispatch('notyf', type: 'success', message: 'Existing photo updated successfully.');
+            // Backup the original file in case optimization fails
+            $backupPath = $fullPath . '.bak';
+            @copy($fullPath, $backupPath);
+
+            try {
+                // Save the new blob over the old file
+                Storage::disk('public')->put($path, $this->croppedExistingPhoto->get());
+                
+                // Re-optimize and Ensure Square (Center Crop)
+                $imageService = app(\App\Services\Media\ImageService::class);
+                $success = $imageService->compressAndResize($fullPath, 1600, 70, true);
+                if (!$success) {
+                    throw new \Exception("GD image processing failed.");
+                }
+                
+                // Touch the model to update the updated_at timestamp used for Cache Busting
+                $image->touch();
+                
+                // Refresh existing photos list from database to get the new timestamp
+                $this->existingPhotos = $this->variant->images()->get()->toArray();
+                
+                // Delete the temporary crop photo
+                try {
+                    $this->croppedExistingPhoto->delete();
+                } catch (\Throwable $de) {
+                    \Illuminate\Support\Facades\Log::warning("Failed to delete temporary cropped photo: " . $de->getMessage());
+                }
+
+                $this->reset(['croppedExistingPhoto', 'editingExistingId']);
+                $this->dispatch('notyf', type: 'success', message: 'Existing photo updated successfully.');
+
+                // Remove the backup file
+                if (file_exists($backupPath)) {
+                    @unlink($backupPath);
+                }
+            } catch (\Throwable $e) {
+                // Restore backup if it exists
+                if (file_exists($backupPath)) {
+                    @copy($backupPath, $fullPath);
+                    @unlink($backupPath);
+                }
+
+                \Illuminate\Support\Facades\Log::error("Image optimization failed for cropped photo: " . $e->getMessage(), [
+                    'exception' => $e
+                ]);
+
+                $this->addError('photos', "Failed to optimize the cropped image: " . $e->getMessage());
+            }
         }
     }
 }

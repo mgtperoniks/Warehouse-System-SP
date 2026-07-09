@@ -47,8 +47,9 @@ RUN composer install --no-interaction --no-scripts --optimize-autoloader --no-de
 # Install Node dependencies and build assets
 RUN npm install && npm run build
 
-# Setup Nginx
+# Setup Nginx and PHP config
 COPY .agent/nginx.conf /etc/nginx/sites-available/default
+COPY .agent/php-custom.ini /usr/local/etc/php/conf.d/php-custom.ini
 
 # Generate SSL and final permission check
 RUN mkdir -p /etc/nginx/ssl && \
