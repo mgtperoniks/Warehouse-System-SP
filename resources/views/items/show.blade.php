@@ -391,12 +391,18 @@
                                     <div class="flex items-center gap-3 flex-shrink-0">
                                         <!-- Qty (Right Aligned, Strong Emphasis) -->
                                         <span class="font-black text-right text-[11px] tracking-wide" style="width: 50px;">
-                                            @if($mov->qty > 0)
-                                                <span class="text-emerald-600">+{{ number_format($mov->qty) }}</span>
-                                            @elseif($mov->qty < 0)
-                                                <span class="text-rose-600">{{ number_format($mov->qty) }}</span>
+                                            @if($mov->type === 'IN')
+                                                <span class="text-emerald-600">+{{ number_format(abs($mov->qty)) }}</span>
+                                            @elseif($mov->type === 'OUT')
+                                                <span class="text-rose-600">-{{ number_format(abs($mov->qty)) }}</span>
                                             @else
-                                                <span class="text-slate-400">0</span>
+                                                @if($mov->qty > 0)
+                                                    <span class="text-emerald-600">+{{ number_format($mov->qty) }}</span>
+                                                @elseif($mov->qty < 0)
+                                                    <span class="text-rose-600">{{ number_format($mov->qty) }}</span>
+                                                @else
+                                                    <span class="text-slate-400">0</span>
+                                                @endif
                                             @endif
                                         </span>
                                         
@@ -423,10 +429,9 @@
                 @endif
             </section>
         </div>
-    </div>
-
-    <!-- Fullscreen Lightbox Modal (Alpine.js Built-in) -->
+      <!-- Fullscreen Lightbox Modal (Alpine.js Built-in) -->
     <div x-show="open" 
+         @click.self="close()"
          x-transition:enter="transition ease-out duration-200"
          x-transition:enter-start="opacity-0 scale-95"
          x-transition:enter-end="opacity-100 scale-100"
@@ -452,17 +457,28 @@
         </button>
         
         <!-- Center Image Display -->
-        <div class="max-w-4xl max-h-[75vh] w-full flex items-center justify-center p-4">
-            <img :src="images[activeIndex]" class="max-w-full max-h-[75vh] object-contain rounded shadow-2xl border border-white/10 select-none">
+        <div class="max-w-4xl max-h-[75vh] w-full flex items-center justify-center p-4 relative overflow-hidden select-none"
+             @click.stop
+             @mousedown="startDrag($event)"
+             @mousemove="drag($event)"
+             @mouseup="endDrag()"
+             @mouseleave="endDrag()"
+             @wheel.prevent="handleWheel($event)">
+            <img :src="images[activeIndex]" 
+                 class="max-w-full max-h-[75vh] object-contain rounded shadow-2xl border border-white/10 select-none origin-center"
+                 :class="isDragging ? 'transition-none' : 'transition-transform duration-200 ease-out'"
+                 :style="`transform: translate(${translateX}px, ${translateY}px) scale(${zoomScale}); cursor: ${zoomScale > 1.0 ? (isDragging ? 'grabbing' : 'grab') : 'zoom-in'};`"
+                 @dblclick="toggleZoom($event)"
+                 @dragstart.prevent>
         </div>
         
         <!-- Bottom Thumbnail Strip -->
-        <div x-show="images.length > 1" class="flex gap-2 mt-4 max-w-full overflow-x-auto p-2 bg-black/30 rounded-xl">
+        <div x-show="images.length > 1" @click.stop class="flex gap-2 mt-4 max-w-full overflow-x-auto p-2 bg-black/30 rounded-xl">
             <template x-for="(img, idx) in images" :key="idx">
-                <div @click="activeIndex = idx" 
+                <div @click="activeIndex = idx; resetZoom()" 
                      :class="{'border-primary scale-105': activeIndex === idx, 'border-white/20': activeIndex !== idx}"
                      class="w-12 h-12 rounded border-2 overflow-hidden cursor-pointer transition-all flex-shrink-0 bg-slate-900">
-                    <img :src="img" class="w-full h-full object-cover">
+                     <img :src="img" class="w-full h-full object-cover">
                 </div>
             </template>
         </div>
@@ -475,23 +491,88 @@
             open: false,
             activeIndex: 0,
             images: {!! json_encode($galleryImages) !!},
+            zoomScale: 1.0,
+            translateX: 0,
+            translateY: 0,
+            isDragging: false,
+            startX: 0,
+            startY: 0,
+            
             openLightbox(index) {
                 if (this.images.length === 0) return;
                 this.activeIndex = index;
+                this.resetZoom();
                 this.open = true;
             },
             close() {
                 this.open = false;
+                this.resetZoom();
             },
             next() {
                 if (this.images.length === 0) return;
                 this.activeIndex = (this.activeIndex + 1) % this.images.length;
+                this.resetZoom();
             },
             prev() {
                 if (this.images.length === 0) return;
                 this.activeIndex = (this.activeIndex - 1 + this.images.length) % this.images.length;
+                this.resetZoom();
+            },
+            resetZoom() {
+                this.zoomScale = 1.0;
+                this.translateX = 0;
+                this.translateY = 0;
+                this.isDragging = false;
+            },
+            toggleZoom(e) {
+                if (this.zoomScale > 1.0) {
+                    this.resetZoom();
+                } else {
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    const mouseX = e.clientX - (rect.left + rect.width / 2);
+                    const mouseY = e.clientY - (rect.top + rect.height / 2);
+                    this.zoomScale = 2.5;
+                    this.translateX = mouseX - mouseX * 2.5;
+                    this.translateY = mouseY - mouseY * 2.5;
+                }
+            },
+            handleWheel(e) {
+                const delta = e.deltaY < 0 ? 0.25 : -0.25;
+                const oldScale = this.zoomScale;
+                const newScale = Math.max(1.0, Math.min(6.0, this.zoomScale + delta));
+                
+                if (newScale === oldScale) return;
+                
+                if (newScale === 1.0) {
+                    this.resetZoom();
+                    return;
+                }
+                
+                const rect = e.currentTarget.getBoundingClientRect();
+                const mouseX = e.clientX - (rect.left + rect.width / 2);
+                const mouseY = e.clientY - (rect.top + rect.height / 2);
+                
+                this.translateX = mouseX - (mouseX - this.translateX) * (newScale / oldScale);
+                this.translateY = mouseY - (mouseY - this.translateY) * (newScale / oldScale);
+                this.zoomScale = newScale;
+            },
+            startDrag(e) {
+                if (this.zoomScale <= 1.0) return;
+                if (e.button !== 0) return; // Only left click
+                this.isDragging = true;
+                this.startX = e.clientX - this.translateX;
+                this.startY = e.clientY - this.translateY;
+            },
+            drag(e) {
+                if (!this.isDragging) return;
+                this.translateX = e.clientX - this.startX;
+                this.translateY = e.clientY - this.startY;
+            },
+            endDrag() {
+                this.isDragging = false;
             }
         }
     }
+</script>
 </script>
 @endsection

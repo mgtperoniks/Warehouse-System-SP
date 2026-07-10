@@ -5,6 +5,8 @@
     <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
     <title>WMS Orchestrator</title>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
+    @livewireStyles
+
     <style>
         @keyframes flash-success {
             0% { box-shadow: 0 0 0 0px rgba(16, 185, 129, 0.4); border-color: rgba(16, 185, 129, 0.5); }
@@ -306,5 +308,6 @@
         </a>
     </nav>
 
+    @livewireScripts
 </body>
 </html>
