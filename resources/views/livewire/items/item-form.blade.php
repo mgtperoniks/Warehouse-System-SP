@@ -1,8 +1,4 @@
 <div>
-    <!-- Cropper.js Assets -->
-    <link rel="stylesheet" href="{{ asset('assets/css/cropper.min.css') }}" />
-    <script src="{{ asset('assets/js/cropper.min.js') }}"></script>
-
     <!-- Alpine Data Wrap -->
     <div x-data="{ 
             cropping: false,
