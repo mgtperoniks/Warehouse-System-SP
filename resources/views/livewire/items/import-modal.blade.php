@@ -5,7 +5,7 @@
         <div class="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" wire:click="closeModal"></div>
         
         <!-- Modal Content -->
-        <div class="bg-surface rounded-3xl shadow-2xl relative z-10 w-full max-w-lg mx-4 flex flex-col overflow-hidden animate-in fade-in zoom-in duration-200">
+        <div class="bg-surface rounded-3xl shadow-2xl relative z-10 w-full max-w-[32rem] mx-4 flex flex-col overflow-hidden animate-in fade-in zoom-in duration-200">
             <!-- Header -->
             <div class="px-6 py-4 border-b border-slate-200 flex justify-between items-center bg-white">
                 <h3 class="text-xl font-black text-slate-800 flex items-center gap-2">

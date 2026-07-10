@@ -28,7 +28,10 @@
                     }
 
                     function startEngine() {
-                        if (image._cropper) return; // Prevent double initialization
+                        if (image._cropper) {
+                            image._cropper.destroy();
+                            image._cropper = null;
+                        }
                         image._cropper = new Cropper(image, {
                             aspectRatio: 1,
                             viewMode: 2,
@@ -345,7 +348,7 @@
                     <span class="material-symbols-outlined text-primary text-2xl">cloud_upload</span>
                 </div>
                 <h3 class="text-md font-black text-on-surface">Drag and drop item photos</h3>
-                <p class="text-xs text-slate-500 mt-2 max-w-sm">Support for JPEG & PNG. Used for visual inventory verification.</p>
+                <p class="text-xs text-slate-500 mt-2 max-w-[24rem]">Support for JPEG & PNG. Used for visual inventory verification.</p>
                 
                 <div class="mt-4 flex gap-2 z-0 relative">
                     <span class="px-2.5 py-1 bg-slate-100 dark:bg-slate-800 rounded-sm text-[9px] font-bold text-slate-500 uppercase tracking-widest hidden sm:inline-block">Max: 25MB</span>
@@ -448,7 +451,7 @@
     <div x-show="cropping" 
          class="fixed inset-0 z-[9999] flex items-center justify-center p-2 sm:p-4 bg-slate-900/90"
          x-cloak>
-        <div class="bg-white dark:bg-slate-900 rounded-md overflow-hidden max-w-xl w-full shadow-2xl flex flex-col h-[85vh]">
+        <div class="bg-white dark:bg-slate-900 rounded-md overflow-hidden max-w-[36rem] w-full shadow-2xl flex flex-col h-[85vh]">
             <div class="p-md border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-white dark:bg-slate-900 shrink-0">
                 <div>
                     <h3 class="text-sm font-black text-slate-850 dark:text-slate-100 tracking-tight uppercase">Interactive Square Crop</h3>
@@ -463,7 +466,9 @@
                     <p class="text-[8px] font-black text-slate-400 uppercase">Engine Loading...</p>
                 </div>
                 
-                <img x-ref="cropperImage" class="block max-w-full" style="max-height: 50vh;" />
+                <div wire:ignore class="flex items-center justify-center w-full h-full">
+                    <img x-ref="cropperImage" class="block max-w-full" style="max-height: 50vh;" />
+                </div>
             </div>
             
             <div class="p-md bg-slate-50 dark:bg-slate-800 border-t border-slate-100 dark:border-slate-800 flex flex-col gap-2 shrink-0">

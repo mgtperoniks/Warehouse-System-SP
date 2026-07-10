@@ -137,7 +137,7 @@
                 <span class="material-symbols-outlined text-3xl font-bold">task_alt</span>
             </div>
             <h3 class="text-sm font-black text-slate-800 uppercase tracking-wider mb-1">Tidak ada Inventory Adjustment</h3>
-            <p class="text-xs text-slate-500 font-medium max-w-md mx-auto">Semua hasil opname hari ini sudah selesai atau tidak ada data yang cocok dengan filter aktif.</p>
+            <p class="text-xs text-slate-500 font-medium max-w-[28rem] mx-auto">Semua hasil opname hari ini sudah selesai atau tidak ada data yang cocok dengan filter aktif.</p>
         </div>
     @else
         <div class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">

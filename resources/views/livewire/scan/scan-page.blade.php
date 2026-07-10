@@ -506,7 +506,7 @@
     {{-- ── PRINT RECEIPT AREA (HIDDEN) ── --}}
     <div id="print-area" class="hidden print:block fixed inset-0 bg-white z-[9999] p-8">
         @if($isSubmitted && $submittedTrx)
-        <div class="max-w-md mx-auto border-2 border-black p-6 font-mono text-sm space-y-6">
+        <div class="max-w-[28rem] mx-auto border-2 border-black p-6 font-mono text-sm space-y-6">
             <div class="text-center border-b-2 border-black pb-4">
                 <h1 class="text-xl font-bold uppercase">WAREHOUSE RECEIPT</h1>
                 <p class="text-lg font-bold">{{ $submittedTrx->code }}</p>
