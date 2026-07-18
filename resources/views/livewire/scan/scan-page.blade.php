@@ -564,6 +564,37 @@
 </style>
 
 <script>
+    // ── Scan / Stock Out Camera Scanner ──────────────────────────────────
+    // Delegates to PeroniksCameraScanner (public/assets/js/peroniksscanner.js)
+    //
+    // On success, decodedText is passed directly to submitScan() which is the
+    // canonical unified ingestion entry point for ALL three input sources:
+    //   1. Hardware barcode scanner (keyboard wedge)
+    //   2. Manual keyboard input
+    //   3. Smartphone camera scanner  ← restored here
+    window.startScanner = function () {
+        window.preventScannerRefocus = true;
+        if (document.activeElement instanceof HTMLElement) {
+            document.activeElement.blur();
+        }
+        var input = document.getElementById('barcode-input');
+        if (input) input.blur();
+
+        PeroniksCameraScanner.start({
+            readerId:    'reader',
+            containerId: 'scanner-container',
+            onSuccess: function (decodedText) {
+                @this.call('submitScan', decodedText, 1);
+            }
+        });
+    };
+
+    window.stopScanner = function () {
+        PeroniksCameraScanner.stop();
+    };
+</script>
+
+<script>
     // 📊 Operational Client-Side Scanner Telemetry
     window.__WMS_SCANNER_DEBUG = {
         avgScanTimeMs: 0,
@@ -738,7 +769,10 @@
                 // Focus Tracking
                 const inputEl = document.getElementById('barcode-input');
                 if (inputEl) {
-                    inputEl.addEventListener('focus', () => { this.isFocused = true; });
+                    inputEl.addEventListener('focus', () => { 
+                        this.isFocused = true; 
+                        window.preventScannerRefocus = false;
+                    });
                     inputEl.addEventListener('blur', () => { this.isFocused = false; });
                 }
 
@@ -968,6 +1002,7 @@
             },
 
             recoverFocus() {
+                if (window.preventScannerRefocus) return;
                 // Focus Cooldown Protection to prevent browser blur loops
                 if (this.focusCooldown) return;
 
@@ -985,6 +1020,7 @@
             },
 
             forceFocus() {
+                if (window.preventScannerRefocus) return;
                 const inputEl = document.getElementById('barcode-input');
                 if (inputEl) {
                     this.focusCooldown = true;

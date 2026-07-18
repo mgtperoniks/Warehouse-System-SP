@@ -645,7 +645,10 @@
                     // Focus tracking
                     const inputEl = document.getElementById('barcode-input');
                     if (inputEl) {
-                        inputEl.addEventListener('focus', () => { this.isFocused = true; });
+                        inputEl.addEventListener('focus', () => { 
+                            this.isFocused = true; 
+                            window.preventScannerRefocus = false;
+                        });
                         inputEl.addEventListener('blur', () => { this.isFocused = false; });
                     }
 
@@ -865,6 +868,7 @@
                 },
 
                 recoverFocus() {
+                    if (window.preventScannerRefocus) return;
                     if (this.editingQty) return;
                     if (this.focusCooldown) return;
 
@@ -881,6 +885,7 @@
                 },
 
                 forceFocus() {
+                    if (window.preventScannerRefocus) return;
                     if (this.editingQty) return;
                     const inputEl = document.getElementById('barcode-input');
                     if (inputEl) {
@@ -902,56 +907,27 @@
             document.addEventListener('alpine:init', registerScannerEngine);
         }
 
-        // Camera Scanner Helpers
-        var html5QrCode;
+        // ── Stock In Camera Scanner ────────────────────────────────────────
+        // Delegates to PeroniksCameraScanner (public/assets/js/peroniksscanner.js)
+        window.startScanner = function () {
+            window.preventScannerRefocus = true;
+            if (document.activeElement instanceof HTMLElement) {
+                document.activeElement.blur();
+            }
+            var input = document.getElementById('barcode-input');
+            if (input) input.blur();
 
-        window.startScanner = function() {
-            var container = document.getElementById('scanner-container');
-            if (container) container.classList.remove('hidden');
-            
-            if (!html5QrCode) html5QrCode = new Html5Qrcode("reader");
-            
-            var config = { 
-                fps: 20, 
-                qrbox: { width: 280, height: 160 }, 
-                aspectRatio: 1.0,
-                experimentalFeatures: {
-                    useBarCodeDetectorIfSupported: true 
-                },
-                videoConstraints: {
-                    facingMode: "environment",
-                    width: { min: 640, ideal: 1280 },
-                    height: { min: 480, ideal: 720 }
-                }
-            };
-
-            html5QrCode.start(
-                { facingMode: "environment" },
-                config,
-                function(decodedText) {
-                    window.stopScanner();
+            PeroniksCameraScanner.start({
+                readerId:    'reader',
+                containerId: 'scanner-container',
+                onSuccess: function (decodedText) {
                     @this.dispatch('barcode-scanned', { barcode: decodedText, qty: 1 });
-                },
-                function() {}
-            ).catch(function(err) {
-                console.error("Camera startup error", err);
-                alert("Could not start camera. Please ensure permissions are granted.");
-                window.stopScanner();
+                }
             });
         };
 
-        window.stopScanner = function() {
-            var container = document.getElementById('scanner-container');
-            if (html5QrCode && html5QrCode.isScanning) {
-                html5QrCode.stop().then(function() {
-                    if (container) container.classList.add('hidden');
-                }).catch(function(err) {
-                    console.error("Error stopping scanner", err);
-                    if (container) container.classList.add('hidden');
-                });
-            } else {
-                if (container) container.classList.add('hidden');
-            }
+        window.stopScanner = function () {
+            PeroniksCameraScanner.stop();
         };
 
         // 🔌 Industrial Hard Vanilla JS Keydown Fallback Listener (Delegated at document level for maximum morph durability)

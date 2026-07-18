@@ -1,4 +1,23 @@
-<div class="pt-[52px] px-md pb-md flex flex-col min-h-screen bg-slate-50/30" x-data>
+<div class="pt-[52px] px-md pb-32 lg:pb-md flex flex-col min-h-screen bg-slate-50/30" 
+     x-data="{
+         actualQty: @entangle('actualQty'),
+         pulse: false,
+         get baseFontSize() {
+             const len = String(this.actualQty || '').length;
+             if (len <= 3) return '6rem';
+             if (len === 4) return '5.4rem';
+             if (len === 5) return '4.8rem';
+             if (len === 6) return '4.2rem';
+             return '3.8rem';
+         },
+         init() {
+             this.$watch('actualQty', (newVal, oldVal) => {
+                 if (newVal !== oldVal) {
+                     this.pulse = true;
+                 }
+             });
+         }
+     }">
     <style>
         .ready-to-scan-glow {
             border-color: #10b981 !important;
@@ -6,6 +25,31 @@
         }
         .material-symbols-outlined {
             font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        @keyframes count-pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+        .animate-count-pulse {
+            animation: count-pulse 150ms ease-in-out;
+        }
+        /* Hide HTML5 Up/Down spin buttons */
+        input::-webkit-outer-spin-button,
+        input::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+        input[type=number] {
+            -moz-appearance: textfield;
+        }
+        #physical-count-input {
+            font-size: calc(var(--base-font-size, 6rem) * 0.7);
+        }
+        @media (min-width: 1024px) {
+            #physical-count-input {
+                font-size: var(--base-font-size, 6rem);
+            }
         }
     </style>
 
@@ -140,12 +184,12 @@
         {{-- ==========================================
              RIGHT COLUMN: RAPID AUDIT WORKSTATION
              ========================================== --}}
-        <section class="col-span-12 lg:col-span-8 flex flex-col min-h-[480px]">
+        <section class="col-span-12 lg:col-span-8 flex flex-col lg:min-h-[480px]">
             @if($selectedBin)
             <div class="bg-white border border-slate-200 dark:border-slate-800 rounded-md shadow-sm flex flex-col flex-1 overflow-hidden animate-in fade-in slide-in-from-right-4 duration-200">
                 
                 {{-- Top Minimal Metadata Strip: Prioritizes Bin, SKU, and Details --}}
-                <div class="bg-slate-50 border-b border-slate-100 p-md flex items-center justify-between gap-md">
+                <div class="bg-slate-50 border-b border-slate-100 p-3 lg:p-md flex items-center justify-between gap-md">
                     <div class="flex items-center gap-md">
                         {{-- Tiny square picture stamp (Minimized Showcase) --}}
                         <div class="w-11 h-11 bg-white border border-slate-200 rounded-sm overflow-hidden flex-shrink-0">
@@ -171,24 +215,28 @@
                 </div>
 
                 {{-- Giant Center Physical Counting Anchor --}}
-                <div class="flex-1 flex flex-col justify-center items-center p-lg bg-white/50">
-                    <span class="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4">Actual Physical Count</span>
+                <div class="flex-1 flex flex-col justify-center items-center py-4 px-3 lg:p-lg bg-white/50">
+                    <span class="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2 lg:mb-4">Actual Physical Count</span>
                     
-                    <div class="flex items-center justify-center gap-md">
+                    <div class="flex items-center justify-center gap-2 lg:gap-md">
                         {{-- Forklift-friendly Square Decrement --}}
-                        <button type="button" wire:click="decrementQty" 
+                        <button type="button" wire:click="decrementQty" @click="pulse = true"
                                 class="w-16 h-16 rounded-md bg-slate-900 hover:bg-slate-800 text-white active:scale-95 transition-all flex items-center justify-center shadow-md select-none border border-slate-950">
                             <span class="material-symbols-outlined text-2xl font-black">remove</span>
                         </button>
                         
                         {{-- Massive Monospace Readout --}}
                         <input wire:model.live.debounce.300ms="actualQty" 
-                               class="w-40 text-center text-7xl font-mono font-black text-slate-900 border-none focus:ring-0 p-0 leading-none bg-transparent select-all outline-none" 
+                               x-model="actualQty"
+                               :style="{ '--base-font-size': baseFontSize }"
+                               class="w-[170px] lg:w-[260px] text-center font-mono font-black text-slate-900 border-none focus:ring-0 p-0 leading-none bg-transparent select-all outline-none transition-all duration-150 ease-in-out" 
+                               :class="{ 'animate-count-pulse': pulse }"
+                               @animationend="pulse = false"
                                type="number"
                                id="physical-count-input"/>
                         
                         {{-- Forklift-friendly Square Increment --}}
-                        <button type="button" wire:click="incrementQty" 
+                        <button type="button" wire:click="incrementQty" @click="pulse = true"
                                 class="w-16 h-16 rounded-md bg-slate-900 hover:bg-slate-800 text-white active:scale-95 transition-all flex items-center justify-center shadow-md select-none border border-slate-950">
                             <span class="material-symbols-outlined text-2xl font-black">add</span>
                         </button>
@@ -197,7 +245,7 @@
                 {{-- Extreme Distance-Visible Variance Alert Strip --}}
                 <div class="border-t border-b border-slate-100">
                     @if($difference !== 0)
-                        <div class="bg-red-600 text-white px-md py-3 flex items-center justify-between border-y-4 border-red-800 animate-pulse">
+                        <div class="bg-red-600 text-white px-md py-2 lg:py-3 flex items-center justify-between border-y-4 border-red-800 animate-pulse">
                             <div class="flex items-center gap-2">
                                 <span class="material-symbols-outlined text-lg animate-bounce" style="font-variation-settings: 'FILL' 1;">error</span>
                                 <span class="text-xs font-black uppercase tracking-wider">⚠️ PHYSICAL VARIANCE DETECTED</span>
@@ -209,7 +257,7 @@
                             </div>
                         </div>
                     @else
-                        <div class="bg-emerald-600 text-white px-md py-3 flex items-center justify-between border-y-4 border-emerald-800">
+                        <div class="bg-emerald-600 text-white px-md py-2 lg:py-3 flex items-center justify-between border-y-4 border-emerald-800">
                             <div class="flex items-center gap-2">
                                 <span class="material-symbols-outlined text-lg" style="font-variation-settings: 'FILL' 1;">check_circle</span>
                                 <span class="text-xs font-black uppercase tracking-wider">✓ SYSTEM STOCK MATCHES PHYSICAL COUNT</span>
@@ -221,7 +269,7 @@
 
                 {{-- Reason & Notes Dropdown Panel for Variances --}}
                 @if($difference !== 0)
-                <div class="p-md border-b border-slate-100 bg-slate-50/50 space-y-md animate-in slide-in-from-top-4 duration-200">
+                <div class="p-3 lg:p-md border-b border-slate-100 bg-slate-50/50 space-y-md animate-in slide-in-from-top-4 duration-200">
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-md">
                         <div>
                             <label for="reasonCode" class="block text-[9px] font-black text-slate-400 mb-1 uppercase tracking-widest">Reason Code <span class="text-red-500">*</span></label>
@@ -247,7 +295,7 @@
                 @endif
                 
                 {{-- Sticky Action Bottom Dock (44px target buttons) --}}
-                <div class="p-md bg-slate-50 flex gap-sm border-t border-slate-200">
+                <div class="p-3 lg:p-md bg-slate-50 flex gap-sm border-t border-slate-200">
                     <button wire:click="resetAudit" 
                             class="flex-1 h-11 bg-white border border-slate-200 text-slate-600 font-black text-xs uppercase tracking-widest rounded-md hover:bg-slate-100 transition-colors flex items-center justify-center gap-2">
                         <span class="material-symbols-outlined text-sm font-black">close</span>
@@ -290,71 +338,45 @@
     </main>
 
     <script>
-        (function() {
-            var html5QrCode;
+        // ── Opname Camera Scanner ────────────────────────────────────────────
+        // Delegates to PeroniksCameraScanner (public/assets/js/peroniksscanner.js)
+        window.startScanner = function () {
+            window.preventScannerRefocus = true;
+            if (document.activeElement instanceof HTMLElement) {
+                document.activeElement.blur();
+            }
+            var input = document.getElementById('scanner-input');
+            if (input) input.blur();
 
-            window.startScanner = function() {
-                var container = document.getElementById('scanner-container');
-                if (container) container.classList.remove('hidden');
-                
-                if (!html5QrCode) html5QrCode = new Html5Qrcode("reader");
-                
-                var config = { 
-                    fps: 20, 
-                    qrbox: { width: 280, height: 180 }, 
-                    aspectRatio: 1.0,
-                    experimentalFeatures: {
-                        useBarCodeDetectorIfSupported: true 
-                    },
-                    videoConstraints: {
-                        facingMode: "environment",
-                        width: { min: 640, ideal: 1280 },
-                        height: { min: 480, ideal: 720 }
-                    }
-                };
-
-                html5QrCode.start(
-                    { facingMode: "environment" },
-                    config,
-                    function(decodedText) {
-                        window.stopScanner();
-                        @this.set('binScan', decodedText);
-                        @this.handleScan(decodedText);
-                    },
-                    function(errorMessage) {}
-                ).catch(function(err) {
-                    console.error("Camera startup error", err);
-                    alert("Could not start camera. Please ensure permissions are granted.");
-                    window.stopScanner();
-                });
-            };
-
-            window.stopScanner = function() {
-                var container = document.getElementById('scanner-container');
-                if (html5QrCode && html5QrCode.isScanning) {
-                    html5QrCode.stop().then(function() {
-                        if (container) container.classList.add('hidden');
-                    }).catch(function(err) {
-                        console.error("Error stopping scanner", err);
-                        if (container) container.classList.add('hidden');
-                    });
-                } else {
-                    if (container) container.classList.add('hidden');
+            PeroniksCameraScanner.start({
+                readerId:    'reader',
+                containerId: 'scanner-container',
+                onSuccess: function (decodedText) {
+                    @this.set('binScan', decodedText);
+                    @this.handleScan(decodedText);
                 }
-            };
-
-            // Auto-focus handler for continuous scanning rhythm
-            document.addEventListener('livewire:initialized', function() {
-                window.addEventListener('focus-scanner', function() {
-                    setTimeout(function() {
-                        var el = document.getElementById('scanner-input');
-                        if (el) {
-                            el.focus();
-                            el.select();
-                        }
-                    }, 100);
-                });
             });
-        })();
+        };
+
+        window.stopScanner = function () {
+            PeroniksCameraScanner.stop();
+        };
+
+        // Auto-focus handler for continuous scanning rhythm
+        document.addEventListener('livewire:initialized', function () {
+            var input = document.getElementById('scanner-input');
+            if (input) {
+                input.addEventListener('focus', function () {
+                    window.preventScannerRefocus = false;
+                });
+            }
+            window.addEventListener('focus-scanner', function () {
+                if (window.preventScannerRefocus) return;
+                setTimeout(function () {
+                    var el = document.getElementById('scanner-input');
+                    if (el) { el.focus(); el.select(); }
+                }, 100);
+            });
+        });
     </script>
 </div>

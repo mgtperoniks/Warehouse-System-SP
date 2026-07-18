@@ -55,6 +55,10 @@
             scrollbar-color: rgba(148, 163, 184, 0.2) transparent;
         }
     </style>
+
+    {{-- Shared Camera Scanner Engine (PeroniksCameraScanner) --}}
+    {{-- Loaded here so it is available on every authenticated page. --}}
+    <script src="{{ asset('assets/js/peroniksscanner.js') }}" defer></script>
 </head>
 <body class="bg-surface text-on-surface flex min-h-screen antialiased">
     <!-- SideNavBar (Desktop Shell) -->
