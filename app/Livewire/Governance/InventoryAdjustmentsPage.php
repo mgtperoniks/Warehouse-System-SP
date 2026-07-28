@@ -316,7 +316,7 @@ class InventoryAdjustmentsPage extends Component
                     'managerName' => $managerName,
                     'businessDate' => $businessDate,
                     'reasonsMap' => $reasonsMap,
-                ])->setPaper('a4', 'portrait');
+                ])->setPaper('a4', 'landscape');
 
                 \Illuminate\Support\Facades\Storage::disk('public')->put($baso->pdf_path, $pdf->output());
             }

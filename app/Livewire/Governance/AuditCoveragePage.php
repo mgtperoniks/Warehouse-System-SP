@@ -4,7 +4,6 @@ namespace App\Livewire\Governance;
 
 use Livewire\Component;
 use App\Models\Warehouse;
-use App\Models\Location;
 use App\Models\Bin;
 use App\Models\StockOpnameItem;
 use App\Models\User;
@@ -14,15 +13,14 @@ class AuditCoveragePage extends Component
 {
     public $warehouseId;
     
-    // Autocomplete Search State
-    public $rackSearch = '';
-    public $selectedRackId = null;
-    public $selectedRackCode = null;
-    public $rackDropdownOpen = false;
+    // Autocomplete Search State for Bin Location Code
+    public $binSearch = '';
+    public $selectedBinCode = null;
+    public $binDropdownOpen = false;
 
-    public $subRackSearch = '';
-    public $selectedSubRackCode = null;
-    public $subRackDropdownOpen = false;
+    // Report State
+    public $activeBinCode = null;
+    public $hasGenerated = false;
 
     // Quick Filter State ('all', 'audited', 'needs_audit', 'stale')
     public $quickFilter = 'all';
@@ -42,59 +40,44 @@ class AuditCoveragePage extends Component
 
     public function updatedWarehouseId()
     {
-        $this->resetRack();
+        $this->selectedBinCode = null;
+        $this->binSearch = '';
+        $this->activeBinCode = null;
+        $this->hasGenerated = false;
+        $this->binDropdownOpen = false;
     }
 
-    public function updatedRackSearch($value)
+    public function updatedBinSearch($value)
     {
         if (empty($value)) {
-            $this->selectedRackId = null;
-            $this->selectedRackCode = null;
-            $this->resetSubRack();
+            $this->selectedBinCode = null;
         } else {
-            $this->rackDropdownOpen = true;
+            $this->binDropdownOpen = true;
         }
     }
 
-    public function updatedSubRackSearch($value)
+    public function selectBinCode($code)
     {
-        if (empty($value)) {
-            $this->selectedSubRackCode = null;
-        } else {
-            $this->subRackDropdownOpen = true;
-        }
+        $this->selectedBinCode = $code;
+        $this->binSearch = $code;
+        $this->binDropdownOpen = false;
     }
 
-    public function selectRack($id, $code)
+    public function resetBinCode()
     {
-        $this->selectedRackId = $id;
-        $this->selectedRackCode = $code;
-        $this->rackSearch = $code;
-        $this->rackDropdownOpen = false;
-        $this->resetSubRack();
+        $this->selectedBinCode = null;
+        $this->binSearch = '';
+        $this->binDropdownOpen = false;
     }
 
-    public function selectSubRack($code)
+    public function generateCoverage()
     {
-        $this->selectedSubRackCode = $code;
-        $this->subRackSearch = $code;
-        $this->subRackDropdownOpen = false;
-    }
+        $this->validate([
+            'selectedBinCode' => 'required|string',
+        ]);
 
-    public function resetRack()
-    {
-        $this->selectedRackId = null;
-        $this->selectedRackCode = null;
-        $this->rackSearch = '';
-        $this->rackDropdownOpen = false;
-        $this->resetSubRack();
-    }
-
-    public function resetSubRack()
-    {
-        $this->selectedSubRackCode = null;
-        $this->subRackSearch = '';
-        $this->subRackDropdownOpen = false;
+        $this->activeBinCode = $this->selectedBinCode;
+        $this->hasGenerated = true;
     }
 
     public function setQuickFilter($filter)
@@ -105,74 +88,45 @@ class AuditCoveragePage extends Component
     }
 
     /**
-     * Get autocomplete locations/racks for search query.
+     * Get autocomplete bin codes for search query.
      */
-    public function getRackOptions()
+    public function getBinOptions()
     {
         if (!$this->warehouseId) {
             return collect();
         }
 
-        return Location::whereHas('bins', function($q) {
-            $q->where('warehouse_id', $this->warehouseId);
-        })
-        ->when($this->rackSearch, function($query) {
-            $query->where(function($q) {
-                $q->where('code', 'like', '%' . $this->rackSearch . '%')
-                  ->orWhere('description', 'like', '%' . $this->rackSearch . '%');
-            });
-        })
-        ->orderBy('code')
-        ->limit(10)
-        ->get();
-    }
-
-    /**
-     * Get autocomplete bin codes/sub racks for search query under selected location.
-     */
-    public function getSubRackOptions()
-    {
-        if (!$this->warehouseId || !$this->selectedRackId) {
-            return collect();
-        }
-
         return Bin::where('warehouse_id', $this->warehouseId)
-            ->where('location_id', $this->selectedRackId)
-            ->when($this->subRackSearch, function($query) {
-                $query->where('code', 'like', '%' . $this->subRackSearch . '%');
+            ->when($this->binSearch, function($query) {
+                $query->where('code', 'like', $this->binSearch . '%');
             })
             ->select('code')
             ->distinct()
             ->orderBy('code')
-            ->limit(10)
+            ->limit(15)
             ->pluck('code');
     }
 
     public function render()
     {
         $warehouses = auth()->user()->warehouses;
-        
-        $rackOptions = $this->getRackOptions();
-        $subRackOptions = $this->getSubRackOptions();
+        $binOptions = $this->getBinOptions();
 
-        $binsQuery = null;
         $items = collect();
         $summary = [
             'total' => 0,
             'audited' => 0,
+            'aging' => 0,
             'needs_audit' => 0,
             'coverage' => 0
         ];
 
-        // Only query list and summary if a Rack is selected
-        if ($this->warehouseId && $this->selectedRackId) {
-            $binsQuery = Bin::where('warehouse_id', $this->warehouseId)
-                ->where('location_id', $this->selectedRackId)
-                ->when($this->selectedSubRackCode, function($query) {
-                    $query->where('code', $this->selectedSubRackCode);
-                });
-
-            $bins = $binsQuery->with(['itemVariant.item'])->get();
+        // Query only runs if we have generated and have an active bin code
+        if ($this->hasGenerated && $this->warehouseId && $this->activeBinCode) {
+            $bins = Bin::where('warehouse_id', $this->warehouseId)
+                ->where('code', $this->activeBinCode)
+                ->with(['itemVariant.item'])
+                ->get();
 
             if ($bins->isNotEmpty()) {
                 // Fetch the latest Physical Opname record for each bin
@@ -183,7 +137,7 @@ class AuditCoveragePage extends Component
                     ->get()
                     ->groupBy('bin_id');
 
-                // Extract all unique auditor (created_by) user IDs
+                // Extract unique auditor (created_by) user IDs
                 $userIds = [];
                 foreach ($opnames as $binId => $itemsList) {
                     $latestOpn = $itemsList->first();
@@ -195,14 +149,16 @@ class AuditCoveragePage extends Component
                 // Bulk query user names to avoid N+1 queries
                 $userNames = User::whereIn('id', array_unique($userIds))->pluck('name', 'id');
 
-                $greenDays = (int)config('wms.audit_green_days', 30);
-                $yellowDays = (int)config('wms.audit_yellow_days', 90);
+                $greenDays = (int)config('wms.audit_green_days', 60);
+                $yellowDays = (int)config('wms.audit_yellow_days', 120);
                 $now = Carbon::now();
 
                 $auditedCount = 0;
+                $agingCount = 0;
+                $needsAuditCount = 0;
 
-                // Process bins list
-                $processed = $bins->map(function($bin) use ($opnames, $userNames, $greenDays, $yellowDays, $now, &$auditedCount) {
+                // Process bins
+                $processed = $bins->map(function($bin) use ($opnames, $userNames, $greenDays, $yellowDays, $now, &$auditedCount, &$agingCount, &$needsAuditCount) {
                     $latestOpn = $opnames->has($bin->id) ? $opnames->get($bin->id)->first() : null;
 
                     $lastAuditDate = null;
@@ -212,6 +168,10 @@ class AuditCoveragePage extends Component
                     $auditNote = 'No physical audit record found.';
                     $status = 'red';
                     $statusLabel = 'Needs Audit';
+                    
+                    $nextDueDate = null;
+                    $isOverdue = false;
+                    $overdueDays = 0;
 
                     if ($latestOpn) {
                         $lastAuditDate = Carbon::parse($latestOpn->opname_date);
@@ -232,6 +192,14 @@ class AuditCoveragePage extends Component
                             $auditNote = 'Discrepancy: System ' . $latestOpn->system_qty . ', Actual ' . $latestOpn->actual_qty . ' (Diff: ' . ($latestOpn->difference > 0 ? '+' : '') . $latestOpn->difference . ').';
                         }
 
+                        // Next Due / Overdue calculations (Last Audit + 120 days)
+                        $nextDue = $lastAuditDate->copy()->addDays(120);
+                        $nextDueDate = $nextDue->format('d M Y');
+                        $isOverdue = $nextDue->isPast();
+                        if ($isOverdue) {
+                            $overdueDays = (int)$nextDue->diffInDays($now);
+                        }
+
                         if ($daysAgo <= $greenDays) {
                             $status = 'green';
                             $statusLabel = 'Audited';
@@ -239,10 +207,14 @@ class AuditCoveragePage extends Component
                         } elseif ($daysAgo <= $yellowDays) {
                             $status = 'yellow';
                             $statusLabel = 'Audit Aging';
+                            $agingCount++;
                         } else {
                             $status = 'red';
                             $statusLabel = 'Needs Audit';
+                            $needsAuditCount++;
                         }
+                    } else {
+                        $needsAuditCount++;
                     }
 
                     return (object)[
@@ -257,23 +229,26 @@ class AuditCoveragePage extends Component
                         'last_auditor' => $lastAuditor,
                         'audit_note' => $auditNote,
                         'status' => $status,
-                        'status_label' => $statusLabel
+                        'status_label' => $statusLabel,
+                        'next_due_date' => $nextDueDate,
+                        'is_overdue' => $isOverdue,
+                        'overdue_days' => $overdueDays,
                     ];
                 });
 
-                // Calculate summary card stats (based on all items, unfiltered by quick filter)
+                // Calculate summary card stats
                 $total = $processed->count();
-                $needs_audit = $total - $auditedCount;
                 $coverage = $total > 0 ? round(($auditedCount / $total) * 100) : 0;
 
                 $summary = [
                     'total' => $total,
                     'audited' => $auditedCount,
-                    'needs_audit' => $needs_audit,
+                    'aging' => $agingCount,
+                    'needs_audit' => $needsAuditCount,
                     'coverage' => $coverage
                 ];
 
-                // Apply Default Sorting: Oldest Last Audit first (Ascending)
+                // Default Sorting: Oldest Last Audit first (Ascending)
                 // Items with last_audit_timestamp = 0 (Never audited) appear first
                 $items = $processed->sortBy(function($item) {
                     return $item->last_audit_timestamp;
@@ -292,8 +267,7 @@ class AuditCoveragePage extends Component
 
         return view('livewire.governance.audit-coverage-page', [
             'warehouses' => $warehouses,
-            'rackOptions' => $rackOptions,
-            'subRackOptions' => $subRackOptions,
+            'binOptions' => $binOptions,
             'items' => $items,
             'summary' => $summary
         ])->layout('layouts.app');

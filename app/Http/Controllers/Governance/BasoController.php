@@ -91,7 +91,7 @@ class BasoController extends Controller
                 'managerName' => $managerName,
                 'businessDate' => $businessDate,
                 'reasonsMap' => $reasonsMap,
-            ])->setPaper('a4', 'portrait');
+            ])->setPaper('a4', 'landscape');
 
             Storage::disk('public')->put($baso->pdf_path, $pdf->output());
         }

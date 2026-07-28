@@ -12,6 +12,6 @@ return [
     | - Red (Needs Audit): Audited more than M days ago, or never audited.
     |
     */
-    'audit_green_days' => env('WMS_AUDIT_GREEN_DAYS', 30),
-    'audit_yellow_days' => env('WMS_AUDIT_YELLOW_DAYS', 90),
+    'audit_green_days' => env('WMS_AUDIT_GREEN_DAYS', 60),
+    'audit_yellow_days' => env('WMS_AUDIT_YELLOW_DAYS', 120),
 ];

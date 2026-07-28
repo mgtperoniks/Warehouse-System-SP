@@ -28,6 +28,7 @@ class AuditCoverageTest extends TestCase
     protected Bin $binAudited;
     protected Bin $binNeedsAudit;
     protected Bin $binStale;
+    protected Bin $binOverdue;
 
     protected function setUp(): void
     {
@@ -70,7 +71,7 @@ class AuditCoverageTest extends TestCase
             'description' => 'Test Location Rack A',
         ]);
 
-        // 5. Create items and variants
+        // 5. Create items and variants with prefix '5.' to bypass global warehouse scope
         $item1 = Item::create(['name' => 'Bearing A', 'category_id' => 1]);
         $var1 = ItemVariant::create([
             'item_id' => $item1->id,
@@ -92,10 +93,18 @@ class AuditCoverageTest extends TestCase
             'item_id' => $item3->id,
             'sku' => 'SKU-03-' . uniqid(),
             'erp_code' => '5.03.' . uniqid(),
-            'last_opname_at' => now()->subDays(60),
+            'last_opname_at' => now()->subDays(80),
         ]);
 
-        // 5. Create bins
+        $item4 = Item::create(['name' => 'Bearing D', 'category_id' => 1]);
+        $var4 = ItemVariant::create([
+            'item_id' => $item4->id,
+            'sku' => 'SKU-04-' . uniqid(),
+            'erp_code' => '5.04.' . uniqid(),
+            'last_opname_at' => now()->subDays(135),
+        ]);
+
+        // 6. Create bins
         $this->binAudited = Bin::create([
             'location_id' => $this->location->id,
             'item_variant_id' => $var1->id,
@@ -115,8 +124,16 @@ class AuditCoverageTest extends TestCase
         $this->binStale = Bin::create([
             'location_id' => $this->location->id,
             'item_variant_id' => $var3->id,
-            'code' => 'A-3',
+            'code' => 'A-1', // Same bin code
             'current_qty' => 8,
+            'warehouse_id' => $this->warehouse->id,
+        ]);
+
+        $this->binOverdue = Bin::create([
+            'location_id' => $this->location->id,
+            'item_variant_id' => $var4->id,
+            'code' => 'A-1', // Same bin code
+            'current_qty' => 12,
             'warehouse_id' => $this->warehouse->id,
         ]);
 
@@ -162,7 +179,7 @@ class AuditCoverageTest extends TestCase
         ]);
         \Illuminate\Support\Facades\DB::table('stock_opname_items')->where('id', $opnameItem1->id)->update(['created_at' => now()->subDays(5)]);
 
-        // 2. Create a physical opname for binStale (Yellow status: 60 days ago)
+        // 2. Create a physical opname for binStale (Yellow status: 80 days ago)
         $opname2 = StockOpname::create([
             'code' => 'OPN-TEST-2',
             'scope_type' => 'LOCATION',
@@ -170,7 +187,7 @@ class AuditCoverageTest extends TestCase
             'status' => 'COMPLETED',
             'created_by' => (string)$this->operator->id,
         ]);
-        \Illuminate\Support\Facades\DB::table('stock_opnames')->where('id', $opname2->id)->update(['created_at' => now()->subDays(60)]);
+        \Illuminate\Support\Facades\DB::table('stock_opnames')->where('id', $opname2->id)->update(['created_at' => now()->subDays(80)]);
 
         $opnameItem2 = StockOpnameItem::create([
             'stock_opname_id' => $opname2->id,
@@ -179,81 +196,111 @@ class AuditCoverageTest extends TestCase
             'actual_qty' => 8,
             'difference' => 0,
         ]);
-        \Illuminate\Support\Facades\DB::table('stock_opname_items')->where('id', $opnameItem2->id)->update(['created_at' => now()->subDays(60)]);
+        \Illuminate\Support\Facades\DB::table('stock_opname_items')->where('id', $opnameItem2->id)->update(['created_at' => now()->subDays(80)]);
 
-        // 3. Create an inventory adjustment for binNeedsAudit (to ensure it is NOT treated as a physical audit)
-        $adjustment = InventoryAdjustment::create([
-            'adjustment_no' => 'IA-TEST-1',
-            'warehouse_id' => $this->warehouse->id,
-            'operator_id' => $this->operator->id,
-            'date' => now()->format('Y-m-d'),
+        // 3. Create a physical opname for binOverdue (Red status, Overdue: 135 days ago)
+        $opname3 = StockOpname::create([
+            'code' => 'OPN-TEST-3',
+            'scope_type' => 'LOCATION',
+            'scope_id' => $this->location->id,
             'status' => 'COMPLETED',
+            'created_by' => (string)$this->operator->id,
         ]);
+        \Illuminate\Support\Facades\DB::table('stock_opnames')->where('id', $opname3->id)->update(['created_at' => now()->subDays(135)]);
 
-        InventoryAdjustmentItem::create([
-            'inventory_adjustment_id' => $adjustment->id,
-            'bin_id' => $this->binNeedsAudit->id,
-            'item_variant_id' => $this->binNeedsAudit->item_variant_id,
-            'system_qty' => 5,
-            'physical_qty' => 7,
-            'variance' => 2,
-            'reason_code' => 'FOUND_ITEM',
-            'status' => 'APPROVED',
-            'created_at' => now(),
-            'item_name_snapshot' => $this->binNeedsAudit->itemVariant->item->name ?? 'Bearing B',
-            'erp_code_snapshot' => $this->binNeedsAudit->itemVariant->erp_code ?? 'ERP-02',
-            'bin_code_snapshot' => $this->binNeedsAudit->code,
-            'unit_snapshot' => 'PCS',
-            'warehouse_name_snapshot' => $this->warehouse->name,
-            'operator_name_snapshot' => $this->operator->name,
+        $opnameItem3 = StockOpnameItem::create([
+            'stock_opname_id' => $opname3->id,
+            'bin_id' => $this->binOverdue->id,
+            'system_qty' => 12,
+            'actual_qty' => 12,
+            'difference' => 0,
         ]);
+        \Illuminate\Support\Facades\DB::table('stock_opname_items')->where('id', $opnameItem3->id)->update(['created_at' => now()->subDays(135)]);
+
+        // Compute expected dates for assertions
+        $expectedDueAudited = now()->subDays(5)->addDays(120)->format('d M Y');
+        $expectedDueStale = now()->subDays(80)->addDays(120)->format('d M Y');
 
         // Start Livewire testing
         Livewire::actingAs($this->operator)
             ->test(AuditCoveragePage::class)
             ->assertSet('warehouseId', $this->warehouse->id)
-            // Welcome state is shown
-            ->assertSee('Pilih Lokasi untuk Mulai Audit')
+            ->assertSet('hasGenerated', false)
+            ->assertSee('Pilih Lokasi untuk Memulai Audit')
+            ->assertDontSee('Currently Viewing Bin Location')
+            ->assertDontSee('Total:')
             
-            // Search rack and open dropdown
-            ->set('rackSearch', substr($this->location->code, 0, 8))
-            ->assertSet('selectedRackId', null)
+            // Search bin and select it
+            ->set('binSearch', 'A')
+            ->call('selectBinCode', 'A-1')
             
-            // Select Rack
-            ->call('selectRack', $this->location->id, $this->location->code)
-            ->assertSet('selectedRackId', $this->location->id)
-            ->assertSet('rackSearch', $this->location->code)
+            // Click Generate Coverage
+            ->call('generateCoverage')
+            ->assertSet('activeBinCode', 'A-1')
+            ->assertSet('hasGenerated', true)
             
             // Verify items are loaded and summary calculations are correct
-            // Total Items: 3 (binAudited, binNeedsAudit, binStale)
-            // Audited: 1 (binAudited audited 5 days ago)
-            // Needs Audit: 2 (binNeedsAudit has no opname record, binStale audited 60 days ago which is >30 days threshold)
+            // For A-1, there are 3 items:
+            // 1. binAudited (Green status, 5 days ago)
+            // 2. binStale (Yellow status, 80 days ago)
+            // 3. binOverdue (Red status, 135 days ago)
+            // Summary: Total=3, Audited=1, Aging=1, Needs Audit=1
             // Coverage: round((1/3)*100) = 33%
-            ->assertSeeHtml('<span class="text-2xl font-mono font-black text-slate-850 block">3</span>')
-            ->assertSeeHtml('<span class="text-2xl font-mono font-black text-emerald-650 block">1</span>')
-            ->assertSeeHtml('<span class="text-2xl font-mono font-black text-rose-650 block">2</span>')
-            ->assertSeeHtml('<span class="text-2xl font-mono font-black text-slate-800">33%</span>')
+            ->assertSee('Currently Viewing Bin Location:')
+            ->assertSee('A-1')
+            ->assertSeeHtml('<span class="text-sm font-mono font-black text-slate-850">3</span>')
+            ->assertSeeHtml('<span class="text-sm font-mono font-black text-emerald-650">1</span>')
+            ->assertSeeHtml('<span class="text-sm font-mono font-black text-amber-605">1</span>')
+            ->assertSeeHtml('<span class="text-sm font-mono font-black text-rose-655">1</span>')
+            ->assertSeeHtml('<span class="text-sm font-mono font-black text-slate-800">33%</span>')
             
-            // Verify items table lists the items and their audit states
+            // Verify table lists A-1 variants
             ->assertSee($this->binAudited->itemVariant->erp_code)
-            ->assertSee($this->binNeedsAudit->itemVariant->erp_code)
             ->assertSee($this->binStale->itemVariant->erp_code)
-            
-            // Default sorting should put binNeedsAudit first (Never audited), then binStale (60 days ago), then binAudited (5 days ago)
-            // Let's assert that quick filters work
-            ->set('quickFilter', 'audited')
-            ->assertSee($this->binAudited->itemVariant->erp_code)
+            ->assertSee($this->binOverdue->itemVariant->erp_code)
             ->assertDontSee($this->binNeedsAudit->itemVariant->erp_code)
-            ->assertDontSee($this->binStale->itemVariant->erp_code)
             
-            ->set('quickFilter', 'needs_audit')
-            ->assertDontSee($this->binAudited->itemVariant->erp_code)
+            // Verify next due and overdue displays
+            ->assertSee('Next Due ' . $expectedDueAudited)
+            ->assertSee('Next Due ' . $expectedDueStale)
+            ->assertSee('Overdue 15 days')
+            
+            // Change input / selection to A-2 (without clicking Generate yet)
+            ->call('selectBinCode', 'A-2')
+            ->assertSet('selectedBinCode', 'A-2')
+            // The active displayed coverage must STILL be A-1!
+            ->assertSet('activeBinCode', 'A-1')
+            ->assertSee('Currently Viewing Bin Location:')
+            ->assertSee('A-1')
+            
+            // Click Generate Coverage to switch to A-2
+            ->call('generateCoverage')
+            ->assertSet('activeBinCode', 'A-2')
+            // For A-2: 1 item: binNeedsAudit (Red status, never audited)
+            // Total: 1, Audited: 0, Aging: 0, Needs Audit: 1, Coverage: 0%
+            ->assertSee('Currently Viewing Bin Location:')
+            ->assertSee('A-2')
+            ->assertSeeHtml('<span class="text-sm font-mono font-black text-slate-850">1</span>')
+            ->assertSeeHtml('<span class="text-sm font-mono font-black text-emerald-650">0</span>')
+            ->assertSeeHtml('<span class="text-sm font-mono font-black text-amber-605">0</span>')
+            ->assertSeeHtml('<span class="text-sm font-mono font-black text-rose-655">1</span>')
+            ->assertSeeHtml('<span class="text-sm font-mono font-black text-slate-800">0%</span>')
             ->assertSee($this->binNeedsAudit->itemVariant->erp_code)
-            ->assertDontSee($this->binStale->itemVariant->erp_code)
-
-            ->set('quickFilter', 'stale')
             ->assertDontSee($this->binAudited->itemVariant->erp_code)
-            ->assertDontSee($this->binNeedsAudit->itemVariant->erp_code)
-            ->assertSee($this->binStale->itemVariant->erp_code);
+            ->assertDontSee($this->binStale->itemVariant->erp_code)
+            ->assertDontSee($this->binOverdue->itemVariant->erp_code);
+    }
+
+    /** @test */
+    public function test_audit_coverage_pdf_report_generates_and_streams_correctly()
+    {
+        $this->actingAs($this->operator)
+            ->get(route('governance.audit-coverage.pdf', [
+                'warehouse_id' => $this->warehouse->id,
+                'bin_code' => 'A-1',
+                'filter' => 'all'
+            ]))
+            ->assertStatus(200)
+            ->assertHeader('Content-Type', 'application/pdf');
     }
 }
