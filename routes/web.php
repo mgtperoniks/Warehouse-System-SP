@@ -34,6 +34,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/items/import', [ItemController::class, 'import'])->name('items.import');
     Route::get('/opname', \App\Livewire\Opname\OpnamePage::class)->name('opname');
     Route::get('/inventory-adjustments', \App\Livewire\Governance\InventoryAdjustmentsPage::class)->name('inventory-adjustments');
+    Route::get('/governance/audit-coverage', \App\Livewire\Governance\AuditCoveragePage::class)->name('governance.audit-coverage');
     Route::get('/governance/baso/view/{id}', [\App\Http\Controllers\Governance\BasoController::class, 'view'])->name('governance.baso.view');
     Route::get('/stock-in', [StockController::class, 'index'])->name('stock-in');
     Route::get('/barcode-printing', \App\Livewire\Barcode\PrintPage::class)->name('barcode.printing');
