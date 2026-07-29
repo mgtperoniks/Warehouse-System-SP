@@ -2,7 +2,7 @@
     editingLeadTimeId: null,
 }">
     <!-- Header -->
-    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+    <div class="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4 mb-6">
         <div class="flex items-center gap-3">
             <div class="w-10 h-10 bg-slate-900 rounded-lg flex items-center justify-center text-purple-400 shadow-sm">
                 <span class="material-symbols-outlined text-2xl">assignment</span>
@@ -11,6 +11,81 @@
                 <h1 class="text-3xl font-black tracking-tight text-slate-900">Inventory Planning</h1>
                 <p class="text-xs font-bold text-slate-500 mt-1 uppercase tracking-widest">Master Data & Lead Time Profiles</p>
             </div>
+        </div>
+
+        <!-- Interactive Planning Dashboard -->
+        <div class="flex flex-wrap items-center gap-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-1.5 shadow-sm max-w-full overflow-x-auto">
+            <!-- Total Items -->
+            <button wire:click="toggleStatusFilter('')" 
+                class="flex items-center gap-1.5 px-3 py-1.5 rounded transition-all duration-200 group border text-[11px] font-black shrink-0 {{ $statusFilter === '' ? 'bg-slate-900 text-white border-slate-900 shadow-sm dark:bg-slate-750 dark:border-slate-700' : 'bg-slate-50 dark:bg-slate-800 text-slate-665 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700 hover:scale-105 active:scale-95' }}">
+                <span class="material-symbols-outlined text-sm {{ $statusFilter === '' ? 'text-white' : 'text-slate-500' }}">inventory_2</span>
+                <span>Total Items</span>
+                <span class="px-1.5 py-0.5 rounded text-[10px] font-black {{ $statusFilter === '' ? 'bg-slate-800 text-white dark:bg-slate-900' : 'bg-slate-200/60 text-slate-700 dark:bg-slate-700 dark:text-slate-300' }}">
+                    {{ number_format($dashboardCounts['TOTAL']) }}
+                </span>
+            </button>
+
+            <div class="w-px h-5 bg-slate-200 dark:bg-slate-800"></div>
+
+            <!-- Critical -->
+            <button wire:click="toggleStatusFilter('CRITICAL')" 
+                class="flex items-center gap-1.5 px-3 py-1.5 rounded transition-all duration-200 group border text-[11px] font-black shrink-0 {{ $statusFilter === 'CRITICAL' ? 'bg-rose-600 text-white border-rose-600 shadow-sm shadow-rose-600/10' : 'bg-rose-55 dark:bg-rose-950/10 text-rose-700 dark:text-rose-400 border-rose-200 dark:border-rose-900/50 hover:bg-rose-50 dark:hover:bg-rose-950/20 hover:scale-105 active:scale-95' }}">
+                <span class="material-symbols-outlined text-sm {{ $statusFilter === 'CRITICAL' ? 'text-white' : 'text-rose-600' }}">error</span>
+                <span>Critical</span>
+                <span class="px-1.5 py-0.5 rounded text-[10px] font-black {{ $statusFilter === 'CRITICAL' ? 'bg-rose-700 text-white' : 'bg-rose-100 text-rose-805 dark:bg-rose-950/30' }}">
+                    {{ number_format($dashboardCounts['CRITICAL']) }}
+                </span>
+            </button>
+
+            <!-- Reorder -->
+            <button wire:click="toggleStatusFilter('REORDER')" 
+                class="flex items-center gap-1.5 px-3 py-1.5 rounded transition-all duration-200 group border text-[11px] font-black shrink-0 {{ $statusFilter === 'REORDER' ? 'bg-amber-500 text-white border-amber-500 shadow-sm shadow-amber-500/10 dark:bg-amber-600 dark:border-amber-600' : 'bg-amber-55 dark:bg-amber-950/10 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-900/50 hover:bg-amber-50 dark:hover:bg-amber-950/20 hover:scale-105 active:scale-95' }}">
+                <span class="material-symbols-outlined text-sm {{ $statusFilter === 'REORDER' ? 'text-white' : 'text-amber-500' }}">schedule</span>
+                <span>Reorder</span>
+                <span class="px-1.5 py-0.5 rounded text-[10px] font-black {{ $statusFilter === 'REORDER' ? 'bg-amber-600 text-white dark:bg-amber-700' : 'bg-amber-100 text-amber-805 dark:bg-amber-950/30' }}">
+                    {{ number_format($dashboardCounts['REORDER']) }}
+                </span>
+            </button>
+
+            <!-- Watchlist -->
+            <button wire:click="toggleStatusFilter('WATCHLIST')" 
+                class="flex items-center gap-1.5 px-3 py-1.5 rounded transition-all duration-200 group border text-[11px] font-black shrink-0 {{ $statusFilter === 'WATCHLIST' ? 'bg-yellow-500 text-slate-900 border-yellow-500 shadow-sm shadow-yellow-500/10 dark:bg-yellow-600 dark:border-yellow-600 dark:text-white' : 'bg-yellow-55 dark:bg-yellow-950/10 text-yellow-800 dark:text-yellow-400 border-yellow-250 dark:border-yellow-900/50 hover:bg-yellow-50 dark:hover:bg-yellow-950/20 hover:scale-105 active:scale-95' }}">
+                <span class="material-symbols-outlined text-sm {{ $statusFilter === 'WATCHLIST' ? 'text-slate-900 dark:text-white' : 'text-yellow-600' }}">visibility</span>
+                <span>Watchlist</span>
+                <span class="px-1.5 py-0.5 rounded text-[10px] font-black {{ $statusFilter === 'WATCHLIST' ? 'bg-yellow-605 text-slate-900 dark:bg-yellow-750 dark:text-white' : 'bg-yellow-100 text-yellow-805 dark:bg-yellow-950/30' }}">
+                    {{ number_format($dashboardCounts['WATCHLIST']) }}
+                </span>
+            </button>
+
+            <!-- Healthy -->
+            <button wire:click="toggleStatusFilter('HEALTHY')" 
+                class="flex items-center gap-1.5 px-3 py-1.5 rounded transition-all duration-200 group border text-[11px] font-black shrink-0 {{ $statusFilter === 'HEALTHY' ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm shadow-emerald-600/10' : 'bg-emerald-55 dark:bg-emerald-950/10 text-emerald-700 dark:text-emerald-400 border-emerald-205 dark:border-emerald-900/50 hover:bg-emerald-50 dark:hover:bg-emerald-950/20 hover:scale-105 active:scale-95' }}">
+                <span class="material-symbols-outlined text-sm {{ $statusFilter === 'HEALTHY' ? 'text-white' : 'text-emerald-600' }}">check_circle</span>
+                <span>Healthy</span>
+                <span class="px-1.5 py-0.5 rounded text-[10px] font-black {{ $statusFilter === 'HEALTHY' ? 'bg-emerald-700 text-white' : 'bg-emerald-105 text-emerald-805 dark:bg-emerald-950/30' }}">
+                    {{ number_format($dashboardCounts['HEALTHY']) }}
+                </span>
+            </button>
+
+            <!-- Overstock -->
+            <button wire:click="toggleStatusFilter('OVERSTOCK')" 
+                class="flex items-center gap-1.5 px-3 py-1.5 rounded transition-all duration-200 group border text-[11px] font-black shrink-0 {{ $statusFilter === 'OVERSTOCK' ? 'bg-blue-600 text-white border-blue-600 shadow-sm shadow-blue-600/10' : 'bg-blue-55 dark:bg-blue-950/10 text-blue-700 dark:text-blue-450 border-blue-200 dark:border-blue-900/50 hover:bg-blue-50 dark:hover:bg-blue-950/20 hover:scale-105 active:scale-95' }}">
+                <span class="material-symbols-outlined text-sm {{ $statusFilter === 'OVERSTOCK' ? 'text-white' : 'text-blue-600' }}">stacked_bar_chart</span>
+                <span>Overstock</span>
+                <span class="px-1.5 py-0.5 rounded text-[10px] font-black {{ $statusFilter === 'OVERSTOCK' ? 'bg-blue-700 text-white' : 'bg-blue-105 text-blue-805 dark:bg-blue-950/30' }}">
+                    {{ number_format($dashboardCounts['OVERSTOCK']) }}
+                </span>
+            </button>
+
+            <!-- Unknown -->
+            <button wire:click="toggleStatusFilter('UNKNOWN')" 
+                class="flex items-center gap-1.5 px-3 py-1.5 rounded transition-all duration-200 group border text-[11px] font-black shrink-0 {{ $statusFilter === 'UNKNOWN' ? 'bg-slate-600 text-white border-slate-600 shadow-sm shadow-slate-600/10' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-350 border-slate-200 dark:border-slate-700 hover:bg-slate-200/50 dark:hover:bg-slate-750 hover:scale-105 active:scale-95' }}">
+                <span class="material-symbols-outlined text-sm {{ $statusFilter === 'UNKNOWN' ? 'text-white' : 'text-slate-500' }}">help_outline</span>
+                <span>Unknown</span>
+                <span class="px-1.5 py-0.5 rounded text-[10px] font-black {{ $statusFilter === 'UNKNOWN' ? 'bg-slate-700 text-white' : 'bg-slate-200 text-slate-705 dark:bg-slate-900' }}">
+                    {{ number_format($dashboardCounts['UNKNOWN']) }}
+                </span>
+            </button>
         </div>
     </div>
 
@@ -30,7 +105,7 @@
         <div class="flex flex-wrap gap-sm w-full xl:w-auto shrink-0 items-center">
             <!-- Procurement Filter -->
             <div class="relative flex-1 md:flex-none">
-                <select wire:model.live="procurementFilter" class="w-full h-9 bg-slate-50 border border-slate-200 dark:border-slate-800 rounded-md text-xs font-bold text-slate-600 focus:ring-1 focus:ring-primary/20 focus:border-primary pl-4 pr-10">
+                <select wire:model.live="procurementFilter" class="w-full h-9 bg-slate-50 border border-slate-200 dark:border-slate-800 rounded-md text-xs font-bold text-slate-665 focus:ring-1 focus:ring-primary/20 focus:border-primary pl-4 pr-10">
                     <option value="">All Procurement</option>
                     <option value="LOCAL">Local Only</option>
                     <option value="IMPORT">Import Only</option>
@@ -39,15 +114,28 @@
 
             <!-- Class Filter -->
             <div class="relative flex-1 md:flex-none">
-                <select wire:model.live="classFilter" class="w-full h-9 bg-slate-50 border border-slate-200 dark:border-slate-800 rounded-md text-xs font-bold text-slate-600 focus:ring-1 focus:ring-primary/20 focus:border-primary pl-4 pr-10">
+                <select wire:model.live="classFilter" class="w-full h-9 bg-slate-50 border border-slate-200 dark:border-slate-800 rounded-md text-xs font-bold text-slate-665 focus:ring-1 focus:ring-primary/20 focus:border-primary pl-4 pr-10">
                     <option value="">All Classes</option>
                     <option value="CONSUMABLE">Consumable Only</option>
                     <option value="SPAREPART">Sparepart Only</option>
                 </select>
             </div>
 
+            <!-- Planning Status Filter -->
+            <div class="relative flex-1 md:flex-none">
+                <select wire:model.live="statusFilter" class="w-full h-9 bg-slate-50 border border-slate-200 dark:border-slate-800 rounded-md text-xs font-bold text-slate-665 focus:ring-1 focus:ring-primary/20 focus:border-primary pl-4 pr-10">
+                    <option value="">All Statuses</option>
+                    <option value="CRITICAL">Critical Only</option>
+                    <option value="REORDER">Reorder Only</option>
+                    <option value="WATCHLIST">Watchlist Only</option>
+                    <option value="HEALTHY">Healthy Only</option>
+                    <option value="OVERSTOCK">Overstock Only</option>
+                    <option value="UNKNOWN">Unknown Only</option>
+                </select>
+            </div>
+
             <!-- Per Page -->
-            <select wire:model.live="perPage" class="flex-1 md:flex-none h-9 bg-slate-50 border border-slate-200 dark:border-slate-800 rounded-md text-xs font-bold text-slate-600 focus:ring-1 focus:ring-primary/20 focus:border-primary pl-4 pr-10 font-bold">
+            <select wire:model.live="perPage" class="flex-1 md:flex-none h-9 bg-slate-50 border border-slate-200 dark:border-slate-800 rounded-md text-xs font-bold text-slate-665 focus:ring-1 focus:ring-primary/20 focus:border-primary pl-4 pr-10 font-bold">
                 <option value="25">25 per page</option>
                 <option value="50">50 per page</option>
                 <option value="100">100 per page</option>
