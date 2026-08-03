@@ -1,6 +1,4 @@
-<div class="pt-24 px-4 pb-6 lg:px-8 min-h-screen flex flex-col bg-slate-50/30" x-data="{
-    editingLeadTimeId: null,
-}">
+<div class="pt-24 px-4 pb-6 lg:px-8 min-h-screen flex flex-col bg-slate-50/30">
     <!-- Header -->
     <div class="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4 mb-6">
         <div class="flex items-center gap-3">
@@ -288,46 +286,25 @@
                                 @endif
                             </td>
  
-                            <!-- Procurement Type (Inline Edit) -->
-                            <td class="px-md py-2">
-                                <div class="w-[95px]">
-                                    <select 
-                                        wire:change="updatePlanning({{ $variant->id }}, 'procurement_type', $event.target.value)"
-                                        class="w-full h-8 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded px-2 text-[11px] font-bold text-slate-700 dark:text-slate-350 focus:ring-1 focus:ring-primary/20 focus:border-primary transition-all"
-                                    >
-                                        <option value="LOCAL" {{ $variant->procurement_type === 'LOCAL' ? 'selected' : '' }}>LOCAL</option>
-                                        <option value="IMPORT" {{ $variant->procurement_type === 'IMPORT' ? 'selected' : '' }}>IMPORT</option>
-                                    </select>
-                                </div>
+                            <!-- Procurement Type (Neutral Text) -->
+                            <td class="px-md py-2 align-middle">
+                                <span class="text-xs font-medium text-slate-700 dark:text-slate-300 cursor-help" title="Configured in Item Master">
+                                    {{ $variant->procurement_type }}
+                                </span>
                             </td>
 
-                            <!-- Inventory Class (Inline Edit) -->
-                            <td class="px-md py-2">
-                                <div class="w-36">
-                                    <select 
-                                        wire:change="updatePlanning({{ $variant->id }}, 'inventory_class', $event.target.value)"
-                                        class="w-full h-8 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded px-2 text-[11px] font-bold text-slate-700 dark:text-slate-350 focus:ring-1 focus:ring-primary/20 focus:border-primary transition-all"
-                                    >
-                                        <option value="CONSUMABLE" {{ $variant->inventory_class === 'CONSUMABLE' ? 'selected' : '' }}>CONSUMABLE</option>
-                                        <option value="SPAREPART" {{ $variant->inventory_class === 'SPAREPART' ? 'selected' : '' }}>SPAREPART</option>
-                                    </select>
-                                </div>
+                            <!-- Inventory Class (Neutral Text) -->
+                            <td class="px-md py-2 align-middle">
+                                <span class="text-xs font-medium text-slate-700 dark:text-slate-300 cursor-help" title="Configured in Item Master">
+                                    {{ ucfirst(strtolower($variant->inventory_class)) }}
+                                </span>
                             </td>
 
-                            <!-- Lead Time Days (Inline Edit) -->
-                            <td class="px-md py-2 text-center">
-                                <div class="w-[75px] relative mx-auto" x-data="{ value: '{{ $variant->lead_time_days }}' }">
-                                    <input 
-                                        type="number" 
-                                        x-model="value"
-                                        @blur="$wire.updatePlanning({{ $variant->id }}, 'lead_time_days', value)"
-                                        @keydown.enter="$wire.updatePlanning({{ $variant->id }}, 'lead_time_days', value); $el.blur()"
-                                        class="w-full h-8 pr-6 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded pl-2.5 text-[11px] font-bold text-slate-700 dark:text-slate-350 focus:ring-1 focus:ring-primary/20 focus:border-primary transition-all text-center"
-                                        min="1" 
-                                        max="365"
-                                    >
-                                    <span class="absolute right-1.5 top-1/2 -translate-y-1/2 text-[9px] font-bold text-slate-400 pointer-events-none">d</span>
-                                </div>
+                            <!-- Lead Time Days (Neutral Text) -->
+                            <td class="px-md py-2 text-center align-middle">
+                                <span class="text-xs font-medium text-slate-700 dark:text-slate-300 cursor-help" title="Configured in Item Master">
+                                    {{ $variant->lead_time_days }} Days
+                                </span>
                             </td>
 
                             <!-- Status -->

@@ -110,7 +110,7 @@ class ItemPlanningFieldsTest extends TestCase
             ]);
     }
 
-    public function test_planning_dashboard_lists_items_and_supports_inline_edits()
+    public function test_planning_dashboard_lists_items_as_read_only()
     {
         $variant = ItemVariant::create([
             'item_id' => $this->item->id,
@@ -127,15 +127,13 @@ class ItemPlanningFieldsTest extends TestCase
         Livewire::test(InventoryPlanningPage::class)
             ->set('search', '5.INLINE-456')
             ->assertSee('5.INLINE-456')
-            ->call('updatePlanning', $variant->id, 'procurement_type', 'IMPORT')
-            ->call('updatePlanning', $variant->id, 'inventory_class', 'SPAREPART')
-            ->call('updatePlanning', $variant->id, 'lead_time_days', 60)
-            ->assertHasNoErrors();
+            ->assertSee('LOCAL')
+            ->assertSee('CONSUMABLE')
+            ->assertSee('30 Days')
+            ->assertSee('Configured in Item Master');
 
-        $variant->refresh();
-        $this->assertEquals('IMPORT', $variant->procurement_type);
-        $this->assertEquals('SPAREPART', $variant->inventory_class);
-        $this->assertEquals(60, $variant->lead_time_days);
+        // Verify that the updatePlanning method is completely removed from the controller
+        $this->assertFalse(method_exists(InventoryPlanningPage::class, 'updatePlanning'));
     }
 
     public function test_bulk_import_saves_planning_fields()

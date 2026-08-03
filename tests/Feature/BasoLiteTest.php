@@ -377,4 +377,32 @@ class BasoLiteTest extends TestCase
         // Assert 2 BASO documents exist for today
         $this->assertEquals(2, BasoDocument::count());
     }
+
+    public function test_last_audit_information_is_displayed_correctly()
+    {
+        // 1. Initial lookup - no history: should see "Last Audit: Never"
+        $lw = Livewire::actingAs($this->adminUser)->test(\App\Livewire\Opname\OpnamePage::class)
+            ->set('binScan', $this->bin->code)
+            ->assertSee('Last Audit:')
+            ->assertSee('Never')
+            ->assertDontSee('Recently Audited');
+
+        // 2. Commit a direct audit (system qty matches physical)
+        $lw->set('actualQty', 10)
+            ->call('saveItem')
+            ->assertHasNoErrors();
+
+        // 3. Scan again - should see "Last Audit: [Today's Date] (today)" and "Recently Audited" badge
+        $todayStr = date('d M Y');
+        $savedOpname = \App\Models\StockOpname::latest()->first();
+        $auditorName = \App\Models\User::find($savedOpname->created_by)?->name ?? 'System';
+
+        Livewire::actingAs($this->adminUser)->test(\App\Livewire\Opname\OpnamePage::class)
+            ->set('binScan', $this->bin->code)
+            ->assertSee('Last Audit:')
+            ->assertSee($todayStr)
+            ->assertSee('(today)')
+            ->assertSee('Recently Audited')
+            ->assertSee('by ' . $auditorName);
+    }
 }

@@ -81,7 +81,10 @@ class ProductionWarehouseAccessSeederTest extends TestCase
     public function test_production_mappings_are_correctly_synchronized(): void
     {
         // 1. Assert adminpb does not exist before seeder
+        \Illuminate\Support\Facades\Schema::disableForeignKeyConstraints();
         User::where('email', 'adminpb@peroniks.com')->delete();
+        \Illuminate\Support\Facades\Schema::enableForeignKeyConstraints();
+
         $this->assertNull(User::where('email', 'adminpb@peroniks.com')->first());
 
         // 2. Execute Seeder

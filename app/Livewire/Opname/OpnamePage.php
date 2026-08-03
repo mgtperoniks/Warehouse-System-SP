@@ -31,6 +31,12 @@ class OpnamePage extends Component
     public $reasonCode = '';
     public $notes = '';
 
+    // Last Audit Info (OPNAME-03)
+    public $lastAuditDate = null;
+    public $lastAuditor = null;
+    public $lastAuditAgo = null;
+    public $isRecentlyAudited = false;
+
     public function updatedBinScan($value)
     {
         $this->handleScan($value);
@@ -87,6 +93,65 @@ class OpnamePage extends Component
         $this->difference = 0;
         $this->isScanning = false;
         $this->binScan = ''; // Reset input for next time
+
+        // Fetch last audit info (OPNAME-03)
+        $variantId = $bin->item_variant_id;
+        
+        $latestOpnameItem = StockOpnameItem::whereHas('bin', function ($query) use ($variantId) {
+            $query->where('item_variant_id', $variantId);
+        })
+        ->with(['stockOpname'])
+        ->orderBy('created_at', 'desc')
+        ->first();
+
+        $latestAdjustmentItem = InventoryAdjustmentItem::where('item_variant_id', $variantId)
+            ->where('status', 'APPROVED')
+            ->with(['header'])
+            ->orderBy('approved_at', 'desc')
+            ->first();
+
+        $opnameDate = $latestOpnameItem ? \Carbon\Carbon::parse($latestOpnameItem->created_at) : null;
+        $adjustmentDate = $latestAdjustmentItem ? \Carbon\Carbon::parse($latestAdjustmentItem->approved_at) : null;
+
+        $useOpname = null;
+        if ($opnameDate && $adjustmentDate) {
+            $useOpname = $opnameDate->gt($adjustmentDate);
+        } elseif ($opnameDate) {
+            $useOpname = true;
+        } elseif ($adjustmentDate) {
+            $useOpname = false;
+        }
+
+        if ($useOpname === true) {
+            $this->lastAuditDate = $opnameDate->format('d M Y');
+            $daysAgo = (int) $opnameDate->copy()->startOfDay()->diffInDays(\Carbon\Carbon::today());
+            $this->lastAuditAgo = $daysAgo === 0 ? '(today)' : ($daysAgo === 1 ? '(1 day ago)' : "({$daysAgo} days ago)");
+            $this->isRecentlyAudited = $daysAgo <= 7;
+            
+            $auditorId = $latestOpnameItem->stockOpname->created_by ?? null;
+            if ($auditorId) {
+                $this->lastAuditor = \App\Models\User::find($auditorId)?->name ?? 'System';
+            } else {
+                $this->lastAuditor = 'System';
+            }
+        } elseif ($useOpname === false) {
+            $this->lastAuditDate = $adjustmentDate->format('d M Y');
+            $daysAgo = (int) $adjustmentDate->copy()->startOfDay()->diffInDays(\Carbon\Carbon::today());
+            $this->lastAuditAgo = $daysAgo === 0 ? '(today)' : ($daysAgo === 1 ? '(1 day ago)' : "({$daysAgo} days ago)");
+            $this->isRecentlyAudited = $daysAgo <= 7;
+            
+            $auditorId = $latestAdjustmentItem->header->operator_id ?? null;
+            if ($auditorId) {
+                $this->lastAuditor = \App\Models\User::find($auditorId)?->name ?? 'System';
+            } else {
+                $this->lastAuditor = 'System';
+            }
+        } else {
+            $this->lastAuditDate = 'Never';
+            $this->lastAuditAgo = null;
+            $this->isRecentlyAudited = false;
+            $this->lastAuditor = null;
+        }
     }
 
     public function resetAudit()
@@ -100,6 +165,12 @@ class OpnamePage extends Component
         $this->difference = 0;
         $this->reasonCode = '';
         $this->notes = '';
+        
+        // Reset last audit info (OPNAME-03)
+        $this->lastAuditDate = null;
+        $this->lastAuditor = null;
+        $this->lastAuditAgo = null;
+        $this->isRecentlyAudited = false;
     }
 
     public function updatedActualQty($value)

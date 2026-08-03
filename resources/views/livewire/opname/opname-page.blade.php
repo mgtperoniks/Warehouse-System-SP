@@ -204,7 +204,23 @@
                                 <span class="text-[10px] font-mono font-bold text-slate-500">SKU: {{ $selectedBin->itemVariant->sku ?? 'NO SKU' }}</span>
                                 <span class="text-[10px] font-mono font-bold text-slate-500">ERP: {{ $selectedBin->itemVariant->erp_code ?? '-' }}</span>
                             </div>
-                            <h3 class="text-slate-900 text-xs font-black uppercase tracking-tight mt-1">{{ $selectedBin->itemVariant->item->name }}</h3>
+                            
+                            {{-- Last Audit Info Block (OPNAME-03) --}}
+                            <div class="flex flex-wrap items-center gap-sm mt-1.5 text-[10px] font-mono leading-none">
+                                <span class="font-bold text-slate-400 uppercase tracking-wider">Last Audit:</span>
+                                <span class="font-black text-slate-700">{{ $lastAuditDate }}</span>
+                                @if($lastAuditAgo)
+                                    <span class="text-slate-500 font-bold">{{ $lastAuditAgo }}</span>
+                                @endif
+                                @if($lastAuditor)
+                                    <span class="text-slate-450">by {{ $lastAuditor }}</span>
+                                @endif
+                                @if($isRecentlyAudited)
+                                    <span class="px-1.5 py-0.5 bg-amber-50 text-amber-700 text-[8px] font-black uppercase tracking-wider rounded border border-amber-200">Recently Audited</span>
+                                @endif
+                            </div>
+
+                            <h3 class="text-slate-900 text-xs font-black uppercase tracking-tight mt-1.5">{{ $selectedBin->itemVariant->item->name }}</h3>
                         </div>
                     </div>
 

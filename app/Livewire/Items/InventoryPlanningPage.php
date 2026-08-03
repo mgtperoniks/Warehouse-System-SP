@@ -71,24 +71,6 @@ class InventoryPlanningPage extends Component
         $this->sortDirection = $this->sortDir;
     }
 
-    public function updatePlanning($variantId, $field, $value)
-    {
-        $variant = ItemVariant::findOrFail($variantId);
-
-        $rules = [
-            'procurement_type' => 'required|in:LOCAL,IMPORT',
-            'inventory_class' => 'required|in:CONSUMABLE,SPAREPART',
-            'lead_time_days' => 'required|integer|min:1|max:365',
-        ];
-
-        if (isset($rules[$field])) {
-            $validated = validator([$field => $value], [$field => $rules[$field]])->validate();
-            $variant->update([$field => $validated[$field]]);
-            
-            $this->dispatch('notyf', type: 'success', message: 'Planning field updated successfully.');
-        }
-    }
-
     public function render(\App\Services\Inventory\InventoryPlanningService $planningService)
     {
         $date28 = now()->subDays(28)->startOfDay();

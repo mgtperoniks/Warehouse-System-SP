@@ -82,26 +82,27 @@ class WarehouseDomainIsolationTest extends TestCase
         $item3 = Item::create(['name' => 'Sparepart Item']);
 
         // 5. Create Variants
+        $unique = uniqid();
         $this->rawMaterialItem = ItemVariant::create([
             'item_id' => $item1->id,
-            'erp_code' => '1.01.001',
-            'sku' => 'SKU-RAW-1',
+            'erp_code' => '1.01.raw-' . $unique,
+            'sku' => 'SKU-RAW-' . $unique,
             'unit' => 'PCS',
             'brand' => 'Brand A',
         ]);
 
         $this->consumableItem = ItemVariant::create([
             'item_id' => $item2->id,
-            'erp_code' => '2.02.002',
-            'sku' => 'SKU-CON-2',
+            'erp_code' => '2.02.con-' . $unique,
+            'sku' => 'SKU-CON-' . $unique,
             'unit' => 'PCS',
             'brand' => 'Brand B',
         ]);
 
         $this->sparepartItem = ItemVariant::create([
             'item_id' => $item3->id,
-            'erp_code' => '5.05.005',
-            'sku' => 'SKU-SPA-5',
+            'erp_code' => '5.05.spa-' . $unique,
+            'sku' => 'SKU-SPA-' . $unique,
             'unit' => 'PCS',
             'brand' => 'Brand C',
         ]);
@@ -225,12 +226,12 @@ class WarehouseDomainIsolationTest extends TestCase
         ]);
 
         Livewire::test(ItemList::class)
-            ->set('search', '5.05.005')
-            ->assertSee('5.05.005')
-            ->set('search', '1.01.001')
-            ->assertDontSee('1.01.001')
-            ->set('search', '2.02.002')
-            ->assertDontSee('2.02.002');
+            ->set('search', $this->sparepartItem->erp_code)
+            ->assertSee($this->sparepartItem->erp_code)
+            ->set('search', $this->rawMaterialItem->erp_code)
+            ->assertDontSee($this->rawMaterialItem->erp_code)
+            ->set('search', $this->consumableItem->erp_code)
+            ->assertDontSee($this->consumableItem->erp_code);
     }
 
     public function test_inventory_planning_component_respects_domain()
@@ -242,12 +243,12 @@ class WarehouseDomainIsolationTest extends TestCase
         ]);
 
         Livewire::test(InventoryPlanningPage::class)
-            ->set('search', '5.05.005')
-            ->assertSee('5.05.005')
-            ->set('search', '1.01.001')
-            ->assertDontSee('1.01.001')
-            ->set('search', '2.02.002')
-            ->assertDontSee('2.02.002');
+            ->set('search', $this->sparepartItem->erp_code)
+            ->assertSee($this->sparepartItem->erp_code)
+            ->set('search', $this->rawMaterialItem->erp_code)
+            ->assertDontSee($this->rawMaterialItem->erp_code)
+            ->set('search', $this->consumableItem->erp_code)
+            ->assertDontSee($this->consumableItem->erp_code);
     }
 
     public function test_catalog_search_sort_and_pagination_respects_domain()
@@ -260,19 +261,19 @@ class WarehouseDomainIsolationTest extends TestCase
 
         // Search for allowed sparepart ERP code -> matches
         Livewire::test(ItemList::class)
-            ->set('search', '5.05.005')
-            ->assertSee('5.05.005');
+            ->set('search', $this->sparepartItem->erp_code)
+            ->assertSee($this->sparepartItem->erp_code);
 
         // Search for forbidden ERP code (which will match raw item if unrestricted, but here should return nothing)
         Livewire::test(ItemList::class)
-            ->set('search', '1.01.001')
-            ->assertDontSee('1.01.001')
-            ->assertDontSee('5.05.005');
+            ->set('search', $this->rawMaterialItem->erp_code)
+            ->assertDontSee($this->rawMaterialItem->erp_code)
+            ->assertDontSee($this->sparepartItem->erp_code);
 
         // Verify sorting on name is operational
         Livewire::test(ItemList::class)
-            ->set('search', '5.05.005')
+            ->set('search', $this->sparepartItem->erp_code)
             ->call('sortBy', 'name')
-            ->assertSee('5.05.005');
+            ->assertSee($this->sparepartItem->erp_code);
     }
 }
