@@ -17,6 +17,8 @@ class ItemForm extends Component
 
     public $mode = 'create';
     public ?ItemVariant $variant = null;
+    public $returnUrl = '';
+    public $legacy_product_code = '';
 
     // Basic Info
     public $name = '';
@@ -204,6 +206,13 @@ class ItemForm extends Component
 
             // Generate barcode suggestion context
             $this->suggestBarcodeForErp($this->erp_code);
+        }
+
+        if ($mode === 'create') {
+            $this->name = request()->query('item_name', '');
+            $this->unit = request()->query('unit', 'PCS');
+            $this->returnUrl = request()->query('return_url', '');
+            $this->legacy_product_code = request()->query('legacy_product_code', '');
         }
     }
 
@@ -523,6 +532,9 @@ class ItemForm extends Component
         });
 
         session()->flash('message', 'Item successfully saved.');
+        if ($this->returnUrl) {
+            return redirect()->to($this->returnUrl);
+        }
         return redirect()->route('items.show', $this->variant->id);
     }
 

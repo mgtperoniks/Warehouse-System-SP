@@ -143,6 +143,12 @@
                             <input wire:model.live="erp_code" type="text" class="w-full h-11 bg-slate-50 border border-slate-200 dark:border-slate-800 rounded-md px-4 py-2.5 focus:ring-2 focus:ring-primary/20 focus:border-primary font-mono font-bold text-slate-700 transition-all uppercase text-sm" placeholder="ERP-XXXX">
                             @error('erp_code') <span class="text-error text-xs font-bold mt-1 block">{{ $message }}</span> @enderror
 
+                            @if($legacy_product_code)
+                                <div class="mt-1.5 bg-amber-50 dark:bg-amber-950/20 border border-amber-100 dark:border-amber-900/50 p-2 rounded text-[10px] text-amber-750 dark:text-amber-450 font-black uppercase tracking-wider">
+                                    Legacy ERP Code: <span class="font-mono font-black select-all bg-white dark:bg-slate-900 px-1 py-0.5 rounded border border-amber-200/50">{{ $legacy_product_code }}</span>
+                                </div>
+                            @endif
+
                             @if($erpFamily)
                                 <div class="mt-2 bg-emerald-50/50 dark:bg-emerald-950/15 border border-emerald-100 dark:border-emerald-900/60 p-3 rounded-lg flex flex-col gap-1.5 text-xs text-slate-700 dark:text-slate-350">
                                     <div class="flex justify-between items-center">

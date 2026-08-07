@@ -57,6 +57,11 @@ Route::middleware('auth')->group(function () {
     Route::get('/settings/departments', \App\Livewire\Settings\DepartmentPage::class)->name('settings.departments');
     Route::get('/settings/users', \App\Livewire\Settings\UserPage::class)->name('settings.users');
 
+    // Outstanding Purchases
+    Route::get('/outstanding-purchases', \App\Livewire\OutstandingPurchase\OutstandingPurchaseIndexPage::class)->name('outstanding-purchases');
+    Route::get('/outstanding-purchases/import', \App\Livewire\OutstandingPurchase\OutstandingPurchaseImportPage::class)->name('outstanding-purchases.import');
+    Route::get('/outstanding-purchases/{id}', \App\Livewire\OutstandingPurchase\OutstandingPurchaseShowPage::class)->name('outstanding-purchases.show');
+
     // Test Routes
     Route::get('/barcode/test-print', [\App\Http\Controllers\BarcodeTestController::class, 'index'])->name('barcode.test-print');
 });
