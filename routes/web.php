@@ -62,6 +62,10 @@ Route::middleware('auth')->group(function () {
     Route::get('/outstanding-purchases/import', \App\Livewire\OutstandingPurchase\OutstandingPurchaseImportPage::class)->name('outstanding-purchases.import');
     Route::get('/outstanding-purchases/{id}', \App\Livewire\OutstandingPurchase\OutstandingPurchaseShowPage::class)->name('outstanding-purchases.show');
 
+    // Receiving Sessions
+    Route::get('/receiving/{id}', \App\Livewire\Receiving\ReceivingSessionPage::class)->name('receiving.session');
+    Route::get('/receiving/{id}/pdf', [\App\Http\Controllers\Receiving\ReceivingPdfController::class, 'view'])->name('receiving.session.pdf');
+
     // Test Routes
     Route::get('/barcode/test-print', [\App\Http\Controllers\BarcodeTestController::class, 'index'])->name('barcode.test-print');
 });

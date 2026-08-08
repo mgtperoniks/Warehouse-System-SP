@@ -116,11 +116,11 @@ class OutstandingPurchaseOrder extends Model
     }
 
     /**
-     * Placeholder relationship for REC-02.
+     * Active receiving session relationship.
      */
-    public function receivingSession()
+    public function receivingSession(): BelongsTo
     {
-        return null;
+        return $this->belongsTo(ReceivingSession::class, 'receiving_session_id');
     }
 
     /**

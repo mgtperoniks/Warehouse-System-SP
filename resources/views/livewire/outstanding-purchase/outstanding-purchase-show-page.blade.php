@@ -46,9 +46,17 @@
             <!-- Ready for Receiving Button (gate control) -->
             <div class="relative group">
                 @if($order->receiving_readiness === \App\Models\OutstandingPurchaseOrder::READINESS_READY)
-                    <button class="h-11 px-5 text-[10px] font-black text-white bg-green-600 hover:bg-green-700 rounded-md shadow-md shadow-green-200 active:scale-95 transition-all flex items-center justify-center gap-1">
+                    <button wire:click="startReceivingSession" class="h-11 px-5 text-[10px] font-black text-white bg-green-600 hover:bg-green-700 rounded-md shadow-md shadow-green-200 active:scale-95 transition-all flex items-center justify-center gap-1">
                         <span class="material-symbols-outlined text-sm">play_circle</span>
-                        READY FOR RECEIVING
+                        @if(!$activeSession)
+                            READY FOR RECEIVING
+                        @elseif($activeSession->status === \App\Models\ReceivingSession::STATUS_DRAFT)
+                            RESUME RECEIVING
+                        @elseif($activeSession->status === \App\Models\ReceivingSession::STATUS_READY_REVIEW)
+                            RESUME / REVIEW RECEIVING
+                        @else
+                            READY FOR RECEIVING
+                        @endif
                     </button>
                 @else
                     <button disabled class="h-11 px-5 text-[10px] font-black text-slate-400 bg-slate-100 border border-slate-200 rounded-md cursor-not-allowed flex items-center justify-center gap-1">
@@ -63,6 +71,12 @@
             </div>
         </div>
     </div>
+
+    @if(session()->has('error'))
+        <div class="mb-md p-md bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 rounded-md text-xs font-bold uppercase tracking-wider">
+            {{ session('error') }}
+        </div>
+    @endif
 
     <div class="grid grid-cols-12 gap-md">
         <!-- PO Header Info Card -->
