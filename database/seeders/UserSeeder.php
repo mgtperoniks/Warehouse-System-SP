@@ -12,25 +12,44 @@ class UserSeeder extends Seeder
      */
     public function run(): void
     {
-        \App\Models\User::create([
-            'name' => 'Admin Sparepart',
-            'email' => 'adminsp@peroniks.com',
-            'password' => \Illuminate\Support\Facades\Hash::make('321password'),
-            'role' => 'admin',
-        ]);
+        \App\Models\User::firstOrCreate(
+            ['email' => 'adminsp@peroniks.com'],
+            [
+                'name' => 'Admin Sparepart',
+                'password' => \Illuminate\Support\Facades\Hash::make('321password'),
+                'role' => 'admin',
+                'is_active' => true,
+            ]
+        );
 
-        \App\Models\User::create([
-            'name' => 'Manager PPIC',
-            'email' => 'managerppic@peroniks.com',
-            'password' => \Illuminate\Support\Facades\Hash::make('password123'),
-            'role' => 'manager',
-        ]);
+        \App\Models\User::firstOrCreate(
+            ['email' => 'adminbahanbaku@peroniks.com'],
+            [
+                'name' => 'Admin Bahan Baku',
+                'password' => \Illuminate\Support\Facades\Hash::make('password'),
+                'role' => 'admin',
+                'is_active' => true,
+            ]
+        );
 
-        \App\Models\User::create([
-            'name' => 'Auditor',
-            'email' => 'auditor@peroniks.com',
-            'password' => \Illuminate\Support\Facades\Hash::make('password'),
-            'role' => 'auditor',
-        ]);
+        \App\Models\User::firstOrCreate(
+            ['email' => 'managerppic@peroniks.com'],
+            [
+                'name' => 'Manager PPIC',
+                'password' => \Illuminate\Support\Facades\Hash::make('password123'),
+                'role' => 'manager',
+                'is_active' => true,
+            ]
+        );
+
+        \App\Models\User::firstOrCreate(
+            ['email' => 'auditor@peroniks.com'],
+            [
+                'name' => 'Auditor',
+                'password' => \Illuminate\Support\Facades\Hash::make('password'),
+                'role' => 'auditor',
+                'is_active' => true,
+            ]
+        );
     }
 }

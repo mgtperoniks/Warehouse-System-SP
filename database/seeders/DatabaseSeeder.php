@@ -15,14 +15,30 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        // User::factory(10)->create();
+        \App\Models\Warehouse::firstOrCreate(
+            ['id' => 1],
+            ['code' => 'DEFAULT_WH', 'name' => 'Default Warehouse']
+        );
 
-        User::factory()->create([
-            'name' => 'Test User',
-            'email' => 'test@example.com',
-        ]);
+        \App\Models\Location::firstOrCreate(
+            ['id' => 1],
+            ['code' => 'LOC-01', 'description' => 'Main Location']
+        );
+
+        User::firstOrCreate(
+            ['id' => 1],
+            [
+                'name' => 'System Admin',
+                'email' => 'admin@peroniks.com',
+                'password' => \Illuminate\Support\Facades\Hash::make('password'),
+                'role' => 'admin',
+                'is_active' => true,
+            ]
+        );
 
         $this->call([
+            DepartmentSeeder::class,
+            UserSeeder::class,
             AdjustmentReasonMasterSeeder::class,
             WarehouseGovernanceSeeder::class,
             WarehouseFamilySeeder::class,

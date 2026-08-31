@@ -29,7 +29,7 @@
                 </div>
                 <div class="flex justify-between items-center text-xs">
                     <span class="text-slate-400 font-bold uppercase tracking-widest text-[9px]">Date &amp; Time</span>
-                    <span class="font-bold text-slate-700 dark:text-slate-300">{{ $tx->created_at->format('d M Y H:i:s') }}</span>
+                    <span class="font-bold text-slate-700 dark:text-slate-300">{{ $tx->created_at->timezone('Asia/Jakarta')->format('d M Y H:i:s') }}</span>
                 </div>
                 <div class="flex justify-between items-center text-xs">
                     <span class="text-slate-400 font-bold uppercase tracking-widest text-[9px]">Department</span>
@@ -75,6 +75,32 @@
                 ERP Inventory Transaction Synced Successfully
             </div>
 
+            <!-- Thermal Printer Bluetooth Integration POC Area -->
+            <div class="bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/70 rounded-xl p-3.5 space-y-2.5">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-1.5">
+                        <span class="material-symbols-outlined text-blue-600 dark:text-blue-400 text-lg">bluetooth</span>
+                        <span class="text-[10px] font-black uppercase tracking-wider text-slate-700 dark:text-slate-200">Xantri 58mm Thermal (PoC)</span>
+                    </div>
+                    <span id="thermal-status-pill" class="text-[9px] font-mono font-bold px-2 py-0.5 rounded-full bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300">
+                        DISCONNECTED
+                    </span>
+                </div>
+
+                <div id="thermal-status-msg" class="text-[10px] text-slate-500 dark:text-slate-400 font-mono hidden"></div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+                    <button type="button" id="btn-thermal-print" onclick="executeThermalPrint()" class="h-10 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-black text-[11px] uppercase tracking-wider shadow-sm hover:shadow transition-all flex items-center justify-center gap-1.5">
+                        <span class="material-symbols-outlined text-base">bluetooth_searching</span>
+                        <span>TEST THERMAL PRINT</span>
+                    </button>
+                    <button type="button" onclick="executeRawBtPrint()" class="h-10 bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 rounded-lg font-bold text-[10px] uppercase tracking-wider transition-all flex items-center justify-center gap-1">
+                        <span class="material-symbols-outlined text-sm">open_in_new</span>
+                        <span>RawBT App Fallback</span>
+                    </button>
+                </div>
+            </div>
+
             <!-- Buttons section -->
             <div class="grid grid-cols-2 gap-3 pt-2">
                 <button onclick="printThermal()" class="h-11 bg-green-600 hover:bg-green-700 text-white rounded-xl font-black text-xs uppercase tracking-widest shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2">
@@ -89,7 +115,83 @@
 
         </div>
 
+        <script src="{{ asset('assets/js/escpos-thermal-printer.js') }}"></script>
         <script>
+            // ── Transaction Snapshot Data Object ──
+            const currentTransactionData = {
+                code: @json($tx->code),
+                date: @json($tx->created_at->timezone('Asia/Jakarta')->format('d/m/Y')),
+                time: @json($tx->created_at->timezone('Asia/Jakarta')->format('H:i')),
+                operator: @json($tx->operator->name ?? auth()->user()->name ?? 'Operator'),
+                department: @json($tx->department->name ?? 'Unmapped'),
+                pic: @json($tx->user->name ?? ''),
+                reference: @json($tx->reference ?? ''),
+                items: [
+                    @foreach($tx->items as $item)
+                    {
+                        name: @json($item->item_name_snapshot ?? $item->variant->item->name ?? 'N/A'),
+                        erp_code: @json($item->erp_code_snapshot ?? $item->variant->erp_code ?? '-'),
+                        qty: {{ (int) $item->qty }},
+                        unit: @json($item->unit_snapshot ?? $item->variant->unit ?? 'PCS')
+                    },
+                    @endforeach
+                ]
+            };
+
+            const thermalTransport = new BluetoothThermalTransport();
+
+            thermalTransport.onStatusChange((status, detail) => {
+                const pill = document.getElementById('thermal-status-pill');
+                const msgBox = document.getElementById('thermal-status-msg');
+                const printBtn = document.getElementById('btn-thermal-print');
+
+                if (!pill) return;
+
+                pill.textContent = status;
+                pill.className = 'text-[9px] font-mono font-bold px-2 py-0.5 rounded-full ';
+
+                switch (status) {
+                    case 'CONNECTED':
+                        pill.className += 'bg-emerald-100 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-300';
+                        break;
+                    case 'CONNECTING':
+                    case 'PRINTING':
+                        pill.className += 'bg-amber-100 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-300 animate-pulse';
+                        break;
+                    case 'SUCCESS':
+                        pill.className += 'bg-emerald-500 text-white';
+                        break;
+                    case 'ERROR':
+                        pill.className += 'bg-red-100 dark:bg-red-950/40 text-red-700 dark:text-red-300 border border-red-300';
+                        break;
+                    default:
+                        pill.className += 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300';
+                        break;
+                }
+
+                if (detail) {
+                    msgBox.textContent = detail;
+                    msgBox.classList.remove('hidden');
+                } else {
+                    msgBox.classList.add('hidden');
+                }
+            });
+
+            async function executeThermalPrint() {
+                try {
+                    const receiptBuilder = StockOutReceiptFormatter.buildReceipt(currentTransactionData);
+                    const rawBytes = receiptBuilder.getUint8Array();
+                    await thermalTransport.print(rawBytes);
+                } catch (err) {
+                    console.error('Thermal print error:', err);
+                }
+            }
+
+            function executeRawBtPrint() {
+                const receiptBuilder = StockOutReceiptFormatter.buildReceipt(currentTransactionData);
+                thermalTransport.printViaRawBt(receiptBuilder);
+            }
+
             function printThermal() {
                 window.open(
                     '{{ route("reports.stock-out.print", ["code" => $tx->code]) }}',

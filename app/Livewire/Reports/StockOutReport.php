@@ -338,6 +338,7 @@ class StockOutReport extends Component
             $whCode = session('active_warehouse_code', 'SP');
             $whSuffix = $whCode === 'SPAREPART' ? 'SP' : ($whCode === 'RAW_MATERIAL' ? 'RM' : ($whCode === 'CONSUMABLE' ? 'CS' : 'WH'));
 
+            $transactionsMap = [];
             foreach ($groupedTransactions as $deptName => $txs) {
                 $firstTx = $txs->first();
                 if ($firstTx && $firstTx->department_id) {
@@ -348,7 +349,34 @@ class StockOutReport extends Component
                         $this->suggestedBkbRefs[$deptId] = "BK-{$deptCode}-{$dateStr}-001";
                     }
                 }
+
+                foreach ($txs as $tx) {
+                    $itemsList = [];
+                    foreach ($tx->items as $item) {
+                        $itemsList[] = [
+                            'id' => $item->id,
+                            'name' => $item->item_name_snapshot ?? ($item->variant->item->name ?? 'N/A'),
+                            'erp_code' => $item->erp_code_snapshot ?? ($item->variant->erp_code ?? '-'),
+                            'qty' => (int) $item->qty,
+                            'unit' => $item->unit_snapshot ?? ($item->variant->unit ?? 'PCS'),
+                        ];
+                    }
+
+                    $transactionsMap[(string) $tx->id] = [
+                        'id' => (int) $tx->id,
+                        'code' => $tx->code,
+                        'date' => $tx->created_at->timezone('Asia/Jakarta')->format('d/m/Y'),
+                        'time' => $tx->created_at->timezone('Asia/Jakarta')->format('H:i'),
+                        'operator' => $tx->operator->name ?? (auth()->user()->name ?? 'Operator'),
+                        'department' => $tx->department->name ?? 'Unmapped',
+                        'pic' => $tx->user->name ?? '',
+                        'reference' => $tx->reference ?? '',
+                        'items' => $itemsList,
+                    ];
+                }
             }
+        } else {
+            $transactionsMap = [];
         }
 
         // Get dropdown lists for filter form
@@ -357,6 +385,7 @@ class StockOutReport extends Component
 
         return view('livewire.reports.stock-out-report', [
             'groupedTransactions' => $groupedTransactions,
+            'transactionsMap' => $transactionsMap,
             'departments' => $departments,
             'users' => $users,
             'globalTotal' => $globalTotal,

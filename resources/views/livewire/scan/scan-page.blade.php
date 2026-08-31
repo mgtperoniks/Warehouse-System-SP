@@ -1,4 +1,4 @@
-<div class="pt-[52px] px-md pb-md min-h-screen bg-slate-50/30" x-data="scannerEngine()" @click="recoverFocus()">
+<div class="pt-[52px] px-md pb-32 lg:pb-md min-h-screen bg-slate-50/30" x-data="scannerEngine({ inputMode: '{{ $this->inputMode }}' })" @click="recoverFocus()">
 
     <!-- Industrial Overlay Confirmation Flashes -->
     <div x-show="flashSuccess" x-transition:enter="transition ease-out duration-100" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100" x-transition:leave="transition ease-in duration-150" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0" class="fixed inset-0 pointer-events-none border-[12px] border-emerald-500/40 z-[9999]" style="display: none;"></div>
@@ -62,10 +62,11 @@
     </div>
     @else
     {{-- ══════════════════════════════════════════
-         MAIN INTERFACE (SCAN & CART)
+         MAIN INTERFACE (SCAN / SEARCH & CART)
     ══════════════════════════════════════════════ --}}
     
-    <!-- 🎛️ SCANNER ENGINE status control widget -->
+    @if($this->inputMode === 'barcode')
+    <!-- 🎛️ SCANNER ENGINE status control widget (Barcode Mode Only) -->
     <div class="max-w-7xl mx-auto mb-xs flex flex-wrap items-center justify-between gap-sm bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-md py-1.5 px-md text-xs shadow-sm">
         <div class="flex items-center gap-sm">
             <span class="text-[9px] font-black uppercase tracking-widest text-slate-400">Scanner Engine:</span>
@@ -108,7 +109,7 @@
                 <div class="flex items-center gap-sm">
                     <span class="material-symbols-outlined text-2xl animate-pulse"
                           :class="{
-                             'text-slate-500': governanceStatus === 'MONITOR',
+                             'text-slate-550': governanceStatus === 'MONITOR',
                              'text-amber-600': governanceStatus === 'UNSTABLE',
                              'text-red-600': governanceStatus === 'TAKEOVER_ELIGIBLE'
                           }">
@@ -135,6 +136,7 @@
             </div>
         </div>
     </div>
+    @endif
 
     {{-- ── 1. SESSION HEADER (DEPT / PIC / REF) ── --}}
     <section class="max-w-7xl mx-auto mb-sm animate-in slide-in-from-top-4 duration-500">
@@ -210,7 +212,6 @@
                 <!-- Recipient PIC — Alpine searchable combobox -->
                 <div class="flex items-center gap-2 w-full">
                     <span class="text-[9px] font-black text-slate-400 uppercase tracking-widest shrink-0 italic">02. PIC:</span>
-                    {{-- wire:key forces Alpine to re-init when department changes and Livewire re-renders the PIC list --}}
                     <div class="relative flex-1"
                          wire:key="pic-combobox-{{ $deptId }}"
                          x-data="wmsCombobox({
@@ -291,7 +292,7 @@
     </section>
 
     <div class="grid grid-cols-12 gap-md max-w-[1600px] mx-auto">
-        {{-- ── 2. LEFT PANEL: SCAN AREA (8 Cols on Desktop) ── --}}
+        {{-- ── 2. LEFT PANEL: SCAN AREA OR CONSUMABLE SEARCH (8 Cols on Desktop) ── --}}
         <section class="col-span-12 lg:col-span-7 xl:col-span-8 space-y-md min-w-0">
 
             @if($message)
@@ -303,6 +304,76 @@
             </div>
             @endif
 
+            @if($this->inputMode === 'search')
+            {{-- ══════════════════════════════════════════
+                 CONSUMABLE ITEM SEARCH / AUTOCOMPLETE UI
+            ══════════════════════════════════════════════ --}}
+            <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-md p-md shadow-sm space-y-sm">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h3 class="font-black text-xs uppercase tracking-tighter text-slate-850 dark:text-white flex items-center gap-1.5">
+                            <span class="material-symbols-outlined text-primary text-sm">search</span>
+                            Consumable Item Search
+                        </h3>
+                        <p class="text-[9px] text-slate-400 font-black uppercase tracking-widest">Type Item Name, ERP Code, or SKU</p>
+                    </div>
+                    <span class="bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 text-[9px] font-black px-2 py-0.5 rounded uppercase tracking-wider border border-emerald-200 dark:border-emerald-800">
+                        Search Mode
+                    </span>
+                </div>
+
+                <div class="relative">
+                    <span class="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-lg material-symbols-outlined">search</span>
+                    <input
+                        wire:model.live.debounce.300ms="searchQuery"
+                        type="text"
+                        placeholder="Search item name / ERP code / SKU (e.g. AMS, NICKEL)..."
+                        class="w-full h-11 pl-10 pr-10 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-md focus:ring-2 focus:ring-primary/20 focus:border-primary text-xs font-bold text-slate-900 dark:text-slate-100 placeholder:text-slate-400 transition-all"
+                        autocomplete="off"
+                    />
+                    @if(!empty($searchQuery))
+                    <button wire:click="$set('searchQuery', '')" class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+                        <span class="material-symbols-outlined text-sm">close</span>
+                    </button>
+                    @endif
+                </div>
+
+                <!-- Autocomplete Results Dropdown/Card -->
+                @if(!empty($searchResults))
+                <div class="border border-slate-200 dark:border-slate-800 rounded-md bg-white dark:bg-slate-900 shadow-md divide-y divide-slate-100 dark:divide-slate-800 max-h-72 overflow-y-auto custom-scroll">
+                    @foreach($searchResults as $res)
+                    <div wire:click="selectSearchResult({{ $res['id'] }})"
+                         class="p-3 hover:bg-emerald-50/50 dark:hover:bg-slate-800/60 cursor-pointer transition-colors flex items-center justify-between gap-3 active:scale-[0.99]">
+                        <div class="min-w-0 flex-1">
+                            <div class="font-black text-xs text-slate-900 dark:text-slate-100 truncate">{{ $res['name'] }}</div>
+                            <div class="flex items-center gap-2 mt-0.5 text-[9px] font-mono text-slate-500 dark:text-slate-400">
+                                <span class="text-primary font-bold">ERP: {{ $res['erp_code'] }}</span>
+                                <span>•</span>
+                                <span>SKU: {{ $res['sku'] }}</span>
+                            </div>
+                        </div>
+                        <div class="text-right shrink-0">
+                            <div class="text-xs font-black text-slate-800 dark:text-slate-200">
+                                {{ $res['stock'] }} <span class="text-[9px] text-slate-400 font-bold uppercase">{{ $res['unit'] }}</span>
+                            </div>
+                            <span class="text-[8px] font-black uppercase tracking-widest {{ $res['stock'] > 0 ? 'text-emerald-600' : 'text-red-500' }}">
+                                {{ $res['stock'] > 0 ? 'Available' : 'Out of Stock' }}
+                            </span>
+                        </div>
+                    </div>
+                    @endforeach
+                </div>
+                @elseif(strlen(trim($searchQuery)) >= 2)
+                <div class="p-4 text-center text-xs font-bold text-slate-400 border border-slate-150 dark:border-slate-800 rounded-md bg-slate-50 dark:bg-slate-950">
+                    No matching consumable items found for "<span class="text-slate-700 dark:text-slate-300">{{ $searchQuery }}</span>"
+                </div>
+                @endif
+            </div>
+
+            @else
+            {{-- ══════════════════════════════════════════
+                 SPAREPART PHYSICAL BARCODE SCANNER UI
+            ══════════════════════════════════════════════ --}}
             <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-md p-sm shadow-sm ready-to-scan-glow">
                 <div class="flex items-center gap-sm">
                     <div class="flex-1 relative">
@@ -370,6 +441,7 @@
                     <span class="material-symbols-outlined text-sm">close</span> CANCEL SCAN
                 </button>
             </div>
+            @endif
 
             @if($currentItem)
             <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-md shadow-sm overflow-hidden success-flash animate-in zoom-in-95 duration-300 flex flex-col sm:flex-row">
@@ -408,8 +480,8 @@
             @endif
         </section>
 
-        {{-- ── 3. RIGHT PANEL: CART BATCH (4 Cols on Desktop) ── --}}
-        <aside class="col-span-12 lg:col-span-5 xl:col-span-4 flex flex-col bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-md overflow-hidden shadow-sm sticky top-[60px] relative" style="max-height: calc(100vh - 76px);">
+        {{-- ── 3. RIGHT PANEL: CART BATCH (4 Cols on Desktop, Responsive Mobile Flow) ── --}}
+        <aside class="col-span-12 lg:col-span-5 xl:col-span-4 flex flex-col bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-md overflow-hidden shadow-sm lg:sticky lg:top-[60px] relative lg:max-h-[calc(100vh-76px)]">
             
             <!-- ⚡ LAST SCANNED MOMENTUM PANEL (Alpine Overlay) -->
             <div x-show="showMomentum" 
@@ -613,7 +685,8 @@
     };
 
     const registerScannerEngine = () => {
-        Alpine.data('scannerEngine', () => ({
+        Alpine.data('scannerEngine', (config = {}) => ({
+            inputMode: config.inputMode || 'barcode',
             engineMode: localStorage.getItem('wms_scanner_engine') || 'enhanced',
             volume: localStorage.getItem('wms_scanner_volume') || 'normal',
             barcodeText: '',
@@ -742,20 +815,22 @@
             },
 
             init() {
-                console.log("ALPINE ENGINE INITIALIZED");
+                console.log("ALPINE ENGINE INITIALIZED (Input Mode: " + this.inputMode.toUpperCase() + ")");
                 console.log("[WMS Scanner Engine] Bootstrapped in " + this.engineMode.toUpperCase() + " mode.");
                 
-                // Initialize Tab Governance heartbeats
-                this.claimOwnership();
-                this.heartbeatInterval = setInterval(() => { this.sendHeartbeat(); }, 2000);
-                this.watchdogInterval = setInterval(() => { this.evaluateTabHealth(); }, 2000);
+                if (this.inputMode === 'barcode') {
+                    // Initialize Tab Governance heartbeats only in barcode scanning mode
+                    this.claimOwnership();
+                    this.heartbeatInterval = setInterval(() => { this.sendHeartbeat(); }, 2000);
+                    this.watchdogInterval = setInterval(() => { this.evaluateTabHealth(); }, 2000);
 
-                // Listen for localStorage changes on active tab updates
-                window.addEventListener('storage', (e) => {
-                    if (e.key === 'wms_active_out' && e.newValue !== this.tabId) {
-                        this.switchToMonitorMode();
-                    }
-                });
+                    // Listen for localStorage changes on active tab updates
+                    window.addEventListener('storage', (e) => {
+                        if (e.key === 'wms_active_out' && e.newValue !== this.tabId) {
+                            this.switchToMonitorMode();
+                        }
+                    });
+                }
                 
                 // Audio Bootstrap Listeners for iOS Safari
                 const unlockAudio = () => {
@@ -788,7 +863,9 @@
                 });
 
                 window.addEventListener('focus-barcode-input', () => {
-                    this.forceFocus();
+                    if (this.inputMode === 'barcode') {
+                        this.forceFocus();
+                    }
                 });
             },
 
@@ -1002,6 +1079,7 @@
             },
 
             recoverFocus() {
+                if (this.inputMode === 'search') return;
                 if (window.preventScannerRefocus) return;
                 // Focus Cooldown Protection to prevent browser blur loops
                 if (this.focusCooldown) return;
@@ -1020,6 +1098,7 @@
             },
 
             forceFocus() {
+                if (this.inputMode === 'search') return;
                 if (window.preventScannerRefocus) return;
                 const inputEl = document.getElementById('barcode-input');
                 if (inputEl) {
@@ -1096,10 +1175,10 @@
                 if (this.wireField) {
                     @this.set(this.wireField, opt.id, true); // true = defer=false → immediate
                 }
-                // Return scanner focus after a tick so Livewire processes the set
+                // Return scanner focus after a tick if in barcode mode
                 setTimeout(() => {
                     const barcode = document.getElementById('barcode-input');
-                    if (barcode) barcode.focus();
+                    if (barcode && barcode.offsetParent !== null) barcode.focus();
                 }, 80);
             },
 

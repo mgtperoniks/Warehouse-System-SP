@@ -47,9 +47,9 @@ class ItemVariant extends Model
         return $this->hasMany(ItemBarcode::class);
     }
 
-    public function primaryBarcode(): BelongsTo
+    public function primaryBarcode(): \Illuminate\Database\Eloquent\Relations\HasOne
     {
-        return $this->belongsTo(ItemBarcode::class)->where('is_primary', true);
+        return $this->hasOne(ItemBarcode::class)->where('is_primary', true);
     }
 
     public function suppliers(): BelongsToMany

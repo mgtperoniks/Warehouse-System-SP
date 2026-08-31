@@ -400,7 +400,7 @@
     {{-- =============================================
          STICKY BOTTOM BAR  (desktop md+)
     ================================================ --}}
-    <div class="fixed bottom-0 left-0 lg:left-[84px] right-0 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl px-md py-sm flex items-center justify-between shadow-md z-50 border-t border-slate-200 dark:border-slate-800">
+    <div class="sidebar-fixed-bottom-bar fixed bottom-0 left-0 right-0 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl px-md py-sm flex items-center justify-between shadow-md z-50 border-t border-slate-200 dark:border-slate-800">
         {{-- Left actions --}}
         <div class="flex gap-sm">
             <button class="flex items-center justify-center gap-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 h-11 px-4 rounded-md font-bold text-xs uppercase tracking-wide border border-slate-200 dark:border-slate-800 active:scale-95 transition-all">

@@ -398,7 +398,7 @@
         @endif
 
         <!-- Bottom Action Button bar -->
-        <div class="bg-white border-t border-slate-200 p-4 fixed bottom-0 left-0 right-0 lg:left-[84px] z-40 flex flex-col gap-2 shadow-lg">
+        <div class="sidebar-fixed-bottom-bar bg-white border-t border-slate-200 p-4 fixed bottom-0 left-0 right-0 z-40 flex flex-col gap-2 shadow-lg">
             
             @if($missingLocation)
                 <!-- Alert if locations are missing -->
