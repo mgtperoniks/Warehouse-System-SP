@@ -15,16 +15,26 @@ class OutstandingPurchaseOrderItem extends Model
         'item_variant_id',
         'erp_code',
         'item_name_snapshot',
+        'department_name',
         'ordered_qty',
         'received_qty',
+        'erp_ordered_qty',
+        'erp_received_qty',
+        'erp_outstanding_qty',
+        'erp_sync_status',
+        'erp_snapshot_at',
         'unit',
         'line_number',
         'remarks',
     ];
 
     protected $casts = [
-        'ordered_qty' => 'integer',
-        'received_qty' => 'integer',
+        'ordered_qty' => 'float',
+        'received_qty' => 'float',
+        'erp_ordered_qty' => 'float',
+        'erp_received_qty' => 'float',
+        'erp_outstanding_qty' => 'float',
+        'erp_snapshot_at' => 'datetime',
         'line_number' => 'integer',
     ];
 
@@ -51,9 +61,17 @@ class OutstandingPurchaseOrderItem extends Model
      * Get calculated pending quantity.
      * Pending Qty = Ordered Qty - Received Qty (Never negative).
      */
-    public function getPendingQtyAttribute(): int
+    public function getPendingQtyAttribute(): float
     {
-        return max(0, $this->ordered_qty - $this->received_qty);
+        return max(0.0, (float)$this->ordered_qty - (float)$this->received_qty);
+    }
+
+    /**
+     * Check if ERP is lagging behind WMS receiving state.
+     */
+    public function isErpBehind(): bool
+    {
+        return $this->erp_sync_status === 'ERP_BEHIND' || ((float)$this->received_qty > (float)$this->erp_received_qty);
     }
 
     /**
@@ -77,11 +95,13 @@ class OutstandingPurchaseOrderItem extends Model
      */
     public function getStatusAttribute(): string
     {
-        $pending = $this->pending_qty;
-        if ($this->received_qty === 0) {
+        $pending = (float)$this->pending_qty;
+        $received = (float)$this->received_qty;
+
+        if ($received <= 0.0001) {
             return 'Pending';
         }
-        if ($pending === 0) {
+        if ($pending <= 0.0001) {
             return 'Closed';
         }
         return 'Partial';

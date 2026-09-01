@@ -229,38 +229,20 @@ class ReceivingReviewAndFinalizationTest extends TestCase
     }
 
     /**
-     * 4. REVIEWED requires required signatures.
+     * 4. Optional signatures allow finalization without signatures.
      */
     public function test_reviewed_requires_required_signatures_for_finalization()
     {
         $this->actingAs($this->user);
         [$session] = $this->createSession(ReceivingSession::STATUS_REVIEWED);
 
-        // Attempt finalization with NO signatures
+        // Attempt finalization with NO signatures - should succeed per Phase 3 Optional Signature policy
         Livewire::test(ReceivingSessionPage::class, ['id' => $session->id])
             ->call('finalizeReceiving')
-            ->assertDispatched('message-dispatched', message: 'Finalization failed: All three signatures are required to finalize receiving.', type: 'error');
-
-        // Add 2 signatures only
-        ReceivingSignature::create([
-            'receiving_session_id' => $session->id,
-            'role' => 'DISERAHKAN_OLEH',
-            'signature_path' => 'sig1.png',
-            'signed_at' => now(),
-        ]);
-        ReceivingSignature::create([
-            'receiving_session_id' => $session->id,
-            'role' => 'DITERIMA_OLEH',
-            'signature_path' => 'sig2.png',
-            'signed_at' => now(),
-        ]);
-
-        Livewire::test(ReceivingSessionPage::class, ['id' => $session->id])
-            ->call('finalizeReceiving')
-            ->assertDispatched('message-dispatched', message: 'Finalization failed: All three signatures are required to finalize receiving.', type: 'error');
+            ->assertDispatched('message-dispatched', message: 'Receiving successfully committed and finalized!', type: 'success');
 
         $session->refresh();
-        $this->assertEquals(ReceivingSession::STATUS_REVIEWED, $session->status);
+        $this->assertEquals(ReceivingSession::STATUS_COMPLETED, $session->status);
     }
 
     /**

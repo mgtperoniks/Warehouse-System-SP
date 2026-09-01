@@ -14,20 +14,29 @@ class ReceivingSessionItem extends Model
     public const STATUS_VERIFIED = 'VERIFIED';
     public const STATUS_REMOVED = 'REMOVED';
 
+    public const CHECK_OK = 'OK';
+    public const CHECK_REJECT = 'REJECT';
+    public const CHECK_RUSAK = 'RUSAK';
+    public const CHECK_RESULTS = ['OK', 'REJECT', 'RUSAK'];
+
     protected $fillable = [
         'receiving_session_id',
         'outstanding_purchase_order_item_id',
         'item_variant_id',
         'expected_qty',
         'received_qty',
+        'qty_datang',
         'verification_status',
+        'check_result',
+        'check_notes',
         'removed_reason',
         'remarks',
     ];
 
     protected $casts = [
-        'expected_qty' => 'integer',
-        'received_qty' => 'integer',
+        'expected_qty' => 'float',
+        'received_qty' => 'float',
+        'qty_datang' => 'float',
     ];
 
     /**

@@ -26,11 +26,13 @@ class OutstandingPurchaseOrder extends Model
         'supplier_id',
         'supplier_name_snapshot',
         'supplier_code_snapshot',
+        'department_name',
         'po_number',
         'document_reference',
         'po_date',
         'expected_date',
         'status',
+        'erp_sync_status',
         'is_archived',
         'source',
         'remarks',
@@ -131,18 +133,23 @@ class OutstandingPurchaseOrder extends Model
         $items = $this->items()->get();
         if ($items->isEmpty()) {
             $this->status = self::STATUS_PENDING;
+            $this->erp_sync_status = 'IN_SYNC';
             return;
         }
 
         $allClosed = true;
         $allPending = true;
+        $hasErpBehind = false;
 
         foreach ($items as $item) {
-            if ($item->pending_qty > 0) {
+            if ((float)$item->pending_qty > 0.0001) {
                 $allClosed = false;
             }
-            if ($item->received_qty > 0) {
+            if ((float)$item->received_qty > 0.0001) {
                 $allPending = false;
+            }
+            if ($item->erp_sync_status === 'ERP_BEHIND' || ((float)$item->received_qty > (float)$item->erp_received_qty)) {
+                $hasErpBehind = true;
             }
         }
 
@@ -153,6 +160,8 @@ class OutstandingPurchaseOrder extends Model
         } else {
             $this->status = self::STATUS_PARTIAL;
         }
+
+        $this->erp_sync_status = $hasErpBehind ? 'ERP_BEHIND' : 'IN_SYNC';
     }
 
     /**

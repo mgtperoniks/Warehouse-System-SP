@@ -23,6 +23,7 @@ class ReceivingSession extends Model
         'status',
         'created_by',
         'reviewed_by',
+        'completed_by',
         'started_at',
         'reviewed_at',
         'completed_at',
@@ -77,6 +78,14 @@ class ReceivingSession extends Model
     }
 
     /**
+     * Completed By relationship.
+     */
+    public function completedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'completed_by');
+    }
+
+    /**
      * Signatures relationship.
      */
     public function signatures(): HasMany
@@ -101,6 +110,39 @@ class ReceivingSession extends Model
         }
 
         return $query;
+    }
+
+    /**
+     * Domain status helpers.
+     */
+    public function isDraft(): bool
+    {
+        return $this->status === self::STATUS_DRAFT;
+    }
+
+    public function isReadyReview(): bool
+    {
+        return $this->status === self::STATUS_READY_REVIEW;
+    }
+
+    public function isReviewed(): bool
+    {
+        return $this->status === self::STATUS_REVIEWED;
+    }
+
+    public function isCompleted(): bool
+    {
+        return $this->status === self::STATUS_COMPLETED;
+    }
+
+    public function isCancelled(): bool
+    {
+        return $this->status === self::STATUS_CANCELLED;
+    }
+
+    public function isReadOnly(): bool
+    {
+        return $this->isCompleted() || $this->isCancelled();
     }
 
     /**

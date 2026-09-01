@@ -152,7 +152,7 @@
                                 {{ $order->items->count() }}
                             </td>
                             <td class="px-4 py-3.5 text-xs font-mono font-bold text-right text-slate-500">
-                                {{ number_format($pendingQty) }}
+                                {{ (float)$pendingQty == (int)$pendingQty ? number_format($pendingQty) : number_format($pendingQty, 2) }}
                             </td>
                             <!-- Readiness (Strong Colors: Green/Red) -->
                             <td class="px-4 py-3.5 text-center">
@@ -168,19 +168,27 @@
                             </td>
                             <!-- PO Status (Secondary Soft Colors) -->
                             <td class="px-4 py-3.5 text-center">
-                                @if($order->status === \App\Models\OutstandingPurchaseOrder::STATUS_PENDING)
-                                    <span class="text-slate-500 text-[8px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded border border-slate-200 bg-slate-50">
-                                        Pending
-                                    </span>
-                                @elseif($order->status === \App\Models\OutstandingPurchaseOrder::STATUS_PARTIAL)
-                                    <span class="text-slate-500 text-[8px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded border border-slate-200 bg-slate-50">
-                                        Partial
-                                    </span>
-                                @elseif($order->status === \App\Models\OutstandingPurchaseOrder::STATUS_CLOSED)
-                                    <span class="text-slate-500 text-[8px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded border border-slate-200 bg-slate-50">
-                                        Closed
-                                    </span>
-                                @endif
+                                <div class="flex flex-col items-center gap-1">
+                                    @if($order->status === \App\Models\OutstandingPurchaseOrder::STATUS_PENDING)
+                                        <span class="text-slate-500 text-[8px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded border border-slate-200 bg-slate-50">
+                                            Pending
+                                        </span>
+                                    @elseif($order->status === \App\Models\OutstandingPurchaseOrder::STATUS_PARTIAL)
+                                        <span class="text-slate-500 text-[8px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded border border-slate-200 bg-slate-50">
+                                            Partial
+                                        </span>
+                                    @elseif($order->status === \App\Models\OutstandingPurchaseOrder::STATUS_CLOSED)
+                                        <span class="text-slate-500 text-[8px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded border border-slate-200 bg-slate-50">
+                                            Closed
+                                        </span>
+                                    @endif
+
+                                    @if($order->erp_sync_status === 'ERP_BEHIND')
+                                        <span class="text-amber-800 bg-amber-50 text-[7px] font-black uppercase tracking-widest px-1 py-0.5 rounded border border-amber-200 flex items-center gap-0.5">
+                                            <span class="material-symbols-outlined text-[9px]">sync_problem</span> ERP Behind
+                                        </span>
+                                    @endif
+                                </div>
                             </td>
                             <!-- Action: View Details -->
                             <td class="px-4 py-3.5 text-center">

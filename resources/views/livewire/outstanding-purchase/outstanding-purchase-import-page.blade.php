@@ -41,24 +41,47 @@
             </div>
         </div>
 
-        <!-- Compact Status -->
+        <!-- Compact Status & Summary -->
         <div class="flex justify-center px-4" x-data="{ processing: @entangle('isProcessing') }">
             <template x-if="processing">
                 <div class="flex items-center gap-3 px-3 py-1.5 bg-green-50 rounded-sm border border-green-100">
                     <div class="w-3 h-3 border-2 border-green-200 border-t-green-600 rounded-full animate-spin"></div>
-                    <span class="text-[9px] font-black text-green-600 uppercase tracking-widest">Processing Sync...</span>
+                    <span class="text-[9px] font-black text-green-600 uppercase tracking-widest">Processing Sync Stream...</span>
                 </div>
             </template>
             <template x-if="!processing && $wire.importResults">
-                <div class="flex items-center gap-4">
-                    <div class="flex items-center gap-2">
-                        <span class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
-                        <span class="text-[9px] font-black text-slate-600 uppercase tracking-widest">Success: <span class="text-green-600" x-text="$wire.importResults.success"></span></span>
+                <div class="flex items-center gap-3 flex-wrap">
+                    <div class="flex items-center gap-1.5 px-2 py-1 bg-green-50 border border-green-200 rounded text-[9px] font-black text-green-800">
+                        <span class="w-1.5 h-1.5 rounded-full bg-green-500"></span>
+                        <span>Success: <span x-text="$wire.importResults.success"></span></span>
                     </div>
+
+                    <template x-if="$wire.importResults.summary">
+                        <div class="flex items-center gap-2">
+                            <span class="text-[8px] font-black text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">
+                                New: <span class="text-blue-600" x-text="$wire.importResults.summary.new_lines"></span>
+                            </span>
+                            <span class="text-[8px] font-black text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">
+                                Updated: <span class="text-slate-800" x-text="$wire.importResults.summary.updated_lines"></span>
+                            </span>
+                            <template x-if="$wire.importResults.summary.wms_completed > 0">
+                                <span class="text-[8px] font-black text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded">
+                                    WMS Done: <span x-text="$wire.importResults.summary.wms_completed"></span>
+                                </span>
+                            </template>
+                            <template x-if="$wire.importResults.summary.erp_behind > 0">
+                                <span class="text-[8px] font-black text-amber-700 bg-amber-50 border border-amber-300 px-1.5 py-0.5 rounded flex items-center gap-1 animate-pulse">
+                                    <span class="material-symbols-outlined text-[10px]">sync_problem</span>
+                                    ERP Behind: <span x-text="$wire.importResults.summary.erp_behind"></span>
+                                </span>
+                            </template>
+                        </div>
+                    </template>
+
                     <template x-if="$wire.importResults.failed > 0">
-                        <div class="flex items-center gap-2 group relative">
-                            <span class="w-2 h-2 rounded-full bg-red-500"></span>
-                            <span class="text-[9px] font-black text-slate-600 uppercase tracking-widest cursor-help underline decoration-dotted">Errors: <span class="text-red-600" x-text="$wire.importResults.failed"></span></span>
+                        <div class="flex items-center gap-1.5 group relative px-2 py-1 bg-red-50 border border-red-200 rounded">
+                            <span class="w-1.5 h-1.5 rounded-full bg-red-500"></span>
+                            <span class="text-[9px] font-black text-red-700 uppercase tracking-widest cursor-help underline decoration-dotted">Errors: <span x-text="$wire.importResults.failed"></span></span>
                             <!-- Tooltip for errors -->
                             <div class="absolute top-full right-0 mt-2 w-72 bg-white border border-red-100 rounded-md shadow-xl p-3 z-50 hidden group-hover:block transition-all italic text-left">
                                 <p class="text-[8px] font-black text-red-600 uppercase mb-2">Error Log:</p>

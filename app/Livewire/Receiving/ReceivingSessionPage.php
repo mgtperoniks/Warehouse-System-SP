@@ -7,6 +7,9 @@ use App\Models\ReceivingSessionItem;
 use App\Models\ReceivingSignature;
 use App\Models\OutstandingPurchaseOrder;
 use App\Models\OutstandingPurchaseOrderItem;
+use App\Models\StockTransaction;
+use App\Models\StockTransactionItem;
+use App\Models\ItemVariant;
 use App\Models\Bin;
 use App\Services\Inventory\InventoryService;
 use Illuminate\Support\Facades\DB;
@@ -58,7 +61,7 @@ class ReceivingSessionPage extends Component
         return $session;
     }
 
-    public function incrementQty($itemId)
+    public function incrementQtyDatang($itemId, $step = 1)
     {
         $session = $this->getSession();
         if ($session->status !== ReceivingSession::STATUS_DRAFT) {
@@ -67,39 +70,148 @@ class ReceivingSessionPage extends Component
         }
 
         $item = ReceivingSessionItem::where('receiving_session_id', $session->id)->findOrFail($itemId);
-        $item->received_qty += 1;
+        $current = $item->qty_datang !== null ? (float)$item->qty_datang : (float)$item->received_qty;
+        $newQty = round($current + (float)$step, 3);
+        $item->qty_datang = $newQty;
+        // QTY TERIMA automatically follows QTY DATANG for normal receiving
+        $item->received_qty = $newQty;
         $item->save();
+    }
+
+    public function decrementQtyDatang($itemId, $step = 1)
+    {
+        $session = $this->getSession();
+        if ($session->status !== ReceivingSession::STATUS_DRAFT) {
+            $this->dispatch('message-dispatched', message: 'Cannot modify quantity. Session is not in DRAFT status.', type: 'error');
+            return;
+        }
+
+        $item = ReceivingSessionItem::where('receiving_session_id', $session->id)->findOrFail($itemId);
+        $current = $item->qty_datang !== null ? (float)$item->qty_datang : (float)$item->received_qty;
+        if ($current > 0) {
+            $newQty = max(0.0, round($current - (float)$step, 3));
+            $item->qty_datang = $newQty;
+            // QTY TERIMA automatically follows QTY DATANG for normal receiving
+            $item->received_qty = $newQty;
+            $item->save();
+        }
+    }
+
+    public function setQtyDatangManual($itemId, $qty)
+    {
+        $session = $this->getSession();
+        if ($session->status !== ReceivingSession::STATUS_DRAFT) {
+            $this->dispatch('message-dispatched', message: 'Cannot modify quantity. Session is not in DRAFT status.', type: 'error');
+            return;
+        }
+
+        $item = ReceivingSessionItem::where('receiving_session_id', $session->id)->findOrFail($itemId);
+        $qtyVal = (float)$qty;
+        if ($qtyVal >= 0) {
+            $newQty = round($qtyVal, 3);
+            $item->qty_datang = $newQty;
+            // QTY TERIMA automatically follows QTY DATANG for normal receiving
+            $item->received_qty = $newQty;
+            $item->save();
+        }
+    }
+
+    public function incrementQtyTerima($itemId, $step = 1)
+    {
+        $session = $this->getSession();
+        if ($session->status !== ReceivingSession::STATUS_DRAFT) {
+            $this->dispatch('message-dispatched', message: 'Cannot modify quantity. Session is not in DRAFT status.', type: 'error');
+            return;
+        }
+
+        $item = ReceivingSessionItem::where('receiving_session_id', $session->id)->findOrFail($itemId);
+        $item->received_qty = round((float)$item->received_qty + (float)$step, 3);
+        $item->save();
+    }
+
+    public function decrementQtyTerima($itemId, $step = 1)
+    {
+        $session = $this->getSession();
+        if ($session->status !== ReceivingSession::STATUS_DRAFT) {
+            $this->dispatch('message-dispatched', message: 'Cannot modify quantity. Session is not in DRAFT status.', type: 'error');
+            return;
+        }
+
+        $item = ReceivingSessionItem::where('receiving_session_id', $session->id)->findOrFail($itemId);
+        if ((float)$item->received_qty > 0) {
+            $item->received_qty = max(0.0, round((float)$item->received_qty - (float)$step, 3));
+            $item->save();
+        }
+    }
+
+    public function setQtyTerimaManual($itemId, $qty)
+    {
+        $session = $this->getSession();
+        if ($session->status !== ReceivingSession::STATUS_DRAFT) {
+            $this->dispatch('message-dispatched', message: 'Cannot modify quantity. Session is not in DRAFT status.', type: 'error');
+            return;
+        }
+
+        $item = ReceivingSessionItem::where('receiving_session_id', $session->id)->findOrFail($itemId);
+        $qtyVal = (float)$qty;
+        if ($qtyVal >= 0) {
+            $item->received_qty = round($qtyVal, 3);
+            $item->save();
+        }
+    }
+
+    // Legacy aliases for backward compatibility
+    public function incrementQty($itemId)
+    {
+        $this->incrementQtyDatang($itemId, 1);
     }
 
     public function decrementQty($itemId)
     {
-        $session = $this->getSession();
-        if ($session->status !== ReceivingSession::STATUS_DRAFT) {
-            $this->dispatch('message-dispatched', message: 'Cannot modify quantity. Session is not in DRAFT status.', type: 'error');
-            return;
-        }
-
-        $item = ReceivingSessionItem::where('receiving_session_id', $session->id)->findOrFail($itemId);
-        if ($item->received_qty > 0) {
-            $item->received_qty -= 1;
-            $item->save();
-        }
+        $this->decrementQtyDatang($itemId, 1);
     }
 
     public function setQtyManual($itemId, $qty)
     {
+        $this->setQtyDatangManual($itemId, $qty);
+    }
+
+    public function setCheckResult($itemId, $result)
+    {
         $session = $this->getSession();
         if ($session->status !== ReceivingSession::STATUS_DRAFT) {
-            $this->dispatch('message-dispatched', message: 'Cannot modify quantity. Session is not in DRAFT status.', type: 'error');
+            $this->dispatch('message-dispatched', message: 'Cannot modify inspection result. Session is not in DRAFT status.', type: 'error');
+            return;
+        }
+
+        $validResults = [ReceivingSessionItem::CHECK_OK, ReceivingSessionItem::CHECK_REJECT, ReceivingSessionItem::CHECK_RUSAK];
+        if (!in_array($result, $validResults)) {
+            $this->dispatch('message-dispatched', message: 'Invalid inspection result selected.', type: 'error');
             return;
         }
 
         $item = ReceivingSessionItem::where('receiving_session_id', $session->id)->findOrFail($itemId);
-        $qtyVal = (int) $qty;
-        if ($qtyVal >= 0) {
-            $item->received_qty = $qtyVal;
-            $item->save();
+        $item->check_result = $result;
+        
+        // When switched to OK, ensure received_qty matches qty_datang
+        if ($result === ReceivingSessionItem::CHECK_OK) {
+            $datang = $item->qty_datang !== null ? (float)$item->qty_datang : (float)$item->expected_qty;
+            $item->received_qty = $datang;
         }
+
+        $item->save();
+    }
+
+    public function setCheckNotes($itemId, $notes)
+    {
+        $session = $this->getSession();
+        if ($session->status !== ReceivingSession::STATUS_DRAFT) {
+            return;
+        }
+
+        $item = ReceivingSessionItem::where('receiving_session_id', $session->id)->findOrFail($itemId);
+        $item->check_notes = trim($notes) ?: null;
+        $item->save();
     }
 
     public function verifyLine($itemId)
@@ -111,6 +223,34 @@ class ReceivingSessionPage extends Component
         }
 
         $item = ReceivingSessionItem::where('receiving_session_id', $session->id)->findOrFail($itemId);
+
+        // Auto-populate qty_datang if not explicitly set yet
+        if ($item->qty_datang === null) {
+            $item->qty_datang = (float)$item->received_qty > 0 ? (float)$item->received_qty : (float)$item->expected_qty;
+        }
+
+        // Auto-sync received_qty if it was 0 and result is OK
+        if ((float)$item->received_qty === 0.0 && (float)$item->qty_datang > 0 && ($item->check_result === ReceivingSessionItem::CHECK_OK || empty($item->check_result))) {
+            $item->received_qty = $item->qty_datang;
+        }
+
+        // Auto-populate check_result to OK if empty
+        if (empty($item->check_result)) {
+            $item->check_result = ReceivingSessionItem::CHECK_OK;
+        }
+
+        // Validate quantities are non-negative
+        if ((float)$item->qty_datang < 0 || (float)$item->received_qty < 0) {
+            $this->dispatch('message-dispatched', message: 'Quantities cannot be negative.', type: 'error');
+            return;
+        }
+
+        // Validate inspection result is in valid list
+        if (!in_array($item->check_result, ReceivingSessionItem::CHECK_RESULTS)) {
+            $this->dispatch('message-dispatched', message: 'Invalid inspection result selected.', type: 'error');
+            return;
+        }
+
         $item->verification_status = ReceivingSessionItem::STATUS_VERIFIED;
         // Clear any prior removed values
         $item->removed_reason = null;
@@ -120,8 +260,29 @@ class ReceivingSessionPage extends Component
         $this->dispatch('message-dispatched', message: 'Line verified successfully.', type: 'success');
     }
 
+    public function unverifyLine($itemId)
+    {
+        $session = $this->getSession();
+        if ($session->status !== ReceivingSession::STATUS_DRAFT) {
+            $this->dispatch('message-dispatched', message: 'Cannot edit line. Session is not in DRAFT status.', type: 'error');
+            return;
+        }
+
+        $item = ReceivingSessionItem::where('receiving_session_id', $session->id)->findOrFail($itemId);
+        $item->verification_status = ReceivingSessionItem::STATUS_PENDING;
+        $item->save();
+
+        $this->dispatch('message-dispatched', message: 'Item returned to pending for editing.', type: 'success');
+    }
+
     public function openRemoveModal($itemId)
     {
+        $session = $this->getSession();
+        if (!$session->isDraft()) {
+            $this->dispatch('message-dispatched', message: 'Cannot remove line. Session is not in DRAFT status.', type: 'error');
+            return;
+        }
+
         $this->activeRemoveItemId = $itemId;
         $this->removeReason = 'WRONG WAREHOUSE';
         $this->removeRemarks = '';
@@ -175,6 +336,11 @@ class ReceivingSessionPage extends Component
         $this->dispatch('message-dispatched', message: 'Draft session saved successfully.', type: 'success');
     }
 
+    public function completeChecking()
+    {
+        $this->completeVerification();
+    }
+
     public function completeVerification()
     {
         $session = $this->getSession();
@@ -203,10 +369,6 @@ class ReceivingSessionPage extends Component
     }
 
     /**
-     * ── SPRINT REC-02B METHODS ──────────────────────────────────────────
-     */
-
-    /**
      * transition: READY_REVIEW -> REVIEWED
      */
     public function reviewAndConfirm()
@@ -224,10 +386,16 @@ class ReceivingSessionPage extends Component
             return;
         }
 
-        // Validate quantities are valid non-negative integers
+        // Validate at least one verified line
+        if ($session->verifiedLines === 0) {
+            $this->dispatch('message-dispatched', message: 'Cannot review session: At least one line must be VERIFIED.', type: 'error');
+            return;
+        }
+
+        // Validate quantities are valid non-negative numbers
         foreach ($session->items as $item) {
-            if ($item->received_qty < 0) {
-                $this->dispatch('message-dispatched', message: 'Cannot review session: Invalid quantities found.', type: 'error');
+            if ((float)$item->received_qty < 0 || (float)$item->qty_datang < 0) {
+                $this->dispatch('message-dispatched', message: 'Cannot review session: Invalid negative quantities found.', type: 'error');
                 return;
             }
         }
@@ -248,7 +416,7 @@ class ReceivingSessionPage extends Component
         $session = $this->getSession();
 
         if ($session->status === ReceivingSession::STATUS_COMPLETED || $session->status === ReceivingSession::STATUS_CANCELLED) {
-            $this->dispatch('message-dispatched', message: 'Cannot save signature: Session is finalized.', type: 'error');
+            $this->dispatch('message-dispatched', message: 'Cannot save signature: Session is finalized and immutable.', type: 'error');
             return;
         }
 
@@ -275,8 +443,11 @@ class ReceivingSessionPage extends Component
                 throw new \Exception("Invalid base64 payload.");
             }
 
+            // Auto-trim transparent whitespace margins around handwriting
+            $trimmed = \App\Http\Controllers\Receiving\ReceivingPdfController::trimSignaturePng($decoded);
+
             $fileName = 'signatures/session_' . $session->id . '_' . strtolower($role) . '_' . time() . '.png';
-            Storage::disk('public')->put($fileName, $decoded);
+            Storage::disk('public')->put($fileName, $trimmed);
 
             ReceivingSignature::create([
                 'receiving_session_id' => $session->id,
@@ -321,12 +492,12 @@ class ReceivingSessionPage extends Component
     }
 
     /**
-     * Transactional and idempotent final WMS commit boundary
+     * Atomic, pessimistic-locked, and idempotent final WMS commit boundary
      */
     public function finalizeReceiving(InventoryService $inventoryService)
     {
         try {
-            // 1. Authoritative DB transaction
+            // 1. Authoritative DB transaction with pessimistic locking
             DB::transaction(function () use ($inventoryService) {
                 // 2. Lock the Receiving Session for update to prevent concurrent double-finalizations
                 $session = ReceivingSession::whereKey($this->sessionId)
@@ -334,7 +505,7 @@ class ReceivingSessionPage extends Component
                     ->firstOrFail();
 
                 // 3. Idempotency Check
-                if ($session->status !== ReceivingSession::STATUS_REVIEWED) {
+                if ($session->status === ReceivingSession::STATUS_COMPLETED || $session->status !== ReceivingSession::STATUS_REVIEWED) {
                     throw new \Exception("This receiving session is not in REVIEWED status or has already been finalized.");
                 }
 
@@ -344,40 +515,70 @@ class ReceivingSessionPage extends Component
                     throw new \Exception("Unauthorized warehouse context.");
                 }
 
-                // 5. Verify all three signatures are present
-                $signaturesCount = ReceivingSignature::where('receiving_session_id', $session->id)->count();
-                if ($signaturesCount < 3) {
-                    throw new \Exception("All three signatures are required to finalize receiving.");
-                }
-
-                // 6. Validate Bins and Over-receiving before modifying anything
-                $sessionItems = ReceivingSessionItem::where('receiving_session_id', $session->id)
-                    ->with(['outstandingPurchaseOrderItem'])
-                    ->get();
-
-                foreach ($sessionItems as $item) {
-                    if ($item->isVerified()) {
-                        // Check if bin is assigned in active warehouse
-                        $hasBin = Bin::forActiveWarehouse()->where('item_variant_id', $item->item_variant_id)->exists();
-                        if (!$hasBin) {
-                            throw new \Exception("Location (Bin) is required for item [{$item->outstandingPurchaseOrderItem->item_name_snapshot}] in this warehouse. Please map a location in the catalog first.");
-                        }
-
-                        // Block over-receiving if no rules permit it
-                        if ($item->received_qty > $item->expected_qty) {
-                            throw new \Exception("Cannot finalize receiving: Item [{$item->outstandingPurchaseOrderItem->item_name_snapshot}] is over-received (+ " . ($item->received_qty - $item->expected_qty) . ").");
-                        }
-                    }
-                }
-
-                // 7. Load PO and lock it
+                // 5. Load and lock PO
                 $po = OutstandingPurchaseOrder::whereKey($session->outstanding_purchase_order_id)
                     ->lockForUpdate()
                     ->firstOrFail();
 
-                // 8. Process Stock movements and PO lines updates
+                // 6. Lock PO line items
+                $poItems = OutstandingPurchaseOrderItem::where('outstanding_purchase_order_id', $po->id)
+                    ->lockForUpdate()
+                    ->get()
+                    ->keyBy('id');
+
+                $sessionItems = ReceivingSessionItem::where('receiving_session_id', $session->id)
+                    ->lockForUpdate()
+                    ->get();
+
+                // 7. Lock affected variants & bins in ascending order to prevent deadlocks
+                $variantIds = $sessionItems->where('verification_status', ReceivingSessionItem::STATUS_VERIFIED)
+                    ->pluck('item_variant_id')
+                    ->filter()
+                    ->unique()
+                    ->sort()
+                    ->values();
+
+                if ($variantIds->isNotEmpty()) {
+                    ItemVariant::whereIn('id', $variantIds)->lockForUpdate()->get();
+                    Bin::forActiveWarehouse()->whereIn('item_variant_id', $variantIds)->orderBy('id')->lockForUpdate()->get();
+                }
+
+                // 8. Validate Bins mapping before modifying anything
                 foreach ($sessionItems as $item) {
-                    if ($item->isVerified() && $item->received_qty > 0) {
+                    if ($item->isVerified()) {
+                        $hasBin = Bin::forActiveWarehouse()->where('item_variant_id', $item->item_variant_id)->exists();
+                        if (!$hasBin) {
+                            $poLine = $poItems->get($item->outstanding_purchase_order_item_id);
+                            $itemName = $poLine ? $poLine->item_name_snapshot : 'Item #' . $item->id;
+                            throw new \Exception("Location (Bin) is required for item [{$itemName}] in this warehouse. Please map a location in the catalog first.");
+                        }
+                    }
+                }
+
+                // 9. Create exactly ONE StockTransaction (IN) for this session
+                $date = now()->format('Y-m-d');
+                $prefix = 'IN-' . $date . '-';
+                $lastTx = StockTransaction::where('code', 'like', $prefix . '%')->orderBy('code', 'desc')->first();
+                $sequence = $lastTx ? ((int) substr($lastTx->code, -4)) + 1 : 1;
+                $txCode = $prefix . str_pad($sequence, 4, '0', STR_PAD_LEFT);
+
+                $stockTx = StockTransaction::create([
+                    'warehouse_id' => $session->warehouse_id,
+                    'code' => $txCode,
+                    'type' => 'IN',
+                    'status' => 'CONFIRMED',
+                    'reference' => 'RECEIVING_SESSION:' . $session->id,
+                    'user_id' => auth()->id(),
+                    'operator_id' => auth()->id(),
+                    'terminal_id' => session()->get('wms_terminal_id') ?: 'SPAREPART-DESK-A',
+                    'terminal_session_id' => session()->getId(),
+                ]);
+
+                // 10. Process Stock movements and PO lines updates for VERIFIED items
+                foreach ($sessionItems as $item) {
+                    if ($item->isVerified() && (float)$item->received_qty > 0) {
+                        $poItem = $poItems->get($item->outstanding_purchase_order_item_id);
+
                         // Resolve the first bin mapped to the variant
                         $bin = Bin::forActiveWarehouse()
                             ->where('item_variant_id', $item->item_variant_id)
@@ -386,17 +587,16 @@ class ReceivingSessionPage extends Component
                         if ($bin) {
                             $inventoryService->moveStock(
                                 $bin,
-                                $item->received_qty,
+                                (float)$item->received_qty,
                                 'IN',
                                 'Receiving PO: ' . $po->po_number,
                                 auth()->id(),
                                 $po->supplier_id
                             );
                         } else {
-                            // Fallback moveStockWithoutBin
                             $inventoryService->moveStockWithoutBin(
                                 $item->item_variant_id,
-                                $item->received_qty,
+                                (float)$item->received_qty,
                                 'IN',
                                 'Receiving PO: ' . $po->po_number,
                                 auth()->id(),
@@ -404,23 +604,38 @@ class ReceivingSessionPage extends Component
                             );
                         }
 
-                        // Update PO line received quantity
-                        $poItem = OutstandingPurchaseOrderItem::whereKey($item->outstanding_purchase_order_item_id)
-                            ->lockForUpdate()
-                            ->firstOrFail();
+                        // Create StockTransactionItem ledger
+                        StockTransactionItem::create([
+                            'stock_transaction_id' => $stockTx->id,
+                            'item_variant_id' => $item->item_variant_id,
+                            'bin_id' => $bin ? $bin->id : null,
+                            'qty' => (float)$item->received_qty,
+                            'item_name_snapshot' => $poItem ? $poItem->item_name_snapshot : '',
+                            'erp_code_snapshot' => $poItem ? $poItem->erp_code : '',
+                            'unit_snapshot' => $poItem ? $poItem->unit : 'PCS',
+                            'erp_transfer_status' => StockTransactionItem::ERP_NOT_STARTED,
+                        ]);
 
-                        $poItem->received_qty += $item->received_qty;
-                        $poItem->save(); // Triggers PO status recalculation event
+                        // Increment PO line received quantity
+                        if ($poItem) {
+                            $poItem->received_qty = round((float)$poItem->received_qty + (float)$item->received_qty, 3);
+                            $poItem->save();
+                        }
                     }
                 }
 
-                // 9. Mark session completed
+                // 11. Recalculate PO status
+                $po->recalculateStatus();
+                $po->save();
+
+                // 12. Mark session completed
                 $session->status = ReceivingSession::STATUS_COMPLETED;
+                $session->completed_by = auth()->id();
                 $session->completed_at = now();
                 $session->save();
             });
 
-            // 10. POST-COMMIT: Generate PDF side-effect outside the database transaction
+            // 13. POST-COMMIT: Generate ISO PDF document
             $session = $this->getSession();
             try {
                 $this->generatePdfDocument($session);
@@ -438,9 +653,9 @@ class ReceivingSessionPage extends Component
     }
 
     /**
-     * Dynamic PDF Generation using DomPDF
+     * Dynamic ISO PDF Generation using DomPDF
      */
-    protected function generatePdfDocument(ReceivingSession $session)
+    public function generatePdfDocument(ReceivingSession $session)
     {
         $items = $session->items()->with(['outstandingPurchaseOrderItem', 'variant.item'])->get();
         $signatures = ReceivingSignature::where('receiving_session_id', $session->id)->get();
@@ -458,7 +673,7 @@ class ReceivingSessionPage extends Component
 
         $pdfPath = 'receiving/receiving_session_' . $session->id . '.pdf';
         
-        // Save using project default storage configuration
+        // Save using project storage configuration
         Storage::disk('public')->put($pdfPath, $pdf->output());
 
         $session->pdf_path = $pdfPath;

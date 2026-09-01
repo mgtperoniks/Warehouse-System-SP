@@ -30,13 +30,9 @@ class OutstandingPurchaseIndexPage extends Component
 
     public function render()
     {
-        // Dynamically heal unmatched items if variants are created
-        $needsHealing = OutstandingPurchaseOrder::forActiveWarehouse()
-            ->whereHas('items', function ($q) { $q->whereNull('item_variant_id'); })
-            ->get();
-        foreach ($needsHealing as $po) {
-            $po->healVariantMappings();
-        }
+        // NOTE: healVariantMappings() is intentionally NOT called here.
+        // It runs on-demand on the Show Page before any receiving session starts.
+        // Running it on every index render caused an O(N) query-in-loop performance issue.
 
         // 1. Base Query with warehouse and search filter
         $baseQuery = OutstandingPurchaseOrder::forActiveWarehouse();

@@ -38,6 +38,10 @@ class OutstandingPurchaseImportPage extends Component
         // 10: Remarks
         $normalizedRows = [];
         foreach ($data as $row) {
+            $orderedQty = isset($row[9]) && $row[9] !== '' ? (float)$row[9] : 0.0;
+            $erpReceivedQty = isset($row[10]) && $row[10] !== '' ? (float)$row[10] : 0.0;
+            $erpOutstandingQty = isset($row[13]) && $row[13] !== '' ? (float)$row[13] : max(0.0, $orderedQty - $erpReceivedQty);
+
             $normalizedRows[] = [
                 'supplier_code' => $row[0] ?? null,
                 'supplier_name' => $row[1] ?? null,
@@ -47,7 +51,9 @@ class OutstandingPurchaseImportPage extends Component
                 'erp_code' => $row[6] ?? null,
                 'item_name' => $row[7] ?? null,
                 'unit' => $row[8] ?? 'PCS',
-                'ordered_qty' => $row[9] ?? 0,
+                'ordered_qty' => $orderedQty,
+                'erp_received_qty' => $erpReceivedQty,
+                'erp_outstanding_qty' => $erpOutstandingQty,
                 'line_number' => null, // Generated automatically on ingest
                 'remarks' => null,
             ];

@@ -527,7 +527,7 @@ class ReceivingSessionTest extends TestCase
         Livewire::test(ReceivingSessionPage::class, ['id' => $session->id])
             ->assertViewHas('items', function ($items) use ($item) {
                 $dbItem = $items->firstWhere('id', $item->id);
-                return $dbItem->received_qty === 2 && $dbItem->verification_status === ReceivingSessionItem::STATUS_VERIFIED;
+                return (float)$dbItem->received_qty == 2.0 && $dbItem->verification_status === ReceivingSessionItem::STATUS_VERIFIED;
             });
     }
 

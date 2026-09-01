@@ -2,7 +2,7 @@
 <html class="light" lang="en">
 <head>
     <meta charset="utf-8"/>
-    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <meta content="width=device-width, initial-scale=1.0, viewport-fit=cover" name="viewport"/>
     <title>WMS Orchestrator</title>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     @livewireStyles
@@ -22,11 +22,12 @@
         [x-cloak] { display: none !important; }
 
         /* =========================================================
-           WMS DESKTOP SIDEBAR COLLAPSE ARCHITECTURE
-           Single Source of Truth: Driven by body.sidebar-collapsed / body.sidebar-expanded
+           WMS DESKTOP SIDEBAR COLLAPSE & MOBILE SAFE AREA ARCHITECTURE
            ========================================================= */
         :root {
             --wms-sidebar-width: 240px;
+            --wms-mobile-bottom-nav-height: 3.75rem;
+            --wms-mobile-nav-safe-bottom: calc(var(--wms-mobile-bottom-nav-height) + env(safe-area-inset-bottom, 0px));
         }
 
         body.sidebar-expanded {
@@ -35,6 +36,40 @@
 
         body.sidebar-collapsed {
             --wms-sidebar-width: 84px;
+        }
+
+        /* Mobile Receiving Action Bar & Safe Bottom Utilities */
+        .receiving-bottom-action-bar {
+            position: fixed;
+            left: 0;
+            right: 0;
+            bottom: var(--wms-mobile-nav-safe-bottom);
+            z-index: 40;
+        }
+
+        .receiving-page-container {
+            padding-bottom: calc(var(--wms-mobile-nav-safe-bottom) + 6.5rem);
+        }
+
+        .receiving-toast-container {
+            bottom: calc(var(--wms-mobile-nav-safe-bottom) + 5.5rem);
+        }
+
+        @media (min-width: 1024px) {
+            .receiving-bottom-action-bar {
+                bottom: 0px !important;
+                left: var(--wms-sidebar-width) !important;
+                right: 0px !important;
+                transition: left 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            }
+
+            .receiving-page-container {
+                padding-bottom: 6rem !important;
+            }
+
+            .receiving-toast-container {
+                bottom: 5.5rem !important;
+            }
         }
 
         @media (min-width: 1024px) {
@@ -449,7 +484,7 @@
     </main>
 
     <!-- BottomNavBar (Mobile Shell Only) -->
-    <nav class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-4 pb-4 pt-2 lg:hidden bg-slate-50/85 dark:bg-slate-900/85 backdrop-blur-md rounded-t-xl shadow-[0px_-4px_12px_rgba(0,0,0,0.05)]">
+    <nav id="mobile-bottom-nav" class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-4 pt-2 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))] lg:hidden bg-slate-50/90 dark:bg-slate-900/90 backdrop-blur-md rounded-t-xl shadow-[0px_-4px_12px_rgba(0,0,0,0.08)] border-t border-slate-200/60 dark:border-slate-800/60">
         <a href="{{ route('dashboard') }}" class="flex flex-col items-center justify-center {{ request()->routeIs('dashboard') ? 'bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300 rounded-xl px-4 py-2 shadow-sm' : 'text-slate-500' }} transition-all duration-200">
             <span class="material-symbols-outlined" style="{{ request()->routeIs('dashboard') ? "font-variation-settings: 'FILL' 1;" : '' }}">dashboard</span>
             <span class="font-inter text-[10px] font-bold uppercase tracking-widest">Home</span>

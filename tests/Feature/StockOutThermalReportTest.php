@@ -51,6 +51,14 @@ class StockOutThermalReportTest extends TestCase
 
         session(['active_warehouse_id' => $this->warehouse->id]);
         session(['active_warehouse_code' => $this->warehouse->code]);
+
+        \Carbon\Carbon::setTestNow('2026-08-31 10:00:00');
+    }
+
+    protected function tearDown(): void
+    {
+        \Carbon\Carbon::setTestNow();
+        parent::tearDown();
     }
 
     public function test_stock_out_report_renders_department_batch_thermal_button_when_report_generated(): void
