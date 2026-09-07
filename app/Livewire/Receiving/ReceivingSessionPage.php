@@ -669,7 +669,7 @@ class ReceivingSessionPage extends Component
             'session' => $session,
             'items' => $items,
             'signatures' => $sigMap,
-        ])->setPaper('a4', 'portrait');
+        ])->setPaper([0, 0, 595.28, 935.43], 'portrait');
 
         $pdfPath = 'receiving/receiving_session_' . $session->id . '.pdf';
         

@@ -155,7 +155,7 @@
                 <p class="text-[10px] font-black text-purple-900 dark:text-purple-200 uppercase tracking-wider">Session #{{ $activeSession->id }} — Reviewed, Awaiting Final Commit</p>
                 <p class="text-[9px] font-medium text-purple-700 dark:text-purple-400 mt-1">
                     This PO has an active receiving session in REVIEWED state. Signatures are optional.
-                    Click <strong>VIEW / FINALIZE SESSION</strong> to proceed to the final commit or download the A4 form.
+                    Click <strong>VIEW / FINALIZE SESSION</strong> to proceed to the final commit or download the F4 form.
                     No new receiving session will be created for this PO until this one is finalized.
                 </p>
             </div>
@@ -402,7 +402,7 @@
                                 <td class="px-3 py-3.5 text-center">
                                     @if($item->isCatalogMatched())
                                         <span class="font-mono text-xs font-black bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded text-slate-700 dark:text-slate-300">
-                                            {{ $item->variant->erp_code }}
+                                            {{ $item->variant->erp_code ?? $item->erp_code ?? '-' }}
                                         </span>
                                     @else
                                         <span class="text-[9px] font-black text-red-500 uppercase tracking-widest">
@@ -465,7 +465,7 @@
                             </a>
                             <a href="{{ route('receiving.session.pdf', $cs->id) }}" target="_blank" class="h-9 px-3 bg-slate-900 hover:bg-slate-800 text-white text-[9px] font-black uppercase tracking-wider rounded inline-flex items-center gap-1 transition-all shadow-sm">
                                 <span class="material-symbols-outlined text-xs">picture_as_pdf</span>
-                                A4 PDF Form
+                                F4 PDF Form
                             </a>
                         </div>
                     </div>

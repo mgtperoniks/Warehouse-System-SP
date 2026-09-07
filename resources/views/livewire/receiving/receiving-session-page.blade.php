@@ -219,7 +219,7 @@
                                 <span class="text-[8px] text-slate-500 font-bold block">Signed: {{ $diserahkanSig->signed_at ? $diserahkanSig->signed_at->format('d/m/Y H:i') : '-' }}</span>
                             </div>
                         @else
-                            <span class="text-[9px] text-slate-400 italic my-auto">Signed on physical A4 print</span>
+                            <span class="text-[9px] text-slate-400 italic my-auto">Signed on physical F4 print</span>
                         @endif
                     </div>
 
@@ -233,7 +233,7 @@
                                 <span class="text-[8px] text-slate-500 font-bold block">Signed: {{ $diterimaSig->signed_at ? $diterimaSig->signed_at->format('d/m/Y H:i') : '-' }}</span>
                             </div>
                         @else
-                            <span class="text-[9px] text-slate-400 italic my-auto">Signed on physical A4 print</span>
+                            <span class="text-[9px] text-slate-400 italic my-auto">Signed on physical F4 print</span>
                         @endif
                     </div>
 
@@ -247,7 +247,7 @@
                                 <span class="text-[8px] text-slate-500 font-bold block">Signed: {{ $gudangSig->signed_at ? $gudangSig->signed_at->format('d/m/Y H:i') : '-' }}</span>
                             </div>
                         @else
-                            <span class="text-[9px] text-slate-400 italic my-auto">Signed on physical A4 print</span>
+                            <span class="text-[9px] text-slate-400 italic my-auto">Signed on physical F4 print</span>
                         @endif
                     </div>
                 </div>
@@ -267,7 +267,7 @@
                    target="_blank"
                    class="flex-1 h-12 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black tracking-widest uppercase flex items-center justify-center gap-2 shadow-md shadow-emerald-200 dark:shadow-none transition-all active:scale-95">
                     <span class="material-symbols-outlined text-base">picture_as_pdf</span>
-                    VIEW / PRINT A4 FORM (ISO PDF)
+                    F4 — BUKTI PENGECEKAN BARANG DATANG
                 </a>
                 <a href="{{ route('outstanding-purchases') }}" 
                    class="flex-1 h-12 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-750 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-black tracking-widest uppercase flex items-center justify-center gap-1.5 transition-all active:scale-95">
@@ -327,7 +327,7 @@
                 <div class="p-3.5 bg-slate-50 dark:bg-slate-850 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center">
                     <span class="text-[10px] font-black text-slate-500 uppercase tracking-wider font-mono">Items Review Table</span>
                     <a href="{{ route('receiving.session.pdf', $session->id) }}" target="_blank" class="text-[9px] font-black text-blue-600 hover:text-blue-700 uppercase tracking-wider inline-flex items-center gap-1">
-                        <span class="material-symbols-outlined text-xs">picture_as_pdf</span> Preview A4
+                        <span class="material-symbols-outlined text-xs">picture_as_pdf</span> Preview F4
                     </a>
                 </div>
                 <div class="divide-y divide-slate-100 dark:divide-slate-800">
@@ -411,7 +411,7 @@
                 </div>
                 <a href="{{ route('receiving.session.pdf', $session->id) }}" target="_blank" class="h-9 px-3 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-[9px] font-black uppercase tracking-wider flex items-center gap-1 shadow-sm transition-all">
                     <span class="material-symbols-outlined text-xs">picture_as_pdf</span>
-                    PREVIEW A4
+                    PREVIEW F4
                 </a>
             </div>
 
@@ -420,7 +420,7 @@
                 <div class="flex items-center justify-between mb-4 border-b border-slate-100 dark:border-slate-800 pb-2">
                     <div>
                         <h3 class="text-xs font-black text-slate-900 dark:text-white uppercase tracking-wider">Digital Signatures</h3>
-                        <span class="text-[9px] text-slate-400 font-bold block">Optional — can be signed on paper A4 after printing</span>
+                        <span class="text-[9px] text-slate-400 font-bold block">Optional — can be signed on paper F4 after printing</span>
                     </div>
                     <span class="text-[8px] font-black text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded uppercase tracking-wider">
                         Optional
@@ -845,7 +845,7 @@
                            target="_blank"
                            class="w-32 h-12 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 rounded-xl text-[10px] font-black tracking-widest uppercase flex items-center justify-center gap-1 transition-all active:scale-95">
                             <span class="material-symbols-outlined text-sm">picture_as_pdf</span>
-                            A4 PDF
+                            F4 PDF
                         </a>
 
                         <button type="button" 

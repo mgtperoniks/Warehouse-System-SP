@@ -515,7 +515,7 @@ class ReceivingUXFinalizationREC04Test extends TestCase
             ->assertSee('READ ONLY — RECEIVING FINALIZED', false)
             ->assertSee('Verified Receiving Items', false)
             ->assertSee('Digital Signatures Record', false)
-            ->assertSee('VIEW / PRINT A4 FORM (ISO PDF)', false)
+            ->assertSee('F4 — BUKTI PENGECEKAN BARANG DATANG', false)
             ->assertSee('Back to Outstanding Purchases', false);
 
         // 2. Verify editing/verification buttons are NOT rendered

@@ -5,335 +5,453 @@
     <title>Bukti Pengecekan Barang Datang</title>
     <style>
         @page {
-            margin: 100px 35px 50px 35px;
+            size: 210mm 330mm;
+            margin: 0;
         }
-        body {
-            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
-            font-size: 8.5px;
+        * {
+            box-sizing: border-box;
+            -webkit-print-color-adjust: exact;
+        }
+        html, body {
+            margin: 0;
+            padding: 0;
+            width: 210mm;
             color: #000;
-            line-height: 1.3;
+            background: #fff;
+            font-size: 7.5pt;
+            line-height: 1.15;
+            font-family: Arial, Helvetica, sans-serif;
         }
-        header {
-            position: fixed;
-            top: -85px;
-            left: 0;
-            right: 0;
-            height: 75px;
-            border-bottom: 2px solid #000;
+        .f4-page {
+            width: 210mm;
+            background: #fff;
         }
-        footer {
-            position: fixed;
-            bottom: -35px;
-            left: 0;
-            right: 0;
-            height: 25px;
-            font-size: 7.5px;
-            color: #555;
-            border-top: 1px solid #ccc;
-            padding-top: 4px;
+
+        /* ============================================================
+           FORM BLOCK: Exactly 210mm × 110mm.
+           All padding is INSIDE the 110mm via box-sizing: border-box.
+           3 × 110mm = 330mm exactly — no separators consume extra height.
+        ============================================================ */
+        .form-block {
+            width: 210mm;
+            height: 110mm;
+            max-height: 110mm;
+            overflow: hidden;
+            padding: 3mm 10mm 2mm 10mm;
+            box-sizing: border-box;
+            position: relative;
         }
+
+        /* Content area is exactly 190mm = 210mm - 10mm(L) - 10mm(R) */
+        .form-content {
+            width: 190mm;
+        }
+
+        /* ============================================================
+           COMPANY HEADER
+        ============================================================ */
         .header-table {
-            width: 100%;
+            width: 190mm;
+            table-layout: fixed;
             border-collapse: collapse;
+            margin-bottom: 0.5mm;
         }
-        .company-name {
-            font-size: 11px;
-            font-weight: bold;
-            text-transform: uppercase;
+        .header-table td {
+            padding: 0;
+            vertical-align: middle;
         }
-        .header-title {
-            font-size: 12px;
-            font-weight: bold;
-            text-transform: uppercase;
-            text-align: center;
-            margin-top: 6px;
-            letter-spacing: 0.5px;
-        }
-        .iso-code {
-            text-align: right;
-            font-size: 8px;
-            font-weight: bold;
-            color: #000;
-        }
-        .meta-table {
-            width: 100%;
-            margin-top: 6px;
-            border-collapse: collapse;
-        }
-        .meta-table td {
-            font-size: 8.5px;
-            padding: 1.5px 0;
-            vertical-align: top;
-        }
-        .content-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 10px;
-        }
-        .content-table th {
-            font-weight: bold;
-            font-size: 8px;
-            text-transform: uppercase;
-            border: 1px solid #000;
-            padding: 4px 5px;
+        .col-logo {
+            width: 24mm;
             text-align: left;
             vertical-align: middle;
-            background-color: #f2f2f2;
         }
-        .content-table td {
-            border: 1px solid #000;
-            padding: 4px 5px;
-            font-size: 8px;
+        .col-center {
+            width: 142mm;
+            text-align: center;
             vertical-align: middle;
         }
-        .text-center {
+        .col-spacer {
+            width: 24mm;
+        }
+        .company-logo-img {
+            width: 22mm;
+            height: auto;
+            display: block;
+        }
+        .company-name-text {
+            font-family: 'Times New Roman', Times, serif;
+            font-size: 12pt;
+            font-weight: bold;
+            letter-spacing: 0.5px;
+            color: #000;
+            margin-bottom: 0.3mm;
+        }
+        .company-name-img {
+            height: 8mm;
+            width: auto;
+            display: block;
+            margin: 0 auto 0.4mm auto;
+        }
+        .company-address {
+            font-size: 5.5pt;
+            line-height: 1.3;
+            color: #000;
+        }
+
+        /* Header divider line */
+        .header-rule {
+            width: 190mm;
+            border: none;
+            border-top: 0.75pt solid #000;
+            margin: 0.3mm 0;
+        }
+
+        /* ============================================================
+           FORM TITLE
+        ============================================================ */
+        .form-title {
             text-align: center;
-        }
-        .text-right {
-            text-align: right;
-        }
-        .variance-pos {
-            color: #15803d;
+            font-size: 9.5pt;
             font-weight: bold;
-            font-size: 7.5px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin: 0.5mm 0 0.8mm 0;
+            color: #000;
         }
-        .variance-neg {
-            color: #b91c1c;
-            font-weight: bold;
-            font-size: 7.5px;
-        }
-        .removed-badge {
-            color: #b91c1c;
-            font-weight: bold;
-            font-style: italic;
-        }
-        .notes-section {
-            margin-top: 10px;
-            border: 1px solid #ddd;
-            padding: 6px;
-            background-color: #fafafa;
-            border-radius: 2px;
-            page-break-inside: avoid;
-        }
-        .signature-table {
-            width: 100%;
-            margin-top: 20px;
+
+        /* ============================================================
+           METADATA ROW
+        ============================================================ */
+        .meta-table {
+            width: 190mm;
+            table-layout: fixed;
             border-collapse: collapse;
-            page-break-inside: avoid;
+            font-size: 7pt;
+            margin-bottom: 0.6mm;
         }
-        .signature-table td {
-            width: 33.333%;
+        .meta-table td {
+            padding: 0;
+            vertical-align: bottom;
+        }
+
+        /* ============================================================
+           ITEMS TABLE
+           32 + 59.5 + 12 + 12 + 50.5 + 24 = 190mm exactly
+           (16.842% + 31.316% + 6.316% + 6.316% + 26.579% + 12.631% = 100%)
+        ============================================================ */
+        .items-table {
+            width: 190mm;
+            border-collapse: collapse;
+        }
+        .items-table th {
+            font-size: 6.5pt;
+            font-weight: bold;
+            text-align: center;
+            border: 0.5pt solid #000;
+            padding: 0.8px 0.5px;
+            background-color: #fff;
+            vertical-align: middle;
+            line-height: 1.1;
+        }
+        .items-table td {
+            border: 0.5pt solid #000;
+            padding: 0.8px 1.5px;
+            font-size: 6.5pt;
+            vertical-align: middle;
+            height: 5mm;
+            line-height: 1.1;
+            overflow: hidden;
+        }
+        .col-kode   { width: 16.842%; }
+        .col-nama   { width: 31.316%; }
+        .col-qtyd   { width: 6.316%; }
+        .col-qtyt   { width: 6.316%; }
+        .col-hasil  { width: 26.579%; }
+        .col-dept   { width: 12.631%; }
+        .text-center { text-align: center; }
+        .text-right  { text-align: right; }
+        .text-left   { text-align: left; }
+        .font-mono   { font-family: 'Courier New', Courier, monospace; font-size: 6pt; }
+        .font-bold   { font-weight: bold; }
+
+        /* ============================================================
+           SIGNATURE AREA
+           3 cols × 63.33mm, label + 15mm blank space
+        ============================================================ */
+        .signatures-table {
+            width: 190mm;
+            table-layout: fixed;
+            border-collapse: collapse;
+            margin-top: 1mm;
+        }
+        .signatures-table td {
+            width: 63.33mm;
             text-align: center;
             vertical-align: top;
-            padding: 0 8px;
+            padding: 0 2px;
         }
-        .signature-title {
+        .sig-title {
+            font-size: 7pt;
             font-weight: bold;
-            font-size: 8.5px;
-            text-transform: uppercase;
-            margin-bottom: 6px;
             text-align: center;
         }
-        .signature-box {
-            height: 48px;
-            text-align: center;
-            vertical-align: middle;
-            margin-bottom: 4px;
+        .sig-blank-space {
+            height: 15mm;
         }
-        .signature-img {
-            max-height: 46px;
-            max-width: 120px;
-            display: inline-block;
-            vertical-align: middle;
-            margin: 0 auto;
+
+        /* ============================================================
+           FOOTER: Document reference only
+        ============================================================ */
+        .doc-footer {
+            width: 190mm;
+            table-layout: fixed;
+            border-collapse: collapse;
+            font-size: 5.5pt;
+            color: #000;
+            margin-top: 0.5mm;
         }
-        .signature-line-container {
-            text-align: center;
-            margin-top: 2px;
+
+        /* ============================================================
+           CUT SEPARATOR: absolutely positioned at bottom of block,
+           zero additional height — stays inside 110mm.
+        ============================================================ */
+        .cut-indicator {
+            position: absolute;
+            bottom: 0;
+            left: 10mm;
+            right: 10mm;
+            border-top: 1pt dashed #999;
+            height: 0;
+            overflow: visible;
         }
-        .signature-name {
-            font-weight: bold;
-            font-size: 8px;
-            border-top: 1px solid #000;
-            padding-top: 3px;
-            display: inline-block;
-            width: 140px;
-            text-align: center;
+        .cut-icon {
+            position: absolute;
+            right: 0;
+            top: -6px;
+            font-size: 7pt;
+            color: #888;
+            background: #fff;
+            padding-left: 2px;
         }
     </style>
 </head>
 <body>
-    <header>
-        <table class="header-table">
-            <tr>
-                <td class="company-name" style="width: 50%;">PT. PERONI KARYA SENTRA</td>
-                <td class="iso-code" style="width: 50%;">FR/GUD/10-01-05/17-00-1/1</td>
-            </tr>
-        </table>
-        <div class="header-title">BUKTI PENGECEKAN BARANG DATANG</div>
-    </header>
+    @php
+        /* ---- Asset Loading ---- */
+        $logoBase64  = '';
+        $brandBase64 = '';
 
-    <footer>
-        <table style="width: 100%;">
-            <tr>
-                <td>Bukti Pengecekan Barang Datang - WMS Generated (Sesi #{{ $session->id }})</td>
-                <td style="text-align: right;">Tanggal Cetak: {{ now()->timezone('Asia/Jakarta')->format('d/m/Y H:i') }} WIB</td>
-            </tr>
-        </table>
-    </footer>
+        $logoCandidates = [
+            public_path('assets/images/pdf/pks_logo_black_hd.png'),
+            public_path('assets/images/pdf/pks_logo_black.png'),
+            public_path('assets/images/pdf/pks_logo_round.png'),
+        ];
+        foreach ($logoCandidates as $lp) {
+            if (file_exists($lp)) {
+                $logoBase64 = 'data:image/png;base64,' . base64_encode(file_get_contents($lp));
+                break;
+            }
+        }
 
-    <!-- Metadata Section -->
-    <table class="meta-table">
-        <tr>
-            <td style="width: 14%; font-weight: bold;">No. PO</td>
-            <td style="width: 36%;">: {{ $session->outstandingPurchaseOrder->po_number }}</td>
-            <td style="width: 14%; font-weight: bold;">Tanggal Datang</td>
-            <td style="width: 36%;">: {{ $session->completed_at ? \Carbon\Carbon::parse($session->completed_at)->timezone('Asia/Jakarta')->format('d/m/Y H:i') . ' WIB' : ($session->started_at ? \Carbon\Carbon::parse($session->started_at)->timezone('Asia/Jakarta')->format('d/m/Y') : now()->format('d/m/Y')) }}</td>
-        </tr>
-        <tr>
-            <td style="font-weight: bold;">Supplier</td>
-            <td>: {{ $session->outstandingPurchaseOrder->supplier_name_snapshot }}</td>
-            <td style="font-weight: bold;">Warehouse</td>
-            <td>: {{ $session->warehouse->name ?? 'N/A' }}</td>
-        </tr>
-        <tr>
-            <td style="font-weight: bold;">Status</td>
-            <td>: {{ $session->status }}</td>
-            <td style="font-weight: bold;">Operator / Checker</td>
-            <td>: {{ $session->creator->name ?? 'N/A' }}</td>
-        </tr>
-        <tr>
-            <td style="font-weight: bold;">Reviewer</td>
-            <td>: {{ $session->reviewedBy->name ?? '-' }}</td>
-            <td style="font-weight: bold;">No. Sesi</td>
-            <td>: #{{ $session->id }}</td>
-        </tr>
-    </table>
+        $brandCandidates = [
+            public_path('assets/images/pdf/pks_brand_black_hd.png'),
+            public_path('assets/images/pdf/pks_brand_black.png'),
+            public_path('assets/images/pdf/pks_brand_name.png'),
+        ];
+        foreach ($brandCandidates as $bp) {
+            if (file_exists($bp)) {
+                $brandBase64 = 'data:image/png;base64,' . base64_encode(file_get_contents($bp));
+                break;
+            }
+        }
 
-    <!-- Items Table -->
-    <table class="content-table">
-        <thead>
-            <tr>
-                <th style="width: 4%;" class="text-center">NO</th>
-                <th style="width: 16%;">KODE</th>
-                <th style="width: 32%;">NAMA BARANG</th>
-                <th style="width: 12%;" class="text-center">QTY DATANG</th>
-                <th style="width: 12%;" class="text-center">QTY TERIMA</th>
-                <th style="width: 12%;" class="text-center">HASIL PENGECEKAN</th>
-                <th style="width: 12%;" class="text-center">DEPT. PEMESAN</th>
-            </tr>
-        </thead>
-        <tbody>
-            @php $no = 1; @endphp
-            @foreach($items as $item)
-                @php
-                    $rawErpCode = $item->variant->erp_code ?? ($item->outstandingPurchaseOrderItem->erp_code ?? '-');
-                    $deptName = $item->outstandingPurchaseOrderItem->department_name ?: ($session->outstandingPurchaseOrder->department_name ?: '-');
-                    $qtyDatang = $item->qty_datang !== null ? (float)$item->qty_datang : (float)$item->expected_qty;
-                    $qtyTerima = (float)$item->received_qty;
-                    $expected = (float)$item->expected_qty;
-                    $diff = round($qtyDatang - $expected, 3);
-                @endphp
-                <tr>
-                    <td class="text-center">{{ $no++ }}</td>
-                    <td style="font-family: monospace; font-size: 7.5px;">{{ $rawErpCode }}</td>
-                    <td style="font-weight: bold;">
-                        {{ $item->outstandingPurchaseOrderItem->item_name_snapshot }}
-                        @if($item->check_notes)
-                            <div style="font-weight: normal; font-style: italic; color: #555; font-size: 7px; margin-top: 1px;">
-                                Catatan: {{ $item->check_notes }}
-                            </div>
-                        @endif
-                    </td>
-                    <td class="text-center">
-                        @if($item->isRemoved())
-                            <span class="removed-badge">-</span>
-                        @else
-                            {{ (float)$qtyDatang == (int)$qtyDatang ? (int)$qtyDatang : number_format($qtyDatang, 2) }}
-                            @if($diff > 0.0001)
-                                <div class="variance-pos">(+{{ (float)$diff == (int)$diff ? (int)$diff : number_format($diff, 2) }})</div>
-                            @elseif($diff < -0.0001)
-                                <div class="variance-neg">({{ (float)$diff == (int)$diff ? (int)$diff : number_format($diff, 2) }})</div>
-                            @endif
-                        @endif
-                    </td>
-                    <td class="text-center font-bold">
-                        @if($item->isRemoved())
-                            <span class="removed-badge">REMOVED</span>
-                        @else
-                            {{ (float)$qtyTerima == (int)$qtyTerima ? (int)$qtyTerima : number_format($qtyTerima, 2) }}
-                        @endif
-                    </td>
-                    <td class="text-center">
-                        @if($item->isRemoved())
-                            <span class="removed-badge">REMOVED ({{ $item->removed_reason }})</span>
-                        @else
-                            <strong>{{ $item->check_result ?: 'OK' }}</strong>
-                        @endif
-                    </td>
-                    <td class="text-center">{{ $deptName }}</td>
-                </tr>
-            @endforeach
-        </tbody>
-    </table>
+        /* ---- Session Data ---- */
+        $supplierName  = $session->outstandingPurchaseOrder->supplier_name_snapshot ?? 'N/A';
+        $poNumber      = $session->outstandingPurchaseOrder->po_number ?? 'N/A';
+        $dateFormatted = $session->completed_at
+            ? \Carbon\Carbon::parse($session->completed_at)->timezone('Asia/Jakarta')->format('d/m/Y')
+            : ($session->started_at
+                ? \Carbon\Carbon::parse($session->started_at)->timezone('Asia/Jakarta')->format('d/m/Y')
+                : now()->format('d/m/Y'));
 
-    <!-- Session Remarks if any -->
-    @if($session->remarks)
-        <div class="notes-section">
-            <span style="font-weight: bold; text-transform: uppercase; font-size: 8px;">Keterangan / Catatan Sesi:</span>
-            <div style="margin-top: 2px; font-size: 8px;">{{ $session->remarks }}</div>
-        </div>
-    @endif
+        /* ---- Pagination: 6 items per block, 3 blocks per F4 page ---- */
+        $itemChunks = $items->chunk(6);
+        if ($itemChunks->isEmpty()) {
+            $itemChunks = collect([collect()]);
+        }
+        $pages = $itemChunks->chunk(3);
 
-    <!-- Signature Area -->
-    <table class="signature-table">
-        <tr>
-            <td>
-                <div class="signature-title">DISERAHKAN OLEH</div>
-                <div class="signature-box">
-                    @php
-                        $sigDiserahkan = $signatures['DISERAHKAN_OLEH'] ?? null;
-                        $diserahkanSrc = $sigDiserahkan->base64_data ?? (isset($sigDiserahkan->signature_path) && Storage::disk('public')->exists($sigDiserahkan->signature_path) ? 'data:image/png;base64,' . base64_encode(Storage::disk('public')->get($sigDiserahkan->signature_path)) : null);
-                    @endphp
-                    @if($diserahkanSrc)
-                        <img class="signature-img" src="{{ $diserahkanSrc }}" alt="Diserahkan Oleh Signature">
+        /* ---- Signature Map: keyed by role (passed from controller) ---- */
+        $signatures = $signatures ?? [];
+    @endphp
+
+    @foreach($pages as $pageIndex => $pageBlocks)
+        <div class="f4-page" style="{{ !$loop->last ? 'page-break-after: always;' : '' }}">
+
+            @for($b = 0; $b < 3; $b++)
+                @php $blockItems = $pageBlocks->values()->get($b) ?? collect(); @endphp
+
+                {{-- FORM BLOCK: 210mm × 110mm (box-sizing: border-box) --}}
+                <div class="form-block">
+                    <div class="form-content">
+
+                        {{-- ===== COMPANY HEADER ===== --}}
+                        <table class="header-table">
+                            <tr>
+                                <td class="col-logo">
+                                    @if($logoBase64)
+                                        <img src="{{ $logoBase64 }}" class="company-logo-img" alt="PKS Logo">
+                                    @endif
+                                </td>
+                                <td class="col-center">
+                                    @if($brandBase64)
+                                        <img src="{{ $brandBase64 }}" class="company-name-img" alt="PT. PERONI KARYA SENTRA">
+                                    @else
+                                        <div class="company-name-text">PT. PERONI KARYA SENTRA</div>
+                                    @endif
+                                    <div class="company-address">
+                                        Ngoro Industri Persada Blok K-5A, Ngoro, Mojokerto 61385 East Java - Indonesia<br>
+                                        Tel: +62 321 6818225, 6818226, 6818099 &bull; Fax: +62 321 6817229, 6818220<br>
+                                        Email : peroni@indosat.net.id &bull; peroni@peroniks.com &bull; URL: www.peroniks.com
+                                    </div>
+                                </td>
+                                <td class="col-spacer"></td>
+                            </tr>
+                        </table>
+                        <div class="header-rule"></div>
+
+                        {{-- ===== FORM TITLE ===== --}}
+                        <div class="form-title">BUKTI PENGECEKAN BARANG DATANG</div>
+
+                        {{-- ===== METADATA ROW ===== --}}
+                        <table class="meta-table">
+                            <tr>
+                                <td style="width:130mm; text-align:left;">
+                                    Telah terima barang dari&nbsp;:&nbsp;<strong>{{ $supplierName }}</strong>&nbsp;&nbsp;PO&nbsp;:&nbsp;<strong>{{ $poNumber }}</strong>
+                                </td>
+                                <td style="width:60mm; text-align:right;">
+                                    Tgl&nbsp;:&nbsp;<strong>{{ $dateFormatted }}</strong>
+                                </td>
+                            </tr>
+                        </table>
+
+                        {{-- ===== ITEMS TABLE ===== --}}
+                        {{-- Physical proportions: 32mm / 59.5mm / 12mm / 12mm / 50.5mm / 24mm (190mm total)
+                             Using percentage widths without table-layout:fixed so DomPDF resolves exact geometry. --}}
+                        <table class="items-table">
+                            <thead>
+                                <tr>
+                                    <th class="col-kode" rowspan="2">KODE</th>
+                                    <th class="col-nama" rowspan="2">NAMA BARANG</th>
+                                    <th colspan="2" style="font-size:6.5pt; padding: 0.5px 0;">QTY</th>
+                                    <th class="col-hasil" rowspan="2">HASIL PENGECEKAN</th>
+                                    <th class="col-dept" rowspan="2">DEPT.<br>PEMESAN</th>
+                                </tr>
+                                <tr>
+                                    <th class="col-qtyd" style="font-size:5.5pt; padding:0.5px 0;">Datang</th>
+                                    <th class="col-qtyt" style="font-size:5.5pt; padding:0.5px 0;">Terima</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @for($r = 0; $r < 6; $r++)
+                                    @php $item = $blockItems->values()->get($r); @endphp
+                                    @if($item)
+                                        @php
+                                             $erpCode     = $item->variant->erp_code ?? ($item->outstandingPurchaseOrderItem->erp_code ?? '-');
+                                             $deptName    = $item->outstandingPurchaseOrderItem->department_name
+                                                          ?: ($session->outstandingPurchaseOrder->department_name ?: '-');
+                                             $qtyDatang   = $item->qty_datang !== null ? (float)$item->qty_datang : (float)$item->expected_qty;
+                                             $qtyTerima   = (float)$item->received_qty;
+                                             $fmtDatang   = (float)$qtyDatang == (int)$qtyDatang ? (int)$qtyDatang : number_format($qtyDatang, 2);
+                                             $fmtTerima   = (float)$qtyTerima == (int)$qtyTerima ? (int)$qtyTerima : number_format($qtyTerima, 2);
+                                             $checkResult = $item->isRemoved() ? 'REMOVED' : ($item->check_result ?: 'OK');
+                                        @endphp
+                                        <tr>
+                                            <td class="col-kode font-mono text-left">{{ $erpCode }}</td>
+                                            <td class="col-nama font-bold text-left">
+                                                {{ $item->outstandingPurchaseOrderItem->item_name_snapshot ?? '-' }}
+                                                @if($item->check_notes)
+                                                    <div style="font-weight:normal;font-style:italic;font-size:5pt;color:#444;">{{ $item->check_notes }}</div>
+                                                @endif
+                                            </td>
+                                            <td class="col-qtyd text-center" style="font-size:6pt;">{{ $fmtDatang }}</td>
+                                            <td class="col-qtyt text-center font-bold" style="font-size:6pt;">{{ $fmtTerima }}</td>
+                                            <td class="col-hasil text-center font-bold">{{ $checkResult }}</td>
+                                            <td class="col-dept text-center">{{ $deptName }}</td>
+                                        </tr>
+                                    @else
+                                        <tr>
+                                            <td class="col-kode">&nbsp;</td>
+                                            <td class="col-nama">&nbsp;</td>
+                                            <td class="col-qtyd">&nbsp;</td>
+                                            <td class="col-qtyt">&nbsp;</td>
+                                            <td class="col-hasil">&nbsp;</td>
+                                            <td class="col-dept">&nbsp;</td>
+                                        </tr>
+                                    @endif
+                                @endfor
+                            </tbody>
+                        </table>
+
+                        {{-- ===== SIGNATURE AREA ===== --}}
+                        {{-- $signatures is keyed by role: DISERAHKAN_OLEH | DITERIMA_OLEH | BAG_GUDANG --}}
+                        {{-- Layout: label ABOVE, signature sits in blank space BELOW the label --}}
+                        <table class="signatures-table">
+                            <tr>
+                                <td>
+                                    <div class="sig-title">Diserahkan Oleh</div>
+                                    <div class="sig-blank-space">
+                                        @if(!empty($signatures['DISERAHKAN_OLEH']) && !empty($signatures['DISERAHKAN_OLEH']->base64_data))
+                                            <img src="{{ $signatures['DISERAHKAN_OLEH']->base64_data }}"
+                                                 style="max-height:13mm; max-width:58mm; width:auto; height:auto; display:block; margin:2mm auto 0 auto;"
+                                                 alt="">
+                                        @endif
+                                    </div>
+                                </td>
+                                <td>
+                                    <div class="sig-title">Diterima/Dicek Oleh</div>
+                                    <div class="sig-blank-space">
+                                        @if(!empty($signatures['DITERIMA_OLEH']) && !empty($signatures['DITERIMA_OLEH']->base64_data))
+                                            <img src="{{ $signatures['DITERIMA_OLEH']->base64_data }}"
+                                                 style="max-height:13mm; max-width:58mm; width:auto; height:auto; display:block; margin:2mm auto 0 auto;"
+                                                 alt="">
+                                        @endif
+                                    </div>
+                                </td>
+                                <td>
+                                    <div class="sig-title">Bag. Gudang</div>
+                                    <div class="sig-blank-space">
+                                        @if(!empty($signatures['BAG_GUDANG']) && !empty($signatures['BAG_GUDANG']->base64_data))
+                                            <img src="{{ $signatures['BAG_GUDANG']->base64_data }}"
+                                                 style="max-height:13mm; max-width:58mm; width:auto; height:auto; display:block; margin:2mm auto 0 auto;"
+                                                 alt="">
+                                        @endif
+                                    </div>
+                                </td>
+                            </tr>
+                        </table>
+
+                        {{-- ===== FOOTER ===== --}}
+                        <table class="doc-footer">
+                            <tr>
+                                <td style="text-align:left; width:50%;">FR/GUD/10-01-05/17-00-1/1</td>
+                                <td style="text-align:right; width:50%;"></td>
+                            </tr>
+                        </table>
+
+                    </div>{{-- /form-content --}}
+
+                    {{-- Cut separator: absolutely positioned at bottom edge, zero extra height --}}
+                    @if($b < 2)
+                        <div class="cut-indicator">
+                            <span class="cut-icon">&#9986;</span>
+                        </div>
                     @endif
-                </div>
-                <div class="signature-line-container">
-                    <div class="signature-name">( Vendor / Sopir )</div>
-                </div>
-            </td>
-            <td>
-                <div class="signature-title">DITERIMA/DICEK OLEH</div>
-                <div class="signature-box">
-                    @php
-                        $sigDiterima = $signatures['DITERIMA_OLEH'] ?? null;
-                        $diterimaSrc = $sigDiterima->base64_data ?? (isset($sigDiterima->signature_path) && Storage::disk('public')->exists($sigDiterima->signature_path) ? 'data:image/png;base64,' . base64_encode(Storage::disk('public')->get($sigDiterima->signature_path)) : null);
-                    @endphp
-                    @if($diterimaSrc)
-                        <img class="signature-img" src="{{ $diterimaSrc }}" alt="Diterima Oleh Signature">
-                    @endif
-                </div>
-                <div class="signature-line-container">
-                    <div class="signature-name">( {{ $session->creator->name ?? 'Checker' }} )</div>
-                </div>
-            </td>
-            <td>
-                <div class="signature-title">BAG. GUDANG</div>
-                <div class="signature-box">
-                    @php
-                        $sigGudang = $signatures['BAG_GUDANG'] ?? null;
-                        $gudangSrc = $sigGudang->base64_data ?? (isset($sigGudang->signature_path) && Storage::disk('public')->exists($sigGudang->signature_path) ? 'data:image/png;base64,' . base64_encode(Storage::disk('public')->get($sigGudang->signature_path)) : null);
-                    @endphp
-                    @if($gudangSrc)
-                        <img class="signature-img" src="{{ $gudangSrc }}" alt="Bagian Gudang Signature">
-                    @endif
-                </div>
-                <div class="signature-line-container">
-                    <div class="signature-name">( {{ $session->reviewedBy->name ?? 'Staff Gudang' }} )</div>
-                </div>
-            </td>
-        </tr>
-    </table>
+
+                </div>{{-- /form-block --}}
+
+            @endfor
+        </div>{{-- /f4-page --}}
+    @endforeach
 </body>
 </html>

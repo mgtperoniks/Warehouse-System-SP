@@ -493,7 +493,7 @@ class OutstandingPurchaseWorkflowRegressionTest extends TestCase
 
         // PDF links are present
         $component->assertSee('View Session');
-        $component->assertSee('A4 PDF Form');
+        $component->assertSee('F4 PDF Form');
     }
 
     // =========================================================================

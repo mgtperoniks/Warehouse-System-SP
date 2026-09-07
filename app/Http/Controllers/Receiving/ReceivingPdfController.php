@@ -31,12 +31,13 @@ class ReceivingPdfController extends Controller
 
         // Only allow generated PDFs for verified / reviewed / completed sessions
         if ($session->status === ReceivingSession::STATUS_DRAFT) {
-            abort(400, 'Receiving session is still in DRAFT status. Complete checking first to generate A4 form.');
+            abort(400, 'Receiving session is still in DRAFT status. Complete checking first to generate F4 form.');
         }
 
         $pdfPath = $session->pdf_path ?: 'receiving/receiving_session_' . $session->id . '.pdf';
+        $force = request()->has('force');
 
-        if ($session->status === ReceivingSession::STATUS_COMPLETED && Storage::disk('public')->exists($pdfPath)) {
+        if (!$force && $session->status === ReceivingSession::STATUS_COMPLETED && Storage::disk('public')->exists($pdfPath)) {
             return response()->file(Storage::disk('public')->path($pdfPath), [
                 'Content-Type' => 'application/pdf',
                 'Content-Disposition' => 'inline; filename="' . basename($pdfPath) . '"'
@@ -61,7 +62,7 @@ class ReceivingPdfController extends Controller
             'session' => $session,
             'items' => $items,
             'signatures' => $sigMap,
-        ])->setPaper('a4', 'portrait');
+        ])->setPaper([0, 0, 595.28, 935.43], 'portrait');
 
         if ($session->status === ReceivingSession::STATUS_COMPLETED) {
             Storage::disk('public')->put($pdfPath, $pdf->output());
