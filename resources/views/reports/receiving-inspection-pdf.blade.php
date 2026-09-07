@@ -210,29 +210,6 @@
             color: #000;
             margin-top: 0.5mm;
         }
-
-        /* ============================================================
-           CUT SEPARATOR: absolutely positioned at bottom of block,
-           zero additional height — stays inside 110mm.
-        ============================================================ */
-        .cut-indicator {
-            position: absolute;
-            bottom: 0;
-            left: 10mm;
-            right: 10mm;
-            border-top: 1pt dashed #999;
-            height: 0;
-            overflow: visible;
-        }
-        .cut-icon {
-            position: absolute;
-            right: 0;
-            top: -6px;
-            font-size: 7pt;
-            color: #888;
-            background: #fff;
-            padding-left: 2px;
-        }
     </style>
 </head>
 <body>
@@ -274,26 +251,22 @@
                 ? \Carbon\Carbon::parse($session->started_at)->timezone('Asia/Jakarta')->format('d/m/Y')
                 : now()->format('d/m/Y'));
 
-        /* ---- Pagination: 6 items per block, 3 blocks per F4 page ---- */
+        /* ---- Pagination: 6 items per form, 1 form per F4 page ---- */
         $itemChunks = $items->chunk(6);
         if ($itemChunks->isEmpty()) {
             $itemChunks = collect([collect()]);
         }
-        $pages = $itemChunks->chunk(3);
 
         /* ---- Signature Map: keyed by role (passed from controller) ---- */
         $signatures = $signatures ?? [];
     @endphp
 
-    @foreach($pages as $pageIndex => $pageBlocks)
+    @foreach($itemChunks as $formIndex => $blockItems)
         <div class="f4-page" style="{{ !$loop->last ? 'page-break-after: always;' : '' }}">
 
-            @for($b = 0; $b < 3; $b++)
-                @php $blockItems = $pageBlocks->values()->get($b) ?? collect(); @endphp
-
-                {{-- FORM BLOCK: 210mm × 110mm (box-sizing: border-box) --}}
-                <div class="form-block">
-                    <div class="form-content">
+            {{-- FORM BLOCK: 210mm × 110mm positioned at TOP of F4 page (box-sizing: border-box) --}}
+            <div class="form-block">
+                <div class="form-content">
 
                         {{-- ===== COMPANY HEADER ===== --}}
                         <table class="header-table">
@@ -440,17 +413,7 @@
                         </table>
 
                     </div>{{-- /form-content --}}
-
-                    {{-- Cut separator: absolutely positioned at bottom edge, zero extra height --}}
-                    @if($b < 2)
-                        <div class="cut-indicator">
-                            <span class="cut-icon">&#9986;</span>
-                        </div>
-                    @endif
-
                 </div>{{-- /form-block --}}
-
-            @endfor
         </div>{{-- /f4-page --}}
     @endforeach
 </body>
