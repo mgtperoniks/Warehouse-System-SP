@@ -249,6 +249,15 @@
                         </span>
                     </a>
                     <a 
+                        class="sidebar-nav-item relative group/nav flex items-center w-full px-3 py-2.5 justify-start gap-3 {{ request()->routeIs('consumption-intelligence') ? 'bg-slate-200/90 dark:bg-slate-800/90 text-green-700 dark:text-green-300 border-l-[4px] border-green-600 shadow-sm font-bold' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-200/60 dark:hover:bg-slate-800/60 border-l-[4px] border-transparent' }} rounded-xl transition-all duration-200" 
+                        href="{{ route('consumption-intelligence') }}">
+                        <span class="material-symbols-outlined text-2xl shrink-0">trending_up</span>
+                        <span class="sidebar-text-label text-xs font-bold truncate">Consumption Intel</span>
+                        <span class="sidebar-hover-tooltip absolute left-16 bg-slate-900 dark:bg-slate-800 text-white text-xs font-bold px-2.5 py-1.5 rounded-md shadow-xl opacity-0 translate-x-[-8px] transition-all duration-200 pointer-events-none whitespace-nowrap z-50">
+                            Consumption Intel
+                        </span>
+                    </a>
+                    <a 
                         class="sidebar-nav-item relative group/nav flex items-center w-full px-3 py-2.5 justify-start gap-3 {{ request()->routeIs('barcode.printing') ? 'bg-slate-200/90 dark:bg-slate-800/90 text-green-700 dark:text-green-300 border-l-[4px] border-green-600 shadow-sm font-bold' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-200/60 dark:hover:bg-slate-800/60 border-l-[4px] border-transparent' }} rounded-xl transition-all duration-200" 
                         href="{{ route('barcode.printing') }}">
                         <span class="material-symbols-outlined text-2xl shrink-0">print</span>
